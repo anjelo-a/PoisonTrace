@@ -1,0 +1,3 @@
+# one wallet per line
+# replace with your focal wallets for local ingestion
+FocalWalletAddressExample11111111111111111111111

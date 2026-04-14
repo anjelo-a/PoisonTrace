@@ -1,0 +1,23 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Vet
+        run: go vet ./...
+      - name: Test
+        run: go test ./...
+      - name: Fixture policy check
+        run: |
+          test -f data/fixtures/README.md
+          grep -q "unknown_gate_reason" data/fixtures/README.md
+          grep -q "same_signature_multiple_wallets" data/fixtures/README.md

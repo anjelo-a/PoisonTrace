@@ -1,0 +1,45 @@
+# Environment and local config (may contain secrets)
+.env
+.env.*
+!.env.example
+
+# Private keys and credentials
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.jks
+*.kubeconfig
+id_rsa
+id_ed25519
+credentials.json
+secrets.json
+
+# Database dumps and local backups
+*.dump
+*.bak
+*.backup
+*.sql.gz
+*.sqlite
+*.sqlite3
+
+# Logs and temporary files
+*.log
+tmp/
+temp/
+.cache/
+
+# Go build/test artifacts
+bin/
+dist/
+coverage.out
+*.test
+scanner
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
