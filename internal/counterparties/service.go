@@ -1,6 +1,11 @@
 package counterparties
 
-import "time"
+import (
+	"strings"
+	"time"
+
+	"poisontrace/internal/transactions"
+)
 
 type RelationType string
 
@@ -14,6 +19,52 @@ type Event struct {
 	CounterpartyAddress string
 	RelationType        RelationType
 	OccurredAt          time.Time
+}
+
+func DeriveEvent(focalWalletID int64, focalWalletAddress string, tr transactions.NormalizedTransfer) (Event, bool) {
+	mapping, ok := MapWalletRelation(focalWalletAddress, tr)
+	if !ok {
+		return Event{}, false
+	}
+	return Event{
+		FocalWalletID:       focalWalletID,
+		CounterpartyAddress: mapping.CounterpartyAddress,
+		RelationType:        mapping.RelationType,
+		OccurredAt:          tr.BlockTime.UTC(),
+	}, true
+}
+
+type RelationMapping struct {
+	RelationType        RelationType
+	CounterpartyAddress string
+}
+
+// MapWalletRelation determines sender/receiver relation from normalized owner endpoints only.
+func MapWalletRelation(focalWalletAddress string, tr transactions.NormalizedTransfer) (RelationMapping, bool) {
+	focal := strings.TrimSpace(focalWalletAddress)
+	src := strings.TrimSpace(tr.SourceOwnerAddress)
+	dst := strings.TrimSpace(tr.DestinationOwnerAddress)
+	if focal == "" || src == "" || dst == "" {
+		return RelationMapping{}, false
+	}
+
+	// Owner-level self-transfers never form counterparties.
+	if src == dst {
+		return RelationMapping{}, false
+	}
+	if src == focal {
+		return RelationMapping{
+			RelationType:        RelationSender,
+			CounterpartyAddress: dst,
+		}, true
+	}
+	if dst == focal {
+		return RelationMapping{
+			RelationType:        RelationReceiver,
+			CounterpartyAddress: src,
+		}, true
+	}
+	return RelationMapping{}, false
 }
 
 func ApplyEvent(cp Counterparty, event Event) Counterparty {

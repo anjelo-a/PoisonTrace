@@ -27,8 +27,7 @@ func NormalizeEnhancedTx(tx helius.EnhancedTransaction) ([]NormalizedTransfer, e
 			reason = "missing_native_owner_endpoint"
 			eligible = false
 		}
-		if src != "" && src == dst {
-			status = NormalizationFailed
+		if src != "" && src == dst && status == NormalizationResolved {
 			reason = "self_transfer_owner_level"
 			eligible = false
 		}
@@ -60,31 +59,33 @@ func NormalizeEnhancedTx(tx helius.EnhancedTransaction) ([]NormalizedTransfer, e
 		status := NormalizationResolved
 		reason := ""
 		eligible := true
+		assetType := AssetTypeSPLFungible
 
 		if tt.TokenStandard != "Fungible" && tt.TokenStandard != "fungible" && tt.TokenStandard != "FUNGIBLE" {
 			status = NormalizationUnsupportedAsset
 			reason = "unsupported_token_standard"
 			eligible = false
-		}
-		if src == "" || dst == "" {
-			status = NormalizationUnresolvedOwner
-			reason = "missing_spl_owner_endpoint"
-			eligible = false
-		}
-		if src != "" && dst != "" && src == dst {
-			status = NormalizationFailed
-			reason = "self_transfer_owner_level"
-			eligible = false
-		}
-		if src != "" && src == tt.FromTokenAccount {
-			status = NormalizationUnresolvedOwner
-			reason = "owner_equals_token_account_source"
-			eligible = false
-		}
-		if dst != "" && dst == tt.ToTokenAccount {
-			status = NormalizationUnresolvedOwner
-			reason = "owner_equals_token_account_destination"
-			eligible = false
+			assetType = AssetTypeOther
+		} else {
+			if src == "" || dst == "" {
+				status = NormalizationUnresolvedOwner
+				reason = "missing_spl_owner_endpoint"
+				eligible = false
+			}
+			if src != "" && src == tt.FromTokenAccount {
+				status = NormalizationUnresolvedOwner
+				reason = "owner_equals_token_account_source"
+				eligible = false
+			}
+			if dst != "" && dst == tt.ToTokenAccount {
+				status = NormalizationUnresolvedOwner
+				reason = "owner_equals_token_account_destination"
+				eligible = false
+			}
+			if src != "" && dst != "" && src == dst && status == NormalizationResolved {
+				reason = "self_transfer_owner_level"
+				eligible = false
+			}
 		}
 
 		instructionRef := "spl"
@@ -100,7 +101,7 @@ func NormalizeEnhancedTx(tx helius.EnhancedTransaction) ([]NormalizedTransfer, e
 		tr := NormalizedTransfer{
 			Signature:               tx.Signature,
 			TransferIndex:           idx,
-			TransferFingerprint:     BuildTransferFingerprint(tx.Signature, instructionRef, src, dst, tt.Mint, tt.TokenAmount.Amount, AssetTypeSPLFungible),
+			TransferFingerprint:     BuildTransferFingerprint(tx.Signature, instructionRef, src, dst, tt.Mint, tt.TokenAmount.Amount, assetType),
 			Slot:                    tx.Slot,
 			BlockTime:               tx.BlockTimeUTC(),
 			SourceOwnerAddress:      src,
@@ -109,7 +110,7 @@ func NormalizeEnhancedTx(tx helius.EnhancedTransaction) ([]NormalizedTransfer, e
 			DestinationTokenAccount: tt.ToTokenAccount,
 			AmountRaw:               tt.TokenAmount.Amount,
 			TokenMint:               tt.Mint,
-			AssetType:               AssetTypeSPLFungible,
+			AssetType:               assetType,
 			AssetKey:                tt.Mint,
 			Decimals:                tt.TokenAmount.Decimals,
 			NormalizationStatus:     status,
