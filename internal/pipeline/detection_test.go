@@ -6,6 +6,7 @@ func passGateSet() CandidateGate {
 	return CandidateGate{
 		NormalizationResolved: GatePass,
 		PoisoningEligible:     GatePass,
+		AssetTypeSupported:    GatePass,
 		Inbound:               GatePass,
 		ZeroOrDust:            GatePass,
 		NewCounterparty:       GatePass,

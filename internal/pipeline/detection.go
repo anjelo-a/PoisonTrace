@@ -17,6 +17,7 @@ const (
 type CandidateGate struct {
 	NormalizationResolved GateState
 	PoisoningEligible     GateState
+	AssetTypeSupported    GateState
 	Inbound               GateState
 	ZeroOrDust            GateState
 	NewCounterparty       GateState
@@ -40,6 +41,7 @@ func EvaluateCandidate(g CandidateGate) CandidateDecision {
 	}{
 		{name: "normalization_resolved", state: g.NormalizationResolved},
 		{name: "poisoning_eligible", state: g.PoisoningEligible},
+		{name: "asset_type_supported", state: g.AssetTypeSupported},
 		{name: "inbound", state: g.Inbound},
 		{name: "zero_or_dust", state: g.ZeroOrDust},
 		{name: "is_new_counterparty", state: g.NewCounterparty},

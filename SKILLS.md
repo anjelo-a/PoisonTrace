@@ -4,6 +4,14 @@
 
 Engineering standards for PoisonTrace Phase 0–1 implementation in Go.
 
+## Delivery Output Requirements
+
+1. For every code change response, always provide:
+- a branch name
+- a commit name (commit message subject line)
+2. Use concise, descriptive names that reflect scope.
+3. If no code changed, explicitly state that no branch/commit is required.
+
 ## Go Coding Standards
 
 1. Use Go 1.22+ style with explicit context propagation.
