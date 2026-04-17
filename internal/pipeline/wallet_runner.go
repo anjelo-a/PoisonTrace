@@ -131,6 +131,8 @@ func (r *WalletExecutionRunner) RunWallet(ctx context.Context, walletAddress str
 		errorMessage = err.Error()
 		if errors.Is(err, context.DeadlineExceeded) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			status = runs.WalletStatusTimedOut
+			progress.IncompleteWindow = true
+			progress.UnknownGateReason = mergeReasons(progress.UnknownGateReason, "unknown_required_gates:wallet_runner_timeout")
 		} else if runs.IsPartial(progressPersisted, true) {
 			status = runs.WalletStatusPartial
 			progress.IncompleteWindow = true

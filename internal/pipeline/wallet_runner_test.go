@@ -254,6 +254,44 @@ func TestWalletExecutionRunner_PartialOnBaselineTruncation(t *testing.T) {
 	}
 }
 
+func TestWalletExecutionRunner_TimedOutMarksIncompleteWindow(t *testing.T) {
+	scanStart := time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)
+	scanEnd := time.Date(2026, 4, 8, 0, 0, 0, 0, time.UTC)
+
+	client := &scriptedClient{
+		errs: []error{context.DeadlineExceeded},
+	}
+
+	store := newWalletRunnerStoreStub()
+	runner := &WalletExecutionRunner{
+		cfg:    testConfig(),
+		store:  store,
+		client: client,
+	}
+
+	report, err := runner.RunWallet(context.Background(), "walletA", RunParams{
+		ScanStart:            scanStart,
+		ScanEnd:              scanEnd,
+		BaselineLookbackDays: 90,
+		IngestionRunID:       89,
+	}, WalletRunLimits{MaxTXPagesPerWallet: 5, MaxTXPerWallet: 100, MaxHeliusRetries: 1})
+	if err == nil {
+		t.Fatal("expected timeout failure")
+	}
+	if report.WalletStatus != runs.WalletStatusTimedOut {
+		t.Fatalf("expected timed_out wallet status, got %s", report.WalletStatus)
+	}
+	if len(store.finalized) != 1 {
+		t.Fatalf("expected one finalize call, got %+v", store.finalized)
+	}
+	if !store.finalized[0].incomplete {
+		t.Fatalf("expected finalized incomplete=true on timeout, got %+v", store.finalized[0])
+	}
+	if !strings.Contains(store.finalized[0].unknown, "unknown_required_gates:wallet_runner_timeout") {
+		t.Fatalf("expected timeout unknown gate reason, got %q", store.finalized[0].unknown)
+	}
+}
+
 func TestBuildDustClassifier_EffectiveTimeAwareThresholds(t *testing.T) {
 	store := newWalletRunnerStoreStub()
 	store.dustThresholds = []storage.DustThresholdRecord{
