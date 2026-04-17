@@ -77,6 +77,10 @@ type Meta struct {
 	FetchScript            []FetchScriptStep `json:"fetch_script,omitempty"`
 }
 
+type metaFieldPresence struct {
+	MaxHeliusRetries bool
+}
+
 type DustThreshold struct {
 	AssetKey   string     `json:"asset_key"`
 	AmountRaw  string     `json:"amount_raw"`
@@ -241,13 +245,17 @@ func LoadCase(rootDir, caseID string) (FixtureCase, error) {
 	if err := json.Unmarshal(rawMeta, &meta); err != nil {
 		return FixtureCase{}, fmt.Errorf("decode meta for fixture %s: %w", caseID, err)
 	}
+	presence, err := parseMetaFieldPresence(rawMeta)
+	if err != nil {
+		return FixtureCase{}, fmt.Errorf("decode meta field presence for fixture %s: %w", caseID, err)
+	}
 	if strings.TrimSpace(meta.CaseID) == "" {
 		meta.CaseID = caseID
 	}
 	if strings.TrimSpace(meta.CaseID) != caseID {
 		return FixtureCase{}, fmt.Errorf("fixture %s meta case_id mismatch: %s", caseID, meta.CaseID)
 	}
-	if err := applyMetaDefaults(&meta); err != nil {
+	if err := applyMetaDefaults(&meta, presence); err != nil {
 		return FixtureCase{}, fmt.Errorf("normalize meta for fixture %s: %w", caseID, err)
 	}
 
@@ -264,7 +272,18 @@ func LoadCase(rootDir, caseID string) (FixtureCase, error) {
 	}, nil
 }
 
-func applyMetaDefaults(meta *Meta) error {
+func parseMetaFieldPresence(rawMeta []byte) (metaFieldPresence, error) {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(rawMeta, &fields); err != nil {
+		return metaFieldPresence{}, err
+	}
+	_, maxHeliusRetries := fields["max_helius_retries"]
+	return metaFieldPresence{
+		MaxHeliusRetries: maxHeliusRetries,
+	}, nil
+}
+
+func applyMetaDefaults(meta *Meta, presence metaFieldPresence) error {
 	if len(meta.FocalWallets) == 0 && strings.TrimSpace(meta.FocalWallet) != "" {
 		meta.FocalWallets = []string{meta.FocalWallet}
 	}
@@ -286,7 +305,7 @@ func applyMetaDefaults(meta *Meta) error {
 	if meta.MaxHeliusRetries < 0 {
 		return fmt.Errorf("max_helius_retries must be >= 0")
 	}
-	if meta.MaxHeliusRetries == 0 {
+	if !presence.MaxHeliusRetries && meta.MaxHeliusRetries == 0 {
 		meta.MaxHeliusRetries = defaultMaxHeliusRetries
 	}
 	if meta.LookalikeRecencyDays <= 0 {
@@ -642,11 +661,6 @@ func Replay(ctx context.Context, fx FixtureCase) (ReplayOutput, error) {
 		unknownReason := strings.TrimSpace(coreRes.UnknownGateReason)
 		if truncationReason != "" {
 			incomplete = true
-			unknownReason = mergeReasons(
-				unknownReason,
-				truncationReasonFromCode("baseline", coreRes.BaselineTruncation),
-				truncationReasonFromCode("scan", coreRes.ScanTruncation),
-			)
 		}
 		if incomplete && unknownReason == "" {
 			unknownReason = "unknown_required_gates:incomplete_window"

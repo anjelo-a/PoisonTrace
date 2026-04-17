@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 )
 
 func fixturesRootForTest() string {
@@ -22,7 +23,41 @@ func TestCanonicalFixtureInventory(t *testing.T) {
 	want := append([]string{}, CanonicalCaseIDs...)
 	sort.Strings(want)
 	if !reflect.DeepEqual(caseIDs, want) {
-		t.Fatalf("canonical fixture inventory mismatch\nwant=%v\ngot=%v", CanonicalCaseIDs, caseIDs)
+		t.Fatalf("canonical fixture inventory mismatch\nwant=%v\ngot=%v", want, caseIDs)
+	}
+}
+
+func TestApplyMetaDefaults_MaxHeliusRetriesDefaultsWhenOmitted(t *testing.T) {
+	meta := validMetaForDefaults()
+	if err := applyMetaDefaults(&meta, metaFieldPresence{}); err != nil {
+		t.Fatalf("apply defaults: %v", err)
+	}
+	if meta.MaxHeliusRetries != defaultMaxHeliusRetries {
+		t.Fatalf("expected omitted max_helius_retries to default to %d, got %d", defaultMaxHeliusRetries, meta.MaxHeliusRetries)
+	}
+}
+
+func TestApplyMetaDefaults_MaxHeliusRetriesAllowsExplicitZero(t *testing.T) {
+	meta := validMetaForDefaults()
+	meta.MaxHeliusRetries = 0
+	if err := applyMetaDefaults(&meta, metaFieldPresence{MaxHeliusRetries: true}); err != nil {
+		t.Fatalf("apply defaults: %v", err)
+	}
+	if meta.MaxHeliusRetries != 0 {
+		t.Fatalf("expected explicit max_helius_retries=0 to remain 0, got %d", meta.MaxHeliusRetries)
+	}
+}
+
+func validMetaForDefaults() Meta {
+	baselineStart := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+	baselineEnd := time.Date(2026, time.February, 1, 0, 0, 0, 0, time.UTC)
+	scanEnd := time.Date(2026, time.February, 8, 0, 0, 0, 0, time.UTC)
+	return Meta{
+		FocalWallet:   "Focal11111111111111111111111111111111111111111",
+		BaselineStart: baselineStart,
+		BaselineEnd:   baselineEnd,
+		ScanStart:     baselineEnd,
+		ScanEnd:       scanEnd,
 	}
 }
 
