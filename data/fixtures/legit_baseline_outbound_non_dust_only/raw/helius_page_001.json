@@ -1,0 +1,7 @@
+{
+  "transactions": [
+    {"signature": "inbound_only_base", "slot": 80, "timestamp": 1774000000, "transactionError": null,
+      "nativeTransfers": [{"fromUserAccount": "ABCDlegitBaseZZZZ", "toUserAccount": "Focal11111111111111111111111111111111111111111", "amount": "1000"}],
+      "tokenTransfers": []}
+  ]
+}

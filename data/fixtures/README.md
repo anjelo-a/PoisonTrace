@@ -38,14 +38,38 @@ Optional:
   "case_id": "poisoning_repeat_inbound_sol",
   "description": "Two inbound zero-value lookalike injections in scan window",
   "focal_wallet": "Focal1111111111111111111111111111111111111",
+  "focal_wallets": ["Focal1111111111111111111111111111111111111"],
   "baseline_start": "2026-01-01T00:00:00Z",
   "baseline_end": "2026-03-31T00:00:00Z",
   "scan_start": "2026-03-31T00:00:00Z",
   "scan_end": "2026-04-07T00:00:00Z",
+  "max_tx_pages_per_wallet": 20,
+  "max_tx_per_wallet": 1500,
+  "max_helius_retries": 2,
+  "helius_request_delay_ms": 0,
+  "lookalike_recency_days": 30,
+  "lookalike_prefix_min": 4,
+  "lookalike_suffix_min": 4,
+  "lookalike_single_side_min": 6,
+  "min_injection_count": 2,
+  "timeout_ms": 0,
+  "fetch_script": [
+    {"kind": "page", "file": "helius_page_001.json"},
+    {"kind": "error", "status_code": 429, "message": "rate limited"},
+    {"kind": "page", "file": "helius_page_002.json"}
+  ],
+  "dust_thresholds": [
+    {"asset_key": "SOL", "amount_raw": "100", "active_from": "2020-01-01T00:00:00Z"}
+  ],
   "expected_in_scope": true,
   "expected_miss_reason": null
 }
 ```
+
+Notes:
+- Use either `focal_wallet` (single wallet) or `focal_wallets` (multi-wallet replay case).
+- If `fetch_script` is omitted, raw pages are consumed in filename order.
+- `fetch_script.kind` supports `page` and `error`.
 
 ## Raw Helius Page Shape (Consumed Fields)
 
@@ -137,32 +161,35 @@ Allowed `normalization_status` values:
 ```json
 [
   {
-    "wallet_sync_run_id": "wsr_001",
     "focal_wallet": "Focal111...",
     "signature": "5Nf...abc",
     "transfer_index": 0,
     "suspicious_counterparty": "Atk111...",
     "matched_legit_counterparty": "Legit111...",
-    "lookalike_prefix_match_len": 6,
-    "lookalike_suffix_match_len": 4,
+    "token_mint": "",
+    "amount_raw": "0",
+    "block_time": "2026-04-03T00:00:00Z",
     "recency_days": 12,
+    "is_zero_value": true,
+    "is_dust": true,
+    "is_inbound": true,
     "is_new_counterparty": true,
-    "baseline_complete": true,
     "injection_count_in_scan_window": 2,
-    "incomplete_window": false
+    "incomplete_window": false,
+    "unknown_gate_reason": "",
+    "match_rule_version": "phase1-v1"
   }
 ]
 ```
 
 Uniqueness invariant:
-- `(wallet_sync_run_id, signature, transfer_index)` must be unique.
+- `(focal_wallet, signature, transfer_index)` must be unique within fixture replay output.
 
 ## Unknown Gate Behavior in Fixtures
 
 When any required gate is unknown:
 - candidate must be absent from `poisoning_candidates.json`
-- `expected/wallet_sync_run.json` must set:
-  - `"incomplete_window": true`
+- at least one row in `expected/wallet_sync_run.json` must set `"incomplete_window": true`
 - include reason in notes or expected run fields (for example `unknown_gate_reason`).
 
 ## Window Semantics
@@ -198,11 +225,11 @@ Window semantics are mandatory:
 
 Test flow:
 1. Load fixture `meta.json`.
-2. Feed raw pages into normalizer/ingestor.
-3. Persist into test DB.
-4. Run counterparty and detection pipeline.
-5. Compare persisted outputs against all `expected/*.json` files.
-6. Assert run counters and status transitions.
+2. Feed scripted raw pages into replay client.
+3. Run `RunWalletCoreSync` with fixture parameters and dust-threshold classifier.
+4. Materialize deterministic replay output files.
+5. Compare replay output against all `expected/*.json` files.
+6. Assert run counters and wallet status transitions.
 7. Assert candidate emission suppression when unknown gates exist.
 
 ## Known Case Validation Integration
@@ -211,3 +238,13 @@ Known poisoning corpus should be represented as fixture cases with deterministic
 For each case:
 - if `expected_in_scope = true`, candidate must exist.
 - if false, candidate must be absent and `expected_miss_reason` must match.
+
+## Replay Commands
+
+Validate one fixture against canonical expected files:
+
+`go run ./cmd/scanner replay-fixture --fixture <case_id>`
+
+Regenerate canonical expected files for one fixture:
+
+`go run ./cmd/scanner replay-fixture --fixture <case_id> --write-expected`

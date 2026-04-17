@@ -1,0 +1,38 @@
+[
+  {
+    "focal_wallet": "Focal11111111111111111111111111111111111111111",
+    "status": "succeeded",
+    "baseline_complete": true,
+    "incomplete_window": false,
+    "unknown_gate_reason": "",
+    "truncation_reason": "",
+    "transactions_fetched": 2,
+    "transactions_inserted": 4,
+    "transactions_linked": 2,
+    "transactions_failed_to_normalize": 0,
+    "owner_unresolved_count": 0,
+    "decimals_unresolved_count": 0,
+    "counterparties_created": 2,
+    "counterparties_updated": 0,
+    "poisoning_candidates_inserted": 0,
+    "retry_exhausted": false
+  },
+  {
+    "focal_wallet": "Focal22222222222222222222222222222222222222222",
+    "status": "succeeded",
+    "baseline_complete": true,
+    "incomplete_window": false,
+    "unknown_gate_reason": "",
+    "truncation_reason": "",
+    "transactions_fetched": 2,
+    "transactions_inserted": 0,
+    "transactions_linked": 2,
+    "transactions_failed_to_normalize": 0,
+    "owner_unresolved_count": 0,
+    "decimals_unresolved_count": 0,
+    "counterparties_created": 2,
+    "counterparties_updated": 0,
+    "poisoning_candidates_inserted": 0,
+    "retry_exhausted": false
+  }
+]

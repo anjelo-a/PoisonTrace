@@ -1,0 +1,26 @@
+[
+  {
+    "focal_wallet": "Focal11111111111111111111111111111111111111111",
+    "relation_type": "sender",
+    "counterparty_address": "ABCDlegitBaseZZZZ",
+    "signature": "boundary_base_1",
+    "transfer_index": 0,
+    "transfer_fingerprint": "sha256:b8298942d251404358310caf3cc661de91113a26665a5637a1c0b20740fc40e5"
+  },
+  {
+    "focal_wallet": "Focal11111111111111111111111111111111111111111",
+    "relation_type": "receiver",
+    "counterparty_address": "ABCDsuspInjectZZZZ",
+    "signature": "boundary_scan_1",
+    "transfer_index": 0,
+    "transfer_fingerprint": "sha256:3abdd0b54168a2fceb4e04ecd101908a78285caaf38ae807d20364ce82bcc380"
+  },
+  {
+    "focal_wallet": "Focal11111111111111111111111111111111111111111",
+    "relation_type": "receiver",
+    "counterparty_address": "ABCDsuspInjectZZZZ",
+    "signature": "boundary_scan_2",
+    "transfer_index": 0,
+    "transfer_fingerprint": "sha256:f70fb651bae1e3bbfd6f5de6585a0cc23a00afde7f2ff174940085e59ce90e64"
+  }
+]

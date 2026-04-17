@@ -1,0 +1,11 @@
+{
+  "case_id": "spl_unresolved_owner_non_poisoning_ready",
+  "description": "SPL transfer with unresolved owner endpoint is persisted but not poisoning-eligible",
+  "focal_wallet": "Focal11111111111111111111111111111111111111111",
+  "baseline_start": "2026-01-01T00:00:00Z",
+  "baseline_end": "2026-04-01T00:00:00Z",
+  "scan_start": "2026-04-01T00:00:00Z",
+  "scan_end": "2026-04-08T00:00:00Z",
+  "expected_in_scope": false,
+  "expected_miss_reason": "unresolved_owner"
+}

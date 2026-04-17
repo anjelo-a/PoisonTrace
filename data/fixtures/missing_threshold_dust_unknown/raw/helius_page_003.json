@@ -1,0 +1,40 @@
+{
+  "transactions": [
+    {
+      "signature": "mtd_scan_1",
+      "slot": 21,
+      "timestamp": 1775100000,
+      "transactionError": null,
+      "nativeTransfers": [],
+      "tokenTransfers": [
+        {
+          "fromUserAccount": "ABCDsuspInjectZZZZ",
+          "toUserAccount": "Focal11111111111111111111111111111111111111111",
+          "fromTokenAccount": "TokA",
+          "toTokenAccount": "TokB",
+          "mint": "MintNoThreshold111",
+          "tokenAmount": {"amount": "0", "decimals": 6},
+          "tokenStandard": "Fungible"
+        }
+      ]
+    },
+    {
+      "signature": "mtd_scan_2",
+      "slot": 22,
+      "timestamp": 1775200000,
+      "transactionError": null,
+      "nativeTransfers": [],
+      "tokenTransfers": [
+        {
+          "fromUserAccount": "ABCDsuspInjectZZZZ",
+          "toUserAccount": "Focal11111111111111111111111111111111111111111",
+          "fromTokenAccount": "TokC",
+          "toTokenAccount": "TokD",
+          "mint": "MintNoThreshold111",
+          "tokenAmount": {"amount": "5", "decimals": 6},
+          "tokenStandard": "Fungible"
+        }
+      ]
+    }
+  ]
+}

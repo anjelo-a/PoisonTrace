@@ -1,0 +1,20 @@
+[
+  {
+    "focal_wallet": "Focal11111111111111111111111111111111111111111",
+    "status": "succeeded",
+    "baseline_complete": true,
+    "incomplete_window": false,
+    "unknown_gate_reason": "",
+    "truncation_reason": "",
+    "transactions_fetched": 2,
+    "transactions_inserted": 2,
+    "transactions_linked": 1,
+    "transactions_failed_to_normalize": 1,
+    "owner_unresolved_count": 1,
+    "decimals_unresolved_count": 0,
+    "counterparties_created": 1,
+    "counterparties_updated": 0,
+    "poisoning_candidates_inserted": 0,
+    "retry_exhausted": false
+  }
+]

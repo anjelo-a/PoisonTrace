@@ -1,0 +1,23 @@
+[
+  {
+    "signature": "maxcap_base_1",
+    "transfer_index": 0,
+    "transfer_fingerprint": "sha256:5023525a02bd0de8308baf3313876869af6da8ae14bd5629f127c6a72bd1c115",
+    "slot": 100,
+    "block_time": "2026-03-20T09:46:40Z",
+    "source_owner_address": "Focal11111111111111111111111111111111111111111",
+    "destination_owner_address": "ABCDlegitBaseZZZZ",
+    "source_token_account": "",
+    "destination_token_account": "",
+    "asset_type": "native_sol",
+    "asset_key": "SOL",
+    "token_mint": "",
+    "amount_raw": "1000",
+    "decimals": null,
+    "normalization_status": "resolved",
+    "normalization_reason_code": "",
+    "poisoning_eligible": true,
+    "dust_status": "false",
+    "is_success": true
+  }
+]

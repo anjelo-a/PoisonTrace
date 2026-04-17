@@ -1,0 +1,10 @@
+[
+  {
+    "focal_wallet": "Focal11111111111111111111111111111111111111111",
+    "relation_type": "sender",
+    "counterparty_address": "ABCDlegitBaseZZZZ",
+    "signature": "spl_unres_base",
+    "transfer_index": 0,
+    "transfer_fingerprint": "sha256:d9d5df4cbf5a6479d327bf92e3a1af042fd89d964d4299ddc203fdf572ced74d"
+  }
+]

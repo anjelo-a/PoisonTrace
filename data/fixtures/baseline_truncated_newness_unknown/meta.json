@@ -1,0 +1,14 @@
+{
+  "case_id": "baseline_truncated_newness_unknown",
+  "description": "Baseline truncation forces unknown new-counterparty gate and blocks candidate emission",
+  "focal_wallet": "Focal11111111111111111111111111111111111111111",
+  "baseline_start": "2026-01-01T00:00:00Z",
+  "baseline_end": "2026-04-01T00:00:00Z",
+  "scan_start": "2026-04-01T00:00:00Z",
+  "scan_end": "2026-04-08T00:00:00Z",
+  "max_tx_pages_per_wallet": 1,
+  "max_tx_per_wallet": 1500,
+  "max_helius_retries": 1,
+  "expected_in_scope": false,
+  "expected_miss_reason": "baseline_truncated"
+}

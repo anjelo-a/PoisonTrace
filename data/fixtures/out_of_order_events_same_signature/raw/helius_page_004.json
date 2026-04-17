@@ -1,0 +1,1 @@
+{"transactions": [{"signature": "ooo_same_sig", "slot": 122, "timestamp": 1775100000, "transactionError": null, "nativeTransfers": [{"fromUserAccount": "ABCDsuspInjectZZZZ", "toUserAccount": "Focal11111111111111111111111111111111111111111", "amount": "5"}], "tokenTransfers": []}]}

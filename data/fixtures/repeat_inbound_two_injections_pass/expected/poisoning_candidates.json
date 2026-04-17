@@ -1,0 +1,42 @@
+[
+  {
+    "focal_wallet": "Focal11111111111111111111111111111111111111111",
+    "signature": "rpt_scan_1",
+    "transfer_index": 0,
+    "suspicious_counterparty": "ABCDsuspInjectZZZZ",
+    "matched_legit_counterparty": "ABCDlegitBaseZZZZ",
+    "token_mint": "",
+    "amount_raw": "0",
+    "block_time": "2026-04-02T03:20:00Z",
+    "is_zero_value": true,
+    "is_dust": true,
+    "is_new_counterparty": true,
+    "is_inbound": true,
+    "legit_last_seen_at": "2026-03-20T09:46:40Z",
+    "recency_days": 12,
+    "injection_count_in_scan_window": 2,
+    "incomplete_window": false,
+    "unknown_gate_reason": "",
+    "match_rule_version": "phase1-v1"
+  },
+  {
+    "focal_wallet": "Focal11111111111111111111111111111111111111111",
+    "signature": "rpt_scan_2",
+    "transfer_index": 0,
+    "suspicious_counterparty": "ABCDsuspInjectZZZZ",
+    "matched_legit_counterparty": "ABCDlegitBaseZZZZ",
+    "token_mint": "",
+    "amount_raw": "0",
+    "block_time": "2026-04-03T07:06:40Z",
+    "is_zero_value": true,
+    "is_dust": true,
+    "is_new_counterparty": true,
+    "is_inbound": true,
+    "legit_last_seen_at": "2026-03-20T09:46:40Z",
+    "recency_days": 13,
+    "injection_count_in_scan_window": 2,
+    "incomplete_window": false,
+    "unknown_gate_reason": "",
+    "match_rule_version": "phase1-v1"
+  }
+]

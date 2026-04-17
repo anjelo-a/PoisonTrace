@@ -1,0 +1,22 @@
+{
+  "transactions": [
+    {
+      "signature": "partial_owner_scan",
+      "slot": 140,
+      "timestamp": 1775100000,
+      "transactionError": null,
+      "nativeTransfers": [],
+      "tokenTransfers": [
+        {
+          "fromUserAccount": "",
+          "toUserAccount": "Focal11111111111111111111111111111111111111111",
+          "fromTokenAccount": "TokenX",
+          "toTokenAccount": "TokenY",
+          "mint": "MintPartialOwner",
+          "tokenAmount": {"amount": "1", "decimals": 6},
+          "tokenStandard": "Fungible"
+        }
+      ]
+    }
+  ]
+}
