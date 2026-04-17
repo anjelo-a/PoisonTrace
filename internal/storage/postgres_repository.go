@@ -3,9 +3,11 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
+	"poisontrace/internal/counterparties"
 	"poisontrace/internal/runs"
 	"poisontrace/internal/transactions"
 )
@@ -22,14 +24,47 @@ RETURNING id`
 	return id, nil
 }
 
-func (s *PostgresStore) FinalizeIngestionRun(ctx context.Context, runID int64, status runs.RunStatus, completedAt time.Time, notes string) error {
+func (s *PostgresStore) FinalizeIngestionRun(ctx context.Context, runID int64, status runs.RunStatus, completedAt time.Time, counters runs.Counters, notes string) error {
 	const q = `
 UPDATE ingestion_runs
 SET status = $2,
     completed_at = $3,
-    notes = $4
+    wallets_requested = $4,
+    wallets_processed = $5,
+    wallets_failed = $6,
+    wallets_skipped = $7,
+    transactions_fetched = $8,
+    transactions_inserted = $9,
+    transactions_linked = $10,
+    transactions_failed_to_normalize = $11,
+    owner_unresolved_count = $12,
+    decimals_unresolved_count = $13,
+    counterparties_created = $14,
+    counterparties_updated = $15,
+    retry_exhausted_count = $16,
+    notes = $17
 WHERE id = $1`
-	res, err := s.DB.ExecContext(ctx, q, runID, status, completedAt.UTC(), nullableText(notes))
+	res, err := s.DB.ExecContext(
+		ctx,
+		q,
+		runID,
+		status,
+		completedAt.UTC(),
+		counters.WalletsRequested,
+		counters.WalletsProcessed,
+		counters.WalletsFailed,
+		counters.WalletsSkipped,
+		counters.TransactionsFetched,
+		counters.TransactionsInserted,
+		counters.TransactionsLinked,
+		counters.TransactionsFailedNormalize,
+		counters.OwnerUnresolvedCount,
+		counters.DecimalsUnresolvedCount,
+		counters.CounterpartiesCreated,
+		counters.CounterpartiesUpdated,
+		counters.RetryExhaustedCount,
+		nullableText(notes),
+	)
 	if err != nil {
 		return fmt.Errorf("finalize ingestion run %d: %w", runID, err)
 	}
@@ -75,20 +110,85 @@ RETURNING id`
 	return id, nil
 }
 
-func (s *PostgresStore) FinalizeWalletSyncRun(ctx context.Context, walletSyncRunID int64, status runs.WalletStatus, completedAt time.Time, incompleteWindow bool, unknownGateReason, notes string) error {
+func (s *PostgresStore) UpdateWalletSyncProgress(ctx context.Context, walletSyncRunID int64, progress WalletSyncProgress) error {
+	const q = `
+UPDATE wallet_sync_runs
+SET baseline_complete = $2,
+    incomplete_window = $3,
+    unknown_gate_reason = $4,
+    truncation_reason = $5,
+    transactions_fetched = $6,
+    transactions_inserted = $7,
+    transactions_linked = $8,
+    transactions_failed_to_normalize = $9,
+    counterparties_created = $10,
+    counterparties_updated = $11
+WHERE id = $1`
+
+	reason := nullableText(progress.UnknownGateReason)
+	if !progress.IncompleteWindow {
+		reason = nil
+	}
+	truncation := nullableText(progress.TruncationReason)
+	if progress.TruncationReason == "" {
+		truncation = nil
+	}
+
+	res, err := s.DB.ExecContext(
+		ctx,
+		q,
+		walletSyncRunID,
+		progress.BaselineComplete,
+		progress.IncompleteWindow,
+		reason,
+		truncation,
+		progress.TransactionsFetched,
+		progress.TransactionsInserted,
+		progress.TransactionsLinked,
+		progress.TransactionsFailedNormalize,
+		progress.CounterpartiesCreated,
+		progress.CounterpartiesUpdated,
+	)
+	if err != nil {
+		return fmt.Errorf("update wallet sync progress %d: %w", walletSyncRunID, err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("update wallet sync progress %d rows affected: %w", walletSyncRunID, err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("update wallet sync progress %d: not found", walletSyncRunID)
+	}
+	return nil
+}
+
+func (s *PostgresStore) FinalizeWalletSyncRun(ctx context.Context, walletSyncRunID int64, status runs.WalletStatus, completedAt time.Time, incompleteWindow bool, unknownGateReason, errorCode, errorMessage, notes string) error {
 	const q = `
 UPDATE wallet_sync_runs
 SET status = $2,
     completed_at = $3,
     incomplete_window = $4,
     unknown_gate_reason = $5,
-    notes = $6
+    error_code = $6,
+    error_message = $7,
+    notes = $8
 WHERE id = $1`
 	reason := nullableText(unknownGateReason)
 	if !incompleteWindow {
 		reason = nil
 	}
-	res, err := s.DB.ExecContext(ctx, q, walletSyncRunID, status, completedAt.UTC(), incompleteWindow, reason, nullableText(notes))
+	res, err := s.DB.ExecContext(
+		ctx,
+		q,
+		walletSyncRunID,
+		status,
+		completedAt.UTC(),
+		incompleteWindow,
+		reason,
+		nullableText(errorCode),
+		nullableText(errorMessage),
+		nullableText(notes),
+	)
 	if err != nil {
 		return fmt.Errorf("finalize wallet sync run %d: %w", walletSyncRunID, err)
 	}
@@ -98,6 +198,38 @@ WHERE id = $1`
 	}
 	if rows == 0 {
 		return fmt.Errorf("finalize wallet sync run %d: not found", walletSyncRunID)
+	}
+	return nil
+}
+
+func (s *PostgresStore) EnsureWallet(ctx context.Context, walletAddress string) (int64, error) {
+	const q = `
+INSERT INTO wallets (address)
+VALUES ($1)
+ON CONFLICT (address) DO UPDATE SET address = EXCLUDED.address
+RETURNING id`
+	var walletID int64
+	if err := s.DB.QueryRowContext(ctx, q, walletAddress).Scan(&walletID); err != nil {
+		return 0, fmt.Errorf("ensure wallet %s: %w", walletAddress, err)
+	}
+	return walletID, nil
+}
+
+func (s *PostgresStore) UpdateWalletLastSyncedAt(ctx context.Context, walletID int64, syncedAt time.Time) error {
+	const q = `
+UPDATE wallets
+SET last_synced_at = GREATEST(COALESCE(last_synced_at, to_timestamp(0)), $2)
+WHERE id = $1`
+	res, err := s.DB.ExecContext(ctx, q, walletID, syncedAt.UTC())
+	if err != nil {
+		return fmt.Errorf("update wallet %d last_synced_at: %w", walletID, err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("update wallet %d last_synced_at rows affected: %w", walletID, err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("update wallet %d last_synced_at: not found", walletID)
 	}
 	return nil
 }
@@ -203,6 +335,240 @@ RETURNING (xmax = 0)`)
 		return 0, 0, fmt.Errorf("commit transfer upserts: %w", err)
 	}
 	return inserted, updated, nil
+}
+
+func (s *PostgresStore) LinkWalletTransfer(ctx context.Context, walletID int64, relationType counterparties.RelationType, transfer transactions.NormalizedTransfer) (linked bool, err error) {
+	const q = `
+INSERT INTO wallet_transactions (wallet_id, transaction_id, relation_type)
+SELECT $1, t.id, $2
+FROM transactions t
+WHERE t.signature = $3
+  AND t.transfer_fingerprint = $4
+ON CONFLICT (wallet_id, transaction_id, relation_type) DO NOTHING
+RETURNING id`
+	var id int64
+	err = s.DB.QueryRowContext(ctx, q, walletID, relationType, transfer.Signature, transfer.TransferFingerprint).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("link wallet transfer wallet=%d signature=%s fingerprint=%s: %w", walletID, transfer.Signature, transfer.TransferFingerprint, err)
+	}
+	return true, nil
+}
+
+func (s *PostgresStore) UpsertCounterpartyEvent(ctx context.Context, event counterparties.Event) (created bool, updated bool, err error) {
+	if event.FocalWalletID == 0 {
+		return false, false, fmt.Errorf("counterparty event focal wallet id is required")
+	}
+	if event.CounterpartyAddress == "" {
+		return false, false, fmt.Errorf("counterparty event counterparty address is required")
+	}
+
+	var firstInboundAt any
+	var lastInboundAt any
+	var firstOutboundAt any
+	var lastOutboundAt any
+	inboundCount := 0
+	outboundCount := 0
+
+	switch event.RelationType {
+	case counterparties.RelationReceiver:
+		firstInboundAt = event.OccurredAt.UTC()
+		lastInboundAt = event.OccurredAt.UTC()
+		inboundCount = 1
+	case counterparties.RelationSender:
+		firstOutboundAt = event.OccurredAt.UTC()
+		lastOutboundAt = event.OccurredAt.UTC()
+		outboundCount = 1
+	default:
+		return false, false, fmt.Errorf("unsupported relation type %q", event.RelationType)
+	}
+
+	const q = `
+INSERT INTO counterparties (
+  focal_wallet_id,
+  counterparty_address,
+  first_seen_at,
+  last_seen_at,
+  interaction_count,
+  first_inbound_at,
+  last_inbound_at,
+  inbound_count,
+  first_outbound_at,
+  last_outbound_at,
+  outbound_count
+)
+VALUES ($1, $2, $3, $4, 1, $5, $6, $7, $8, $9, $10)
+ON CONFLICT (focal_wallet_id, counterparty_address) DO UPDATE SET
+  first_seen_at = LEAST(counterparties.first_seen_at, EXCLUDED.first_seen_at),
+  last_seen_at = GREATEST(counterparties.last_seen_at, EXCLUDED.last_seen_at),
+  interaction_count = counterparties.interaction_count + EXCLUDED.interaction_count,
+  first_inbound_at = CASE
+    WHEN EXCLUDED.first_inbound_at IS NULL THEN counterparties.first_inbound_at
+    WHEN counterparties.first_inbound_at IS NULL THEN EXCLUDED.first_inbound_at
+    ELSE LEAST(counterparties.first_inbound_at, EXCLUDED.first_inbound_at)
+  END,
+  last_inbound_at = CASE
+    WHEN EXCLUDED.last_inbound_at IS NULL THEN counterparties.last_inbound_at
+    WHEN counterparties.last_inbound_at IS NULL THEN EXCLUDED.last_inbound_at
+    ELSE GREATEST(counterparties.last_inbound_at, EXCLUDED.last_inbound_at)
+  END,
+  inbound_count = counterparties.inbound_count + EXCLUDED.inbound_count,
+  first_outbound_at = CASE
+    WHEN EXCLUDED.first_outbound_at IS NULL THEN counterparties.first_outbound_at
+    WHEN counterparties.first_outbound_at IS NULL THEN EXCLUDED.first_outbound_at
+    ELSE LEAST(counterparties.first_outbound_at, EXCLUDED.first_outbound_at)
+  END,
+  last_outbound_at = CASE
+    WHEN EXCLUDED.last_outbound_at IS NULL THEN counterparties.last_outbound_at
+    WHEN counterparties.last_outbound_at IS NULL THEN EXCLUDED.last_outbound_at
+    ELSE GREATEST(counterparties.last_outbound_at, EXCLUDED.last_outbound_at)
+  END,
+  outbound_count = counterparties.outbound_count + EXCLUDED.outbound_count,
+  updated_at = NOW()
+RETURNING (xmax = 0)`
+
+	var wasInserted bool
+	if err = s.DB.QueryRowContext(
+		ctx,
+		q,
+		event.FocalWalletID,
+		event.CounterpartyAddress,
+		event.OccurredAt.UTC(),
+		event.OccurredAt.UTC(),
+		firstInboundAt,
+		lastInboundAt,
+		inboundCount,
+		firstOutboundAt,
+		lastOutboundAt,
+		outboundCount,
+	).Scan(&wasInserted); err != nil {
+		return false, false, fmt.Errorf("upsert counterparty event wallet=%d counterparty=%s: %w", event.FocalWalletID, event.CounterpartyAddress, err)
+	}
+	if wasInserted {
+		return true, false, nil
+	}
+	return false, true, nil
+}
+
+func (s *PostgresStore) InsertPoisoningCandidates(ctx context.Context, walletSyncRunID int64, focalWalletID int64, candidates []CandidateRecord) (inserted int, err error) {
+	if len(candidates) == 0 {
+		return 0, nil
+	}
+
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin poisoning candidate insert: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	stmt, err := tx.PrepareContext(ctx, `
+INSERT INTO poisoning_candidates (
+  wallet_sync_run_id,
+  focal_wallet_id,
+  signature,
+  transfer_index,
+  suspicious_counterparty,
+  matched_legit_counterparty,
+  token_mint,
+  amount_raw,
+  block_time,
+  is_zero_value,
+  is_dust,
+  is_new_counterparty,
+  is_inbound,
+  legit_last_seen_at,
+  recency_days,
+  repeat_injection_count,
+  incomplete_window,
+  unknown_gate_reason,
+  match_rule_version
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+ON CONFLICT (wallet_sync_run_id, signature, transfer_index) DO NOTHING
+RETURNING id`)
+	if err != nil {
+		return 0, fmt.Errorf("prepare poisoning candidate insert: %w", err)
+	}
+	defer stmt.Close()
+
+	for _, c := range candidates {
+		var id int64
+		reason := nullableText(c.UnknownGateReason)
+		if !c.IncompleteWindow {
+			reason = nil
+		}
+		err = stmt.QueryRowContext(
+			ctx,
+			walletSyncRunID,
+			focalWalletID,
+			c.Signature,
+			c.TransferIndex,
+			c.SuspiciousCounterparty,
+			c.MatchedLegitCounterparty,
+			nullableText(c.TokenMint),
+			c.AmountRaw,
+			c.BlockTime.UTC(),
+			c.IsZeroValue,
+			c.IsDust,
+			c.IsNewCounterparty,
+			c.IsInbound,
+			c.LegitLastSeenAt.UTC(),
+			c.RecencyDays,
+			c.RepeatInjectionCount,
+			c.IncompleteWindow,
+			reason,
+			c.MatchRuleVersion,
+		).Scan(&id)
+		if errors.Is(err, sql.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return 0, fmt.Errorf("insert poisoning candidate signature=%s transfer_index=%d: %w", c.Signature, c.TransferIndex, err)
+		}
+		inserted++
+	}
+
+	if err = tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit poisoning candidate inserts: %w", err)
+	}
+	return inserted, nil
+}
+
+func (s *PostgresStore) ListDustThresholds(ctx context.Context, startInclusive, endExclusive time.Time) ([]DustThresholdRecord, error) {
+	const q = `
+SELECT asset_key,
+       dust_amount_raw_threshold::TEXT,
+       active_from,
+       active_to
+FROM asset_thresholds
+WHERE active_from < $2
+  AND (active_to IS NULL OR active_to > $1)
+ORDER BY asset_key, active_from DESC`
+
+	rows, err := s.DB.QueryContext(ctx, q, startInclusive.UTC(), endExclusive.UTC())
+	if err != nil {
+		return nil, fmt.Errorf("list dust thresholds: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]DustThresholdRecord, 0)
+	for rows.Next() {
+		var rec DustThresholdRecord
+		if err := rows.Scan(&rec.AssetKey, &rec.AmountRaw, &rec.ActiveFrom, &rec.ActiveTo); err != nil {
+			return nil, fmt.Errorf("scan dust threshold: %w", err)
+		}
+		out = append(out, rec)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate dust thresholds: %w", err)
+	}
+	return out, nil
 }
 
 func (s *PostgresStore) AcquireWalletLock(ctx context.Context, walletAddress string, ttlSeconds int) (bool, error) {

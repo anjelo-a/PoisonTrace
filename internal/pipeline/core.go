@@ -31,15 +31,22 @@ type CoreSyncParams struct {
 }
 
 type CoreSyncResult struct {
-	BaselineObservations []WalletTransferObservation
-	ScanObservations     []WalletTransferObservation
-	Counterparties       map[string]counterparties.Counterparty
-	Candidates           []PoisoningCandidate
-	BaselineComplete     bool
-	IncompleteWindow     bool
-	UnknownGateReason    string
-	BaselineTruncation   string
-	ScanTruncation       string
+	BaselineTransfers           []transactions.NormalizedTransfer
+	ScanTransfers               []transactions.NormalizedTransfer
+	BaselineObservations        []WalletTransferObservation
+	ScanObservations            []WalletTransferObservation
+	Counterparties              map[string]counterparties.Counterparty
+	Candidates                  []PoisoningCandidate
+	BaselineComplete            bool
+	IncompleteWindow            bool
+	UnknownGateReason           string
+	BaselineTruncation          string
+	ScanTruncation              string
+	TransactionsFetched         int
+	TransactionsFailedNormalize int
+	OwnerUnresolvedCount        int
+	DecimalsUnresolvedCount     int
+	RetryExhausted              bool
 }
 
 func RunWalletCoreSync(ctx context.Context, client helius.Client, p CoreSyncParams) (CoreSyncResult, error) {
@@ -76,21 +83,21 @@ func RunWalletCoreSync(ctx context.Context, client helius.Client, p CoreSyncPara
 		return CoreSyncResult{}, fmt.Errorf("fetch scan enhanced tx: %w", err)
 	}
 
-	baselineObs, err := normalizeAndMapByWallet(p.FocalWalletAddress, baselineFetch.Transactions, p.ClassifyDust)
+	baselineNormalized, err := normalizeWindow(p.FocalWalletAddress, baselineFetch.Transactions, p.ClassifyDust)
 	if err != nil {
 		return CoreSyncResult{}, fmt.Errorf("normalize baseline transfers: %w", err)
 	}
-	scanObs, err := normalizeAndMapByWallet(p.FocalWalletAddress, scanFetch.Transactions, p.ClassifyDust)
+	scanNormalized, err := normalizeWindow(p.FocalWalletAddress, scanFetch.Transactions, p.ClassifyDust)
 	if err != nil {
 		return CoreSyncResult{}, fmt.Errorf("normalize scan transfers: %w", err)
 	}
 
 	cpState := make(map[string]counterparties.Counterparty)
-	applyObservationsToCounterparties(cpState, baselineObs)
-	applyObservationsToCounterparties(cpState, scanObs)
+	applyObservationsToCounterparties(cpState, baselineNormalized.Observations)
+	applyObservationsToCounterparties(cpState, scanNormalized.Observations)
 
 	baselineComplete := !baselineFetch.Partial
-	materialized := MaterializeCandidates(baselineObs, scanObs, CandidateMaterializeParams{
+	materialized := MaterializeCandidates(baselineNormalized.Observations, scanNormalized.Observations, CandidateMaterializeParams{
 		BaselineComplete:       baselineComplete,
 		LookalikeRecencyDays:   p.LookalikeRecencyDays,
 		LookalikePrefixMin:     p.LookalikePrefixMin,
@@ -107,34 +114,65 @@ func RunWalletCoreSync(ctx context.Context, client helius.Client, p CoreSyncPara
 	)
 
 	return CoreSyncResult{
-		BaselineObservations: baselineObs,
-		ScanObservations:     scanObs,
-		Counterparties:       cpState,
-		Candidates:           materialized.Candidates,
-		BaselineComplete:     baselineComplete,
-		IncompleteWindow:     incomplete,
-		UnknownGateReason:    reason,
-		BaselineTruncation:   baselineFetch.TruncationCode,
-		ScanTruncation:       scanFetch.TruncationCode,
+		BaselineTransfers:           baselineNormalized.Transfers,
+		ScanTransfers:               scanNormalized.Transfers,
+		BaselineObservations:        baselineNormalized.Observations,
+		ScanObservations:            scanNormalized.Observations,
+		Counterparties:              cpState,
+		Candidates:                  materialized.Candidates,
+		BaselineComplete:            baselineComplete,
+		IncompleteWindow:            incomplete,
+		UnknownGateReason:           reason,
+		BaselineTruncation:          baselineFetch.TruncationCode,
+		ScanTruncation:              scanFetch.TruncationCode,
+		TransactionsFetched:         baselineNormalized.FetchedTx + scanNormalized.FetchedTx,
+		TransactionsFailedNormalize: baselineNormalized.FailedNormalize + scanNormalized.FailedNormalize,
+		OwnerUnresolvedCount:        baselineNormalized.OwnerUnresolved + scanNormalized.OwnerUnresolved,
+		DecimalsUnresolvedCount:     baselineNormalized.DecimalsUnresolved + scanNormalized.DecimalsUnresolved,
+		RetryExhausted:              baselineFetch.RetryExhausted || scanFetch.RetryExhausted,
 	}, nil
 }
 
-func normalizeAndMapByWallet(focalWallet string, txs []helius.EnhancedTransaction, classifyDust func(tr transactions.NormalizedTransfer) transactions.DustStatus) ([]WalletTransferObservation, error) {
-	out := make([]WalletTransferObservation, 0, len(txs))
+type normalizeWindowResult struct {
+	Transfers          []transactions.NormalizedTransfer
+	Observations       []WalletTransferObservation
+	FetchedTx          int
+	FailedNormalize    int
+	OwnerUnresolved    int
+	DecimalsUnresolved int
+}
+
+func normalizeWindow(focalWallet string, txs []helius.EnhancedTransaction, classifyDust func(tr transactions.NormalizedTransfer) transactions.DustStatus) (normalizeWindowResult, error) {
+	out := normalizeWindowResult{
+		Transfers:    make([]transactions.NormalizedTransfer, 0),
+		Observations: make([]WalletTransferObservation, 0, len(txs)),
+		FetchedTx:    len(txs),
+	}
 	for _, tx := range txs {
 		normalized, err := transactions.NormalizeEnhancedTx(tx)
 		if err != nil {
-			return nil, err
+			return normalizeWindowResult{}, err
 		}
 		for _, tr := range normalized {
 			if classifyDust != nil {
 				tr.DustStatus = classifyDust(tr)
 			}
+			out.Transfers = append(out.Transfers, tr)
+			if tr.NormalizationStatus != transactions.NormalizationResolved {
+				out.FailedNormalize++
+			}
+			if tr.NormalizationStatus == transactions.NormalizationUnresolvedOwner {
+				out.OwnerUnresolved++
+			}
+			if tr.AssetType == transactions.AssetTypeSPLFungible && tr.Decimals == nil {
+				out.DecimalsUnresolved++
+			}
+
 			mapping, ok := counterparties.MapWalletRelation(focalWallet, tr)
 			if !ok {
 				continue
 			}
-			out = append(out, WalletTransferObservation{
+			out.Observations = append(out.Observations, WalletTransferObservation{
 				Transfer:            tr,
 				RelationType:        mapping.RelationType,
 				CounterpartyAddress: mapping.CounterpartyAddress,

@@ -76,10 +76,10 @@ func TestRunUsesWalletLockAndRunnerLimits(t *testing.T) {
 	orch := NewOrchestrator(
 		cfg,
 		WithWalletLockRepository(lockRepo),
-		WithWalletRunner(func(_ context.Context, _ string, _ RunParams, limits WalletRunLimits) error {
+		WithWalletRunner(func(_ context.Context, _ string, _ RunParams, limits WalletRunLimits) (WalletRunReport, error) {
 			called = true
 			gotLimits = limits
-			return nil
+			return WalletRunReport{}, nil
 		}),
 	)
 
@@ -111,9 +111,9 @@ func TestRunReturnsLockErrorWhenWalletAlreadyLocked(t *testing.T) {
 	orch := NewOrchestrator(
 		cfg,
 		WithWalletLockRepository(lockRepo),
-		WithWalletRunner(func(context.Context, string, RunParams, WalletRunLimits) error {
+		WithWalletRunner(func(context.Context, string, RunParams, WalletRunLimits) (WalletRunReport, error) {
 			t.Fatal("runner should not be called when lock is unavailable")
-			return nil
+			return WalletRunReport{}, nil
 		}),
 	)
 
@@ -140,9 +140,9 @@ func TestRunPropagatesWalletContextTimeout(t *testing.T) {
 	orch := NewOrchestrator(
 		cfg,
 		WithWalletLockRepository(lockRepo),
-		WithWalletRunner(func(ctx context.Context, _ string, _ RunParams, _ WalletRunLimits) error {
+		WithWalletRunner(func(ctx context.Context, _ string, _ RunParams, _ WalletRunLimits) (WalletRunReport, error) {
 			<-ctx.Done()
-			return ctx.Err()
+			return WalletRunReport{}, ctx.Err()
 		}),
 	)
 
