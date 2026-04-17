@@ -4,7 +4,7 @@
     "status": "partial",
     "baseline_complete": false,
     "incomplete_window": true,
-    "unknown_gate_reason": "baseline_truncation:max_tx_pages_per_wallet_reached;baseline_truncation:max_tx_pages_per_wallet_reached;scan_truncation:max_tx_pages_per_wallet_reached;unknown_required_gates:address_inequality,is_new_counterparty,lookalike_match,recency_valid;scan_truncation:max_tx_pages_per_wallet_reached",
+    "unknown_gate_reason": "baseline_truncation:max_tx_pages_per_wallet_reached;scan_truncation:max_tx_pages_per_wallet_reached;unknown_required_gates:address_inequality,is_new_counterparty,lookalike_match,recency_valid",
     "truncation_reason": "baseline_truncation:max_tx_pages_per_wallet_reached;scan_truncation:max_tx_pages_per_wallet_reached",
     "transactions_fetched": 3,
     "transactions_inserted": 3,

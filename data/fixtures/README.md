@@ -61,8 +61,7 @@ Optional:
   "dust_thresholds": [
     {"asset_key": "SOL", "amount_raw": "100", "active_from": "2020-01-01T00:00:00Z"}
   ],
-  "expected_in_scope": true,
-  "expected_miss_reason": null
+  "expected_in_scope": true
 }
 ```
 
@@ -70,6 +69,7 @@ Notes:
 - Use either `focal_wallet` (single wallet) or `focal_wallets` (multi-wallet replay case).
 - If `fetch_script` is omitted, raw pages are consumed in filename order.
 - `fetch_script.kind` supports `page` and `error`.
+- Omit `expected_miss_reason` when not applicable, or use an empty string (`""`).
 
 ## Raw Helius Page Shape (Consumed Fields)
 
