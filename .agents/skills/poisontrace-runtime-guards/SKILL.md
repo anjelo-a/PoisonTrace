@@ -32,3 +32,11 @@ Use this skill for runtime control-flow safety in Phase 0-1.
 
 - Run impacted unit tests in `internal/pipeline`, `internal/helius`, and `internal/runs`.
 - Verify failure states remain auditable via persisted status, error code/message, and notes.
+
+## Delivery reminder
+
+- If repository files changed in the turn, final response must include:
+- `Branch: <branch-name>`
+- `Commit: <commit-subject-line>`
+- If no repository files changed, final response must include:
+- `No branch/commit required (no file changes).`

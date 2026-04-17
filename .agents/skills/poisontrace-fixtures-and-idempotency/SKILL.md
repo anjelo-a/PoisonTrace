@@ -34,3 +34,11 @@ Use this skill for deterministic persistence, deduplication safety, and fixture-
 
 - Run migrations/DB tests when uniqueness or schema constraints change.
 - Run relevant tests in `internal/pipeline`, `internal/storage`, and fixture-driven suites.
+
+## Delivery reminder
+
+- If repository files changed in the turn, final response must include:
+- `Branch: <branch-name>`
+- `Commit: <commit-subject-line>`
+- If no repository files changed, final response must include:
+- `No branch/commit required (no file changes).`

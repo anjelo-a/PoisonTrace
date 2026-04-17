@@ -295,25 +295,45 @@ func (r *WalletExecutionRunner) buildDustClassifier(ctx context.Context, startIn
 
 	index := make(map[string][]dustRule)
 	for _, rec := range recs {
-		v, ok := new(big.Int).SetString(strings.TrimSpace(rec.AmountRaw), 10)
-		if !ok || v.Sign() < 0 {
-			continue
-		}
 		asset := strings.TrimSpace(rec.AssetKey)
 		if asset == "" {
-			continue
+			return nil, fmt.Errorf("invalid dust threshold row: asset_key is empty (active_from=%s)", rec.ActiveFrom.UTC().Format(time.RFC3339))
+		}
+
+		v, ok := new(big.Int).SetString(strings.TrimSpace(rec.AmountRaw), 10)
+		if !ok || v.Sign() < 0 {
+			return nil, fmt.Errorf("invalid dust threshold row for asset %s: dust_amount_raw_threshold=%q", asset, rec.AmountRaw)
+		}
+
+		from := rec.ActiveFrom.UTC()
+		var to *time.Time
+		if rec.ActiveTo != nil {
+			toUTC := rec.ActiveTo.UTC()
+			if !toUTC.After(from) {
+				return nil, fmt.Errorf("invalid dust threshold window for asset %s: active_to must be greater than active_from", asset)
+			}
+			to = &toUTC
 		}
 		index[asset] = append(index[asset], dustRule{
-			From:      rec.ActiveFrom.UTC(),
-			To:        rec.ActiveTo,
+			From:      from,
+			To:        to,
 			Threshold: v,
 		})
 	}
 
 	for asset := range index {
 		sort.Slice(index[asset], func(i, j int) bool {
-			return index[asset][i].From.After(index[asset][j].From)
+			return index[asset][i].From.Before(index[asset][j].From)
 		})
+
+		rules := index[asset]
+		for i := 1; i < len(rules); i++ {
+			prev := rules[i-1]
+			curr := rules[i]
+			if prev.To == nil || curr.From.Before(*prev.To) {
+				return nil, fmt.Errorf("overlapping dust threshold windows for asset %s", asset)
+			}
+		}
 	}
 
 	return func(tr transactions.NormalizedTransfer) transactions.DustStatus {
@@ -331,11 +351,12 @@ func (r *WalletExecutionRunner) buildDustClassifier(ctx context.Context, startIn
 		}
 
 		at := tr.BlockTime.UTC()
-		for _, rule := range rules {
+		for i := len(rules) - 1; i >= 0; i-- {
+			rule := rules[i]
 			if at.Before(rule.From) {
 				continue
 			}
-			if rule.To != nil && !at.Before(rule.To.UTC()) {
+			if rule.To != nil && !at.Before(*rule.To) {
 				continue
 			}
 			if amount.Cmp(rule.Threshold) <= 0 {
