@@ -229,6 +229,7 @@ func (r *WalletExecutionRunner) RunWallet(ctx context.Context, walletAddress str
 		progress.UnknownGateReason = mergeReasons(progress.UnknownGateReason, "unknown_required_gates:candidate_persistence_failed")
 		return report, fmt.Errorf("insert poisoning candidates: %w", err)
 	}
+	report.Counters.PoisoningCandidatesInserted = insertedCandidates
 
 	progress = storage.WalletSyncProgress{
 		BaselineComplete:            coreRes.BaselineComplete,

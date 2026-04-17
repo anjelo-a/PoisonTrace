@@ -15,6 +15,7 @@ type Counters struct {
 	DecimalsUnresolvedCount     int
 	CounterpartiesCreated       int
 	CounterpartiesUpdated       int
+	PoisoningCandidatesInserted int
 	RetryExhaustedCount         int
 }
 
