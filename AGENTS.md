@@ -186,6 +186,14 @@ Implementation must stop and ask if any of these are unresolved:
 9. Introducing fragile logic without deterministic validation at boundaries.
 10. Shipping changes that significantly degrade runtime performance without explicit approval.
 
+## Branching Policy (Mandatory)
+
+For every task that changes repository files:
+- Create and switch to a new branch before making edits.
+- Never implement repository changes directly on `main`.
+- If you discover uncommitted work on `main`, create a new branch immediately from the current state before continuing.
+- Use descriptive branch names (for example: `chore/fixture-ci-guardrails`, `fix/unknown-gate-blocking`).
+
 ## Final Response Contract (Mandatory)
 
 For every response that includes repository file changes, the final response MUST include:

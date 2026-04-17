@@ -18,8 +18,5 @@ jobs:
         run: go test ./...
       - name: Invariant guardrails
         run: ./scripts/ci_guardrails.sh
-      - name: Fixture policy check
-        run: |
-          test -f data/fixtures/README.md
-          grep -q "unknown_gate_reason" data/fixtures/README.md
-          grep -q "same_signature_multiple_wallets" data/fixtures/README.md
+      - name: Fixture execution guardrails
+        run: go test ./internal/fixtures -count=1
