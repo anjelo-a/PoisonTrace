@@ -1,0 +1,20 @@
+[
+  {
+    "focal_wallet": "Focal11111111111111111111111111111111111111111",
+    "status": "timed_out",
+    "baseline_complete": false,
+    "incomplete_window": true,
+    "unknown_gate_reason": "unknown_required_gates:wallet_timeout",
+    "truncation_reason": "",
+    "transactions_fetched": 0,
+    "transactions_inserted": 0,
+    "transactions_linked": 0,
+    "transactions_failed_to_normalize": 0,
+    "owner_unresolved_count": 0,
+    "decimals_unresolved_count": 0,
+    "counterparties_created": 0,
+    "counterparties_updated": 0,
+    "poisoning_candidates_inserted": 0,
+    "retry_exhausted": false
+  }
+]

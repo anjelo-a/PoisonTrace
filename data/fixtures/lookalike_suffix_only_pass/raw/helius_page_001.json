@@ -1,0 +1,7 @@
+{
+  "transactions": [
+    {"signature": "suffix_base_1", "slot": 70, "timestamp": 1774000000, "transactionError": null,
+      "nativeTransfers": [{"fromUserAccount": "Focal11111111111111111111111111111111111111111", "toUserAccount": "AAAAlegitSUFFIX6", "amount": "1000"}],
+      "tokenTransfers": []}
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "case_id": "rate_limited_then_retry_success",
+  "description": "Retryable 429 response is retried and replay still succeeds",
+  "focal_wallet": "Focal11111111111111111111111111111111111111111",
+  "baseline_start": "2026-01-01T00:00:00Z",
+  "baseline_end": "2026-04-01T00:00:00Z",
+  "scan_start": "2026-04-01T00:00:00Z",
+  "scan_end": "2026-04-08T00:00:00Z",
+  "max_helius_retries": 2,
+  "fetch_script": [
+    {"kind": "error", "status_code": 429, "message": "rate limited"},
+    {"kind": "page", "file": "helius_page_001.json"},
+    {"kind": "page", "file": "helius_page_002.json"},
+    {"kind": "page", "file": "helius_page_003.json"},
+    {"kind": "page", "file": "helius_page_004.json"}
+  ],
+  "expected_in_scope": true
+}

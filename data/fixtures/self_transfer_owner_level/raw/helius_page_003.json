@@ -1,0 +1,7 @@
+{
+  "transactions": [
+    {"signature": "self_scan_1", "slot": 151, "timestamp": 1775100000, "transactionError": null,
+      "nativeTransfers": [{"fromUserAccount": "Focal11111111111111111111111111111111111111111", "toUserAccount": "Focal11111111111111111111111111111111111111111", "amount": "0"}],
+      "tokenTransfers": []}
+  ]
+}

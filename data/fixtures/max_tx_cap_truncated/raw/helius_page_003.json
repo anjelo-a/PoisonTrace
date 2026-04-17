@@ -1,0 +1,10 @@
+{
+  "transactions": [
+    {"signature": "maxcap_scan_1", "slot": 101, "timestamp": 1775100000, "transactionError": null,
+      "nativeTransfers": [{"fromUserAccount": "ABCDsuspInjectZZZZ", "toUserAccount": "Focal11111111111111111111111111111111111111111", "amount": "0"}],
+      "tokenTransfers": []},
+    {"signature": "maxcap_scan_2", "slot": 102, "timestamp": 1775200000, "transactionError": null,
+      "nativeTransfers": [{"fromUserAccount": "ABCDsuspInjectZZZZ", "toUserAccount": "Focal11111111111111111111111111111111111111111", "amount": "0"}],
+      "tokenTransfers": []}
+  ]
+}

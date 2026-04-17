@@ -1,0 +1,14 @@
+{
+  "case_id": "missing_threshold_dust_unknown",
+  "description": "Missing dust threshold yields unknown gate and blocks min-injection candidate emission",
+  "focal_wallet": "Focal11111111111111111111111111111111111111111",
+  "baseline_start": "2026-01-01T00:00:00Z",
+  "baseline_end": "2026-04-01T00:00:00Z",
+  "scan_start": "2026-04-01T00:00:00Z",
+  "scan_end": "2026-04-08T00:00:00Z",
+  "dust_thresholds": [
+    {"asset_key": "SOL", "amount_raw": "100", "active_from": "2026-01-01T00:00:00Z"}
+  ],
+  "expected_in_scope": false,
+  "expected_miss_reason": "unknown_dust_threshold"
+}

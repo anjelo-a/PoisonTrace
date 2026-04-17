@@ -1,0 +1,23 @@
+[
+  {
+    "signature": "dup_sig_1",
+    "transfer_index": 0,
+    "transfer_fingerprint": "sha256:58c93606451cb5d360845a89d11cd86946b0ca3bd081a6daa5c6d47860bbee9e",
+    "slot": 110,
+    "block_time": "2026-03-20T09:46:40Z",
+    "source_owner_address": "Focal11111111111111111111111111111111111111111",
+    "destination_owner_address": "ABCDlegitBaseZZZZ",
+    "source_token_account": "",
+    "destination_token_account": "",
+    "asset_type": "native_sol",
+    "asset_key": "SOL",
+    "token_mint": "",
+    "amount_raw": "1000",
+    "decimals": null,
+    "normalization_status": "resolved",
+    "normalization_reason_code": "",
+    "poisoning_eligible": true,
+    "dust_status": "false",
+    "is_success": true
+  }
+]

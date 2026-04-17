@@ -1,0 +1,11 @@
+{
+  "case_id": "two_injection_gate_with_unknown_second",
+  "description": "Second potential injection has unknown zero-or-dust gate, forcing unknown min-injection result",
+  "focal_wallet": "Focal11111111111111111111111111111111111111111",
+  "baseline_start": "2026-01-01T00:00:00Z",
+  "baseline_end": "2026-04-01T00:00:00Z",
+  "scan_start": "2026-04-01T00:00:00Z",
+  "scan_end": "2026-04-08T00:00:00Z",
+  "expected_in_scope": false,
+  "expected_miss_reason": "unknown_second_injection"
+}

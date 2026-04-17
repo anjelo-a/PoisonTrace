@@ -1,0 +1,20 @@
+[
+  {
+    "focal_wallet": "Focal11111111111111111111111111111111111111111",
+    "status": "partial",
+    "baseline_complete": false,
+    "incomplete_window": true,
+    "unknown_gate_reason": "baseline_truncation:max_tx_pages_per_wallet_reached;baseline_truncation:max_tx_pages_per_wallet_reached;scan_truncation:max_tx_pages_per_wallet_reached;unknown_required_gates:address_inequality,is_new_counterparty,lookalike_match,recency_valid;scan_truncation:max_tx_pages_per_wallet_reached",
+    "truncation_reason": "baseline_truncation:max_tx_pages_per_wallet_reached;scan_truncation:max_tx_pages_per_wallet_reached",
+    "transactions_fetched": 3,
+    "transactions_inserted": 3,
+    "transactions_linked": 3,
+    "transactions_failed_to_normalize": 0,
+    "owner_unresolved_count": 0,
+    "decimals_unresolved_count": 0,
+    "counterparties_created": 2,
+    "counterparties_updated": 1,
+    "poisoning_candidates_inserted": 0,
+    "retry_exhausted": false
+  }
+]

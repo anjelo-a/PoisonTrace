@@ -1,0 +1,15 @@
+{
+  "transactions": [
+    {
+      "signature": "shared_scan_sig",
+      "slot": 31,
+      "timestamp": 1775100000,
+      "transactionError": null,
+      "nativeTransfers": [
+        {"fromUserAccount": "ABCDsuspA0000ZZZZ", "toUserAccount": "Focal11111111111111111111111111111111111111111", "amount": "0"},
+        {"fromUserAccount": "ABCDsuspB0000ZZZZ", "toUserAccount": "Focal22222222222222222222222222222222222222222", "amount": "0"}
+      ],
+      "tokenTransfers": []
+    }
+  ]
+}

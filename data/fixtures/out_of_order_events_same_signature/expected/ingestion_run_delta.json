@@ -1,0 +1,16 @@
+{
+  "wallets_requested": 1,
+  "wallets_processed": 1,
+  "wallets_failed": 0,
+  "wallets_skipped": 0,
+  "transactions_fetched": 3,
+  "transactions_inserted": 3,
+  "transactions_linked": 3,
+  "transactions_failed_to_normalize": 0,
+  "owner_unresolved_count": 0,
+  "decimals_unresolved_count": 0,
+  "counterparties_created": 2,
+  "counterparties_updated": 1,
+  "poisoning_candidates_inserted": 1,
+  "retry_exhausted_count": 0
+}
