@@ -35,3 +35,11 @@ Use this skill for poisoning-candidate eligibility and gate semantics.
 
 - Run affected tests in `internal/pipeline` and `internal/transactions`.
 - Add or update fixtures whenever gate behavior changes.
+
+## Delivery reminder
+
+- If repository files changed in the turn, final response must include:
+- `Branch: <branch-name>`
+- `Commit: <commit-subject-line>`
+- If no repository files changed, final response must include:
+- `No branch/commit required (no file changes).`

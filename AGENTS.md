@@ -37,6 +37,8 @@ Any PR that expands scope beyond the above is rejected unless explicitly approve
 4. No token-account-as-wallet shortcuts for poisoning logic.
 5. Bounded execution (time, concurrency, pages, tx count).
 6. Unknown gating state must block candidate emission.
+7. Do not ship unreliable or performance-hostile code paths.
+8. Do not introduce design or implementation choices that create future operational blockage.
 
 ## Required Solana Normalization Rules
 
@@ -181,3 +183,21 @@ Implementation must stop and ask if any of these are unresolved:
 6. Best-effort dropping unresolved transfers without reason codes.
 7. Unbounded live Helius tests in routine CI.
 8. Expanding to generic threat intelligence in Phase 0–1.
+9. Introducing fragile logic without deterministic validation at boundaries.
+10. Shipping changes that significantly degrade runtime performance without explicit approval.
+
+## Final Response Contract (Mandatory)
+
+For every response that includes repository file changes, the final response MUST include:
+- `Branch: <branch-name>`
+- `Commit: <commit-subject-line>`
+
+If no repository files changed, the final response MUST include:
+- `No branch/commit required (no file changes).`
+
+## Pre-Final Checklist (Mandatory)
+
+Before sending the final response:
+1. Confirm all requested edits are completed (or explicitly call out blockers).
+2. Confirm validation/test status is reported (or explicitly say not run).
+3. Confirm the final response includes the Final Response Contract fields above.

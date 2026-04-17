@@ -32,8 +32,9 @@ Mission-critical policy and invariants remain in `AGENTS.md`.
 
 ## Delivery Output Requirement
 
-For every code change response, provide:
-- a branch name
-- a commit name (commit message subject line)
+For every response that includes repository file changes, the final response must include:
+- `Branch: <branch-name>`
+- `Commit: <commit-subject-line>`
 
-If no code changed, explicitly state that no branch/commit is required.
+If no repository files changed, the final response must include:
+- `No branch/commit required (no file changes).`

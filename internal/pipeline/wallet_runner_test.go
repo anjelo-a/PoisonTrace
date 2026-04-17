@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -251,4 +252,151 @@ func TestWalletExecutionRunner_PartialOnBaselineTruncation(t *testing.T) {
 	if store.finalized[0].unknown == "" {
 		t.Fatal("expected unknown gate reason on finalized partial wallet")
 	}
+}
+
+func TestBuildDustClassifier_EffectiveTimeAwareThresholds(t *testing.T) {
+	store := newWalletRunnerStoreStub()
+	store.dustThresholds = []storage.DustThresholdRecord{
+		{
+			AssetKey:   "SOL",
+			AmountRaw:  "100",
+			ActiveFrom: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+			ActiveTo:   ptrTime(time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)),
+		},
+		{
+			AssetKey:   "SOL",
+			AmountRaw:  "10",
+			ActiveFrom: time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC),
+		},
+	}
+
+	runner := &WalletExecutionRunner{store: store}
+	classify, err := runner.buildDustClassifier(
+		context.Background(),
+		time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
+	)
+	if err != nil {
+		t.Fatalf("buildDustClassifier failed: %v", err)
+	}
+
+	beforeCutover := classify(transactions.NormalizedTransfer{
+		AssetKey:   "SOL",
+		AmountRaw:  "50",
+		BlockTime:  time.Date(2026, 3, 15, 0, 0, 0, 0, time.UTC),
+		DustStatus: transactions.DustUnknown,
+	})
+	if beforeCutover != transactions.DustTrue {
+		t.Fatalf("expected pre-cutover SOL threshold to classify dust=true, got %s", beforeCutover)
+	}
+
+	onCutover := classify(transactions.NormalizedTransfer{
+		AssetKey:  "SOL",
+		AmountRaw: "10",
+		BlockTime: time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC),
+	})
+	if onCutover != transactions.DustTrue {
+		t.Fatalf("expected cutover timestamp to use new threshold, got %s", onCutover)
+	}
+
+	afterCutover := classify(transactions.NormalizedTransfer{
+		AssetKey:  "SOL",
+		AmountRaw: "50",
+		BlockTime: time.Date(2026, 4, 2, 0, 0, 0, 0, time.UTC),
+	})
+	if afterCutover != transactions.DustFalse {
+		t.Fatalf("expected post-cutover SOL threshold to classify dust=false, got %s", afterCutover)
+	}
+
+	noRule := classify(transactions.NormalizedTransfer{
+		AssetKey:  "UNKNOWN_MINT",
+		AmountRaw: "1",
+		BlockTime: time.Date(2026, 4, 2, 0, 0, 0, 0, time.UTC),
+	})
+	if noRule != transactions.DustUnknown {
+		t.Fatalf("expected missing threshold to classify dust=unknown, got %s", noRule)
+	}
+}
+
+func TestBuildDustClassifier_RejectsInvalidThresholdRows(t *testing.T) {
+	baseStart := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
+	baseEnd := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name        string
+		thresholds  []storage.DustThresholdRecord
+		wantErrPart string
+	}{
+		{
+			name: "empty_asset_key",
+			thresholds: []storage.DustThresholdRecord{
+				{
+					AssetKey:   " ",
+					AmountRaw:  "100",
+					ActiveFrom: baseStart,
+				},
+			},
+			wantErrPart: "asset_key is empty",
+		},
+		{
+			name: "invalid_amount",
+			thresholds: []storage.DustThresholdRecord{
+				{
+					AssetKey:   "SOL",
+					AmountRaw:  "not_numeric",
+					ActiveFrom: baseStart,
+				},
+			},
+			wantErrPart: "dust_amount_raw_threshold",
+		},
+		{
+			name: "invalid_window",
+			thresholds: []storage.DustThresholdRecord{
+				{
+					AssetKey:   "SOL",
+					AmountRaw:  "100",
+					ActiveFrom: baseStart,
+					ActiveTo:   ptrTime(baseStart),
+				},
+			},
+			wantErrPart: "active_to must be greater than active_from",
+		},
+		{
+			name: "overlapping_windows",
+			thresholds: []storage.DustThresholdRecord{
+				{
+					AssetKey:   "SOL",
+					AmountRaw:  "100",
+					ActiveFrom: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+					ActiveTo:   ptrTime(time.Date(2026, 4, 15, 0, 0, 0, 0, time.UTC)),
+				},
+				{
+					AssetKey:   "SOL",
+					AmountRaw:  "10",
+					ActiveFrom: time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC),
+				},
+			},
+			wantErrPart: "overlapping dust threshold windows",
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			store := newWalletRunnerStoreStub()
+			store.dustThresholds = tc.thresholds
+			runner := &WalletExecutionRunner{store: store}
+			_, err := runner.buildDustClassifier(context.Background(), baseStart, baseEnd)
+			if err == nil {
+				t.Fatal("expected buildDustClassifier to fail")
+			}
+			if !strings.Contains(err.Error(), tc.wantErrPart) {
+				t.Fatalf("expected error containing %q, got %q", tc.wantErrPart, err.Error())
+			}
+		})
+	}
+}
+
+func ptrTime(v time.Time) *time.Time {
+	return &v
 }
