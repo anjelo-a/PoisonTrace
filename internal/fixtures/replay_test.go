@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -46,23 +47,31 @@ func TestReplayCanonicalFixtures(t *testing.T) {
 			if err := CompareExpected(fx, out); err != nil {
 				t.Fatalf("compare expected: %v", err)
 			}
-
-			switch caseID {
-			case "baseline_truncated_newness_unknown", "missing_threshold_dust_unknown", "two_injection_gate_with_unknown_second":
-				if out.IngestionRunDelta.PoisoningCandidatesInserted != 0 {
-					t.Fatalf("expected no emitted candidates under unknown required gate, got %d", out.IngestionRunDelta.PoisoningCandidatesInserted)
-				}
-				hasIncomplete := false
-				for _, ws := range out.WalletSyncRuns {
-					if ws.IncompleteWindow {
-						hasIncomplete = true
-						break
-					}
-				}
-				if !hasIncomplete {
-					t.Fatal("expected incomplete_window=true when unknown required gate occurs")
-				}
-			}
+			assertUnknownGateGuardrails(t, caseID, out)
 		})
+	}
+}
+
+func assertUnknownGateGuardrails(t *testing.T, caseID string, out ReplayOutput) {
+	t.Helper()
+
+	candidatesByWallet := make(map[string]int, len(out.PoisoningCandidates))
+	for _, candidate := range out.PoisoningCandidates {
+		candidatesByWallet[candidate.FocalWallet]++
+	}
+
+	for _, run := range out.WalletSyncRuns {
+		if !strings.Contains(run.UnknownGateReason, "unknown_required_gates:") {
+			continue
+		}
+		if !run.IncompleteWindow {
+			t.Fatalf("%s/%s: expected incomplete_window=true when unknown required gates occur", caseID, run.FocalWallet)
+		}
+		if run.PoisoningCandidatesInserted != 0 {
+			t.Fatalf("%s/%s: expected no emitted candidates under unknown required gate, got wallet_sync_run poisoning_candidates_inserted=%d", caseID, run.FocalWallet, run.PoisoningCandidatesInserted)
+		}
+		if got := candidatesByWallet[run.FocalWallet]; got != 0 {
+			t.Fatalf("%s/%s: expected no emitted candidate rows under unknown required gate, got %d", caseID, run.FocalWallet, got)
+		}
 	}
 }
