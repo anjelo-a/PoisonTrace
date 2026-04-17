@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func validConfig() Config {
 	return Config{
@@ -56,5 +59,43 @@ func TestValidateRejectsBaselineNotGreaterThanScanWindow(t *testing.T) {
 	cfg.ScanWindowDays = 7
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("expected error when baseline window is not greater than scan window")
+	}
+}
+
+func TestValidateRejectsMalformedURLs(t *testing.T) {
+	tests := []struct {
+		name      string
+		mutate    func(*Config)
+		wantInErr string
+	}{
+		{
+			name: "database_url_malformed",
+			mutate: func(cfg *Config) {
+				cfg.DatabaseURL = "://bad"
+			},
+			wantInErr: "DATABASE_URL must be a valid URI",
+		},
+		{
+			name: "helius_base_url_malformed",
+			mutate: func(cfg *Config) {
+				cfg.HeliusBaseURL = "://bad"
+			},
+			wantInErr: "HELIUS_BASE_URL must be a valid URI",
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := validConfig()
+			tc.mutate(&cfg)
+			err := cfg.Validate()
+			if err == nil {
+				t.Fatal("expected malformed URL validation error")
+			}
+			if !strings.Contains(err.Error(), tc.wantInErr) {
+				t.Fatalf("expected error containing %q, got %q", tc.wantInErr, err.Error())
+			}
+		})
 	}
 }

@@ -1,4 +1,4 @@
-.PHONY: build test test-guardrails migrate run-fixture run
+.PHONY: build test test-guardrails check-phase01-invariants migrate run-fixture run
 
 build:
 	go build ./cmd/scanner
@@ -8,6 +8,9 @@ test:
 
 test-guardrails:
 	./scripts/ci_guardrails.sh
+
+check-phase01-invariants:
+	./scripts/check_phase01_invariants.sh
 
 migrate:
 	./scripts/migrate.sh

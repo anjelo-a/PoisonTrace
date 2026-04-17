@@ -397,6 +397,95 @@ func TestBuildDustClassifier_RejectsInvalidThresholdRows(t *testing.T) {
 	}
 }
 
+func TestWalletExecutionRunnerRejectsMissingRequiredInputs(t *testing.T) {
+	t.Parallel()
+
+	baseParams := RunParams{
+		ScanStart:            time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC),
+		ScanEnd:              time.Date(2026, 4, 8, 0, 0, 0, 0, time.UTC),
+		BaselineLookbackDays: 90,
+		IngestionRunID:       42,
+	}
+	baseLimits := WalletRunLimits{
+		MaxTXPagesPerWallet: 5,
+		MaxTXPerWallet:      100,
+		MaxHeliusRetries:    1,
+	}
+
+	tests := []struct {
+		name      string
+		runner    WalletExecutionRunner
+		wallet    string
+		params    RunParams
+		wantInErr string
+	}{
+		{
+			name: "missing_wallet_address",
+			runner: WalletExecutionRunner{
+				cfg:    testConfig(),
+				store:  newWalletRunnerStoreStub(),
+				client: &scriptedClient{},
+			},
+			wallet:    " ",
+			params:    baseParams,
+			wantInErr: "wallet address is required",
+		},
+		{
+			name: "missing_ingestion_run_id",
+			runner: WalletExecutionRunner{
+				cfg:    testConfig(),
+				store:  newWalletRunnerStoreStub(),
+				client: &scriptedClient{},
+			},
+			wallet: "walletA",
+			params: RunParams{
+				ScanStart:            baseParams.ScanStart,
+				ScanEnd:              baseParams.ScanEnd,
+				BaselineLookbackDays: baseParams.BaselineLookbackDays,
+				IngestionRunID:       0,
+			},
+			wantInErr: "ingestion run id is required",
+		},
+		{
+			name: "missing_store",
+			runner: WalletExecutionRunner{
+				cfg:    testConfig(),
+				store:  nil,
+				client: &scriptedClient{},
+			},
+			wallet:    "walletA",
+			params:    baseParams,
+			wantInErr: "wallet execution store is required",
+		},
+		{
+			name: "missing_helius_client",
+			runner: WalletExecutionRunner{
+				cfg:    testConfig(),
+				store:  newWalletRunnerStoreStub(),
+				client: nil,
+			},
+			wallet:    "walletA",
+			params:    baseParams,
+			wantInErr: "helius client is required",
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := tc.runner.RunWallet(context.Background(), tc.wallet, tc.params, baseLimits)
+			if err == nil {
+				t.Fatal("expected validation error")
+			}
+			if !strings.Contains(err.Error(), tc.wantInErr) {
+				t.Fatalf("expected error containing %q, got %q", tc.wantInErr, err.Error())
+			}
+		})
+	}
+}
+
 func ptrTime(v time.Time) *time.Time {
 	return &v
 }

@@ -2,4 +2,5 @@
 
 set -euo pipefail
 
-go test ./internal/pipeline ./internal/helius -run 'TestRetryBackoffClampsLargeAttemptsWithoutOverflow|TestMaterializeCandidatesMinInjectionIgnoresNonBaseGateInboundEvents|TestMaterializeCandidatesFailsClosedOnInvalidParams|TestRunWalletCoreSyncRejectsInvalidLookalikeThresholds|TestValidateCoreSyncParamsRejectsInvalidRuntimeBounds|TestNewHTTPClientRequiresAbsoluteHTTPBaseURL'
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+exec "$ROOT_DIR/scripts/check_phase01_invariants.sh"
