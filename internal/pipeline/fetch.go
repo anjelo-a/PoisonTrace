@@ -148,12 +148,23 @@ func retryBackoff(attempt int) time.Duration {
 	if attempt < 0 {
 		attempt = 0
 	}
-	base := 200 * time.Millisecond
-	backoff := base << attempt
-	if backoff > 5*time.Second {
-		backoff = 5 * time.Second
+	const (
+		baseBackoff     = 200 * time.Millisecond
+		maxBackoff      = 5 * time.Second
+		maxBackoffShift = 5
+	)
+
+	shift := attempt
+	if shift > maxBackoffShift {
+		shift = maxBackoffShift
 	}
-	jitter := time.Duration((attempt*37)%97) * time.Millisecond
+
+	backoff := baseBackoff << shift
+	if backoff > maxBackoff {
+		backoff = maxBackoff
+	}
+	jitterSeed := attempt % 97
+	jitter := time.Duration((jitterSeed*37)%97) * time.Millisecond
 	return backoff + jitter
 }
 

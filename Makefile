@@ -1,10 +1,13 @@
-.PHONY: build test migrate run-fixture run
+.PHONY: build test test-guardrails migrate run-fixture run
 
 build:
 	go build ./cmd/scanner
 
 test:
 	go test ./...
+
+test-guardrails:
+	./scripts/ci_guardrails.sh
 
 migrate:
 	./scripts/migrate.sh

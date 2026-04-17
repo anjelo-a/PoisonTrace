@@ -55,8 +55,10 @@ func MaterializeCandidates(baseline []WalletTransferObservation, scan []WalletTr
 	res := CandidateMaterializationResult{
 		Candidates: make([]PoisoningCandidate, 0),
 	}
-	if p.MinInjectionCount < 2 {
-		p.MinInjectionCount = 2
+	if err := ValidateCandidateMaterializeParams(p); err != nil {
+		res.IncompleteWindow = true
+		res.UnknownGateReason = "invalid_candidate_params:" + err.Error()
+		return res
 	}
 
 	preWindowSeen := buildPreWindowInteractionSet(baseline)
@@ -65,11 +67,12 @@ func MaterializeCandidates(baseline []WalletTransferObservation, scan []WalletTr
 
 	unknownGates := make(map[string]struct{})
 	for _, obs := range scan {
+		baseGates := evaluateBaseEmissionGates(obs)
 		gates := CandidateGate{
-			NormalizationResolved: gateNormalizationResolved(obs.Transfer),
-			PoisoningEligible:     gateBool(obs.Transfer.PoisoningEligible),
-			AssetTypeSupported:    gateSupportedAssetType(obs.Transfer.AssetType),
-			Inbound:               gateRelationInbound(obs.RelationType),
+			NormalizationResolved: baseGates.NormalizationResolved,
+			PoisoningEligible:     baseGates.PoisoningEligible,
+			AssetTypeSupported:    baseGates.AssetTypeSupported,
+			Inbound:               baseGates.Inbound,
 			ZeroOrDust:            gateZeroOrDust(obs.Transfer),
 			NewCounterparty:       gateNewCounterparty(p.BaselineComplete, preWindowSeen[obs.CounterpartyAddress]),
 			BaselineComplete:      gateBool(p.BaselineComplete),
@@ -161,10 +164,17 @@ type inboundCounterpartyStats struct {
 	UnknownPotential int
 }
 
+type candidateBaseEmissionGates struct {
+	NormalizationResolved GateState
+	PoisoningEligible     GateState
+	AssetTypeSupported    GateState
+	Inbound               GateState
+}
+
 func buildInboundCounterpartyStats(scan []WalletTransferObservation) map[string]inboundCounterpartyStats {
 	out := make(map[string]inboundCounterpartyStats)
 	for _, obs := range scan {
-		if obs.RelationType != counterparties.RelationReceiver {
+		if !evaluateBaseEmissionGates(obs).canQualifyForMinInjection() {
 			continue
 		}
 		cp := strings.TrimSpace(obs.CounterpartyAddress)
@@ -182,6 +192,22 @@ func buildInboundCounterpartyStats(scan []WalletTransferObservation) map[string]
 		out[cp] = stats
 	}
 	return out
+}
+
+func evaluateBaseEmissionGates(obs WalletTransferObservation) candidateBaseEmissionGates {
+	return candidateBaseEmissionGates{
+		NormalizationResolved: gateNormalizationResolved(obs.Transfer),
+		PoisoningEligible:     gateBool(obs.Transfer.PoisoningEligible),
+		AssetTypeSupported:    gateSupportedAssetType(obs.Transfer.AssetType),
+		Inbound:               gateRelationInbound(obs.RelationType),
+	}
+}
+
+func (g candidateBaseEmissionGates) canQualifyForMinInjection() bool {
+	return g.Inbound == GatePass &&
+		g.NormalizationResolved == GatePass &&
+		g.PoisoningEligible == GatePass &&
+		g.AssetTypeSupported == GatePass
 }
 
 func gateNormalizationResolved(tr transactions.NormalizedTransfer) GateState {

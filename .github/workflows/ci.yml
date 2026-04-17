@@ -16,6 +16,8 @@ jobs:
         run: go vet ./...
       - name: Test
         run: go test ./...
+      - name: Invariant guardrails
+        run: ./scripts/ci_guardrails.sh
       - name: Fixture policy check
         run: |
           test -f data/fixtures/README.md

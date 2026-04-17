@@ -114,6 +114,28 @@ func TestMaterializeCandidatesMinInjectionUnknownWhenDustUnknownCouldMeetThresho
 	}
 }
 
+func TestMaterializeCandidatesMinInjectionIgnoresNonBaseGateInboundEvents(t *testing.T) {
+	params := defaultMaterializeParams()
+	baseAt := time.Date(2026, 3, 20, 0, 0, 0, 0, time.UTC)
+	scanAt := time.Date(2026, 4, 3, 0, 0, 0, 0, time.UTC)
+	baseline := []WalletTransferObservation{
+		obs("b1", 0, baseAt, counterparties.RelationSender, "LegitABCDxyzz", "10000", transactions.DustFalse),
+	}
+
+	resolved := obs("s1", 0, scanAt, counterparties.RelationReceiver, "LegitWXYZxyzz", "0", transactions.DustFalse)
+	unresolved := obs("s2", 1, scanAt.Add(1*time.Hour), counterparties.RelationReceiver, "LegitWXYZxyzz", "0", transactions.DustFalse)
+	unresolved.Transfer.NormalizationStatus = transactions.NormalizationUnresolvedOwner
+	unresolved.Transfer.PoisoningEligible = false
+
+	result := MaterializeCandidates(baseline, []WalletTransferObservation{resolved, unresolved}, params)
+	if result.IncompleteWindow {
+		t.Fatalf("did not expect incomplete window, reason=%s", result.UnknownGateReason)
+	}
+	if len(result.Candidates) != 0 {
+		t.Fatalf("expected no candidates when only one base-gate-qualifying inbound event exists, got %d", len(result.Candidates))
+	}
+}
+
 func TestMaterializeCandidatesDoesNotTreatInboundOnlyBaselineAsLegit(t *testing.T) {
 	params := defaultMaterializeParams()
 	at := time.Date(2026, 4, 3, 0, 0, 0, 0, time.UTC)
@@ -131,5 +153,21 @@ func TestMaterializeCandidatesDoesNotTreatInboundOnlyBaselineAsLegit(t *testing.
 	}
 	if len(result.Candidates) != 0 {
 		t.Fatalf("expected no candidates without legit outbound baseline, got %d", len(result.Candidates))
+	}
+}
+
+func TestMaterializeCandidatesFailsClosedOnInvalidParams(t *testing.T) {
+	params := defaultMaterializeParams()
+	params.LookalikeRecencyDays = 0
+
+	result := MaterializeCandidates(nil, nil, params)
+	if len(result.Candidates) != 0 {
+		t.Fatalf("expected no candidates under invalid params, got %d", len(result.Candidates))
+	}
+	if !result.IncompleteWindow {
+		t.Fatal("expected incomplete window under invalid params")
+	}
+	if !strings.Contains(result.UnknownGateReason, "invalid_candidate_params:") {
+		t.Fatalf("expected invalid params reason, got %q", result.UnknownGateReason)
 	}
 }

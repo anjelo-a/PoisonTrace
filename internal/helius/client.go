@@ -26,7 +26,8 @@ type HTTPClient struct {
 }
 
 func NewHTTPClient(baseURL, apiKey string, timeout time.Duration) (*HTTPClient, error) {
-	if strings.TrimSpace(baseURL) == "" {
+	baseURL = strings.TrimSpace(baseURL)
+	if baseURL == "" {
 		return nil, fmt.Errorf("baseURL is required")
 	}
 	if strings.TrimSpace(apiKey) == "" {
@@ -35,6 +36,14 @@ func NewHTTPClient(baseURL, apiKey string, timeout time.Duration) (*HTTPClient, 
 	parsed, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, fmt.Errorf("parse baseURL: %w", err)
+	}
+	if strings.TrimSpace(parsed.Scheme) == "" || strings.TrimSpace(parsed.Host) == "" {
+		return nil, fmt.Errorf("baseURL must include scheme and host (e.g. https://api.helius.xyz)")
+	}
+	switch strings.ToLower(parsed.Scheme) {
+	case "http", "https":
+	default:
+		return nil, fmt.Errorf("baseURL scheme must be http or https")
 	}
 	if timeout <= 0 {
 		timeout = 15 * time.Second
