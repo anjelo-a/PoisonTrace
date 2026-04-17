@@ -50,14 +50,11 @@ type CoreSyncResult struct {
 }
 
 func RunWalletCoreSync(ctx context.Context, client helius.Client, p CoreSyncParams) (CoreSyncResult, error) {
-	if strings.TrimSpace(p.FocalWalletAddress) == "" {
-		return CoreSyncResult{}, fmt.Errorf("focal wallet address is required")
+	if err := ValidateCoreSyncParams(p); err != nil {
+		return CoreSyncResult{}, err
 	}
-	if !p.BaselineStart.Before(p.BaselineEnd) || !p.ScanStart.Before(p.ScanEnd) {
-		return CoreSyncResult{}, fmt.Errorf("invalid baseline/scan windows")
-	}
-	if !p.BaselineEnd.Equal(p.ScanStart) {
-		return CoreSyncResult{}, fmt.Errorf("baseline end must equal scan start")
+	if client == nil {
+		return CoreSyncResult{}, fmt.Errorf("helius client is required")
 	}
 
 	baselineFetch, err := FetchEnhancedWindow(ctx, client, p.FocalWalletAddress, FetchWindowParams{

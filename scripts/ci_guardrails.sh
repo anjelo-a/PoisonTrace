@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+go test ./internal/pipeline ./internal/helius -run 'TestRetryBackoffClampsLargeAttemptsWithoutOverflow|TestMaterializeCandidatesMinInjectionIgnoresNonBaseGateInboundEvents|TestMaterializeCandidatesFailsClosedOnInvalidParams|TestRunWalletCoreSyncRejectsInvalidLookalikeThresholds|TestValidateCoreSyncParamsRejectsInvalidRuntimeBounds|TestNewHTTPClientRequiresAbsoluteHTTPBaseURL'

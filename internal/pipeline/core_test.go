@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -165,5 +166,105 @@ func TestRunWalletCoreSyncBaselineTruncationForcesIncompleteAndSuppressesCandida
 	}
 	if res.BaselineTruncation == "" || res.UnknownGateReason == "" {
 		t.Fatalf("expected truncation and reason to be persisted, got truncation=%q reason=%q", res.BaselineTruncation, res.UnknownGateReason)
+	}
+}
+
+func TestRunWalletCoreSyncRejectsInvalidLookalikeThresholds(t *testing.T) {
+	t.Parallel()
+
+	baseParams := CoreSyncParams{
+		FocalWalletAddress:     "walletA",
+		BaselineStart:          time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		BaselineEnd:            time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC),
+		ScanStart:              time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC),
+		ScanEnd:                time.Date(2026, 4, 8, 0, 0, 0, 0, time.UTC),
+		MaxTXPagesPerWallet:    5,
+		MaxTXPerWallet:         100,
+		MaxHeliusRetries:       1,
+		HeliusRequestDelay:     0,
+		LookalikeRecencyDays:   30,
+		LookalikePrefixMin:     4,
+		LookalikeSuffixMin:     4,
+		LookalikeSingleSideMin: 6,
+		MinInjectionCount:      2,
+	}
+
+	tests := []struct {
+		name      string
+		mutate    func(*CoreSyncParams)
+		wantInErr string
+	}{
+		{
+			name: "recency_non_positive",
+			mutate: func(p *CoreSyncParams) {
+				p.LookalikeRecencyDays = 0
+			},
+			wantInErr: "lookalike recency days must be >= 1",
+		},
+		{
+			name: "threshold_non_positive",
+			mutate: func(p *CoreSyncParams) {
+				p.LookalikePrefixMin = -1
+			},
+			wantInErr: "lookalike thresholds must be >= 1",
+		},
+		{
+			name: "phase1_minimums_not_met",
+			mutate: func(p *CoreSyncParams) {
+				p.LookalikePrefixMin = 3
+			},
+			wantInErr: "lookalike thresholds must satisfy phase1 minimums",
+		},
+		{
+			name: "min_injection_non_positive",
+			mutate: func(p *CoreSyncParams) {
+				p.MinInjectionCount = 1
+			},
+			wantInErr: "min injection count must be >= 2",
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			params := baseParams
+			tc.mutate(&params)
+			_, err := RunWalletCoreSync(context.Background(), nil, params)
+			if err == nil {
+				t.Fatal("expected validation error")
+			}
+			if !strings.Contains(err.Error(), tc.wantInErr) {
+				t.Fatalf("expected error containing %q, got %q", tc.wantInErr, err.Error())
+			}
+		})
+	}
+}
+
+func TestRunWalletCoreSyncRejectsNilClient(t *testing.T) {
+	t.Parallel()
+
+	_, err := RunWalletCoreSync(context.Background(), nil, CoreSyncParams{
+		FocalWalletAddress:     "walletA",
+		BaselineStart:          time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		BaselineEnd:            time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC),
+		ScanStart:              time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC),
+		ScanEnd:                time.Date(2026, 4, 8, 0, 0, 0, 0, time.UTC),
+		MaxTXPagesPerWallet:    5,
+		MaxTXPerWallet:         100,
+		MaxHeliusRetries:       1,
+		HeliusRequestDelay:     0,
+		LookalikeRecencyDays:   30,
+		LookalikePrefixMin:     4,
+		LookalikeSuffixMin:     4,
+		LookalikeSingleSideMin: 6,
+		MinInjectionCount:      2,
+	})
+	if err == nil {
+		t.Fatal("expected nil client validation error")
+	}
+	if !strings.Contains(err.Error(), "helius client is required") {
+		t.Fatalf("expected helius client error, got %q", err.Error())
 	}
 }

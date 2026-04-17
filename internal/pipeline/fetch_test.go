@@ -136,3 +136,14 @@ func TestFetchEnhancedWindowMarksPartialOnRetryExhaustion(t *testing.T) {
 		t.Fatalf("unexpected truncation code: %s", result.TruncationCode)
 	}
 }
+
+func TestRetryBackoffClampsLargeAttemptsWithoutOverflow(t *testing.T) {
+	hugeAttempt := int(^uint(0) >> 1)
+	backoff := retryBackoff(hugeAttempt)
+	if backoff <= 0 {
+		t.Fatalf("expected positive backoff for large attempt, got %s", backoff)
+	}
+	if backoff > 5*time.Second+96*time.Millisecond {
+		t.Fatalf("expected capped backoff with jitter, got %s", backoff)
+	}
+}

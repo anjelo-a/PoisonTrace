@@ -94,6 +94,11 @@ func testConfig() config.Config {
 		HeliusRequestDelayMS:     25,
 		MaxHeliusRetries:         2,
 		BaselineLookbackDays:     90,
+		LookalikeRecencyDays:     30,
+		LookalikePrefixMin:       4,
+		LookalikeSuffixMin:       4,
+		LookalikeSingleSideMin:   6,
+		MinInjectionCount:        2,
 	}
 }
 
