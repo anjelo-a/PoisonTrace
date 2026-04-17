@@ -153,6 +153,7 @@ func (o *Orchestrator) Run(ctx context.Context, p RunParams) error {
 		total.DecimalsUnresolvedCount += outcome.report.Counters.DecimalsUnresolvedCount
 		total.CounterpartiesCreated += outcome.report.Counters.CounterpartiesCreated
 		total.CounterpartiesUpdated += outcome.report.Counters.CounterpartiesUpdated
+		total.PoisoningCandidatesInserted += outcome.report.Counters.PoisoningCandidatesInserted
 		total.RetryExhaustedCount += outcome.report.Counters.RetryExhaustedCount
 
 		switch {

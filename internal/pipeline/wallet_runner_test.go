@@ -191,6 +191,9 @@ func TestWalletExecutionRunner_SucceededPath(t *testing.T) {
 	if len(store.progresses) != 1 {
 		t.Fatalf("expected one progress update, got %d", len(store.progresses))
 	}
+	if store.progresses[0].PoisoningCandidatesInserted != report.Counters.PoisoningCandidatesInserted {
+		t.Fatalf("expected progress candidate counter=%d, got %+v", report.Counters.PoisoningCandidatesInserted, store.progresses[0])
+	}
 	if store.progresses[0].IncompleteWindow {
 		t.Fatalf("expected complete window, got %+v", store.progresses[0])
 	}

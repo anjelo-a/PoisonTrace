@@ -41,8 +41,9 @@ SET status = $2,
     decimals_unresolved_count = $13,
     counterparties_created = $14,
     counterparties_updated = $15,
-    retry_exhausted_count = $16,
-    notes = $17
+    poisoning_candidates_inserted = $16,
+    retry_exhausted_count = $17,
+    notes = $18
 WHERE id = $1`
 	res, err := s.DB.ExecContext(
 		ctx,
@@ -62,6 +63,7 @@ WHERE id = $1`
 		counters.DecimalsUnresolvedCount,
 		counters.CounterpartiesCreated,
 		counters.CounterpartiesUpdated,
+		counters.PoisoningCandidatesInserted,
 		counters.RetryExhaustedCount,
 		nullableText(notes),
 	)
@@ -122,7 +124,8 @@ SET baseline_complete = $2,
     transactions_linked = $8,
     transactions_failed_to_normalize = $9,
     counterparties_created = $10,
-    counterparties_updated = $11
+    counterparties_updated = $11,
+    poisoning_candidates_inserted = $12
 WHERE id = $1`
 
 	reason := nullableText(progress.UnknownGateReason)
@@ -148,6 +151,7 @@ WHERE id = $1`
 		progress.TransactionsFailedNormalize,
 		progress.CounterpartiesCreated,
 		progress.CounterpartiesUpdated,
+		progress.PoisoningCandidatesInserted,
 	)
 	if err != nil {
 		return fmt.Errorf("update wallet sync progress %d: %w", walletSyncRunID, err)

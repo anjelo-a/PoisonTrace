@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"poisontrace/internal/config"
+	"poisontrace/internal/runs"
+	"poisontrace/internal/storage"
 )
 
 type lockRepoStub struct {
@@ -18,6 +20,44 @@ type lockRepoStub struct {
 	locked   map[string]bool
 	acquired []string
 	released []string
+}
+
+type runRepoStub struct {
+	mu            sync.Mutex
+	nextID        int64
+	finalized     bool
+	finalStatus   runs.RunStatus
+	finalCounters runs.Counters
+}
+
+func (r *runRepoStub) CreateIngestionRun(_ context.Context, _ time.Time) (int64, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.nextID == 0 {
+		r.nextID = 1
+	}
+	return r.nextID, nil
+}
+
+func (r *runRepoStub) FinalizeIngestionRun(_ context.Context, _ int64, status runs.RunStatus, _ time.Time, counters runs.Counters, _ string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.finalized = true
+	r.finalStatus = status
+	r.finalCounters = counters
+	return nil
+}
+
+func (r *runRepoStub) CreateWalletSyncRun(context.Context, int64, int64, runs.WalletSyncWindow, time.Time) (int64, error) {
+	return 0, errors.New("not used")
+}
+
+func (r *runRepoStub) UpdateWalletSyncProgress(context.Context, int64, storage.WalletSyncProgress) error {
+	return errors.New("not used")
+}
+
+func (r *runRepoStub) FinalizeWalletSyncRun(context.Context, int64, runs.WalletStatus, time.Time, bool, string, string, string, string) error {
+	return errors.New("not used")
 }
 
 func newLockRepoStub() *lockRepoStub {
@@ -161,5 +201,41 @@ func TestRunPropagatesWalletContextTimeout(t *testing.T) {
 	}
 	if elapsed := time.Since(start); elapsed > 4*time.Second {
 		t.Fatalf("expected wallet timeout bound near 1 second, elapsed=%v", elapsed)
+	}
+}
+
+func TestRunAggregatesPoisoningCandidateCounters(t *testing.T) {
+	cfg := testConfig()
+	runRepo := &runRepoStub{}
+
+	orch := NewOrchestrator(
+		cfg,
+		WithRunRepository(runRepo),
+		WithWalletRunner(func(_ context.Context, wallet string, _ RunParams, _ WalletRunLimits) (WalletRunReport, error) {
+			report := WalletRunReport{WalletStatus: runs.WalletStatusSucceeded}
+			report.Counters.TransactionsFetched = 1
+			report.Counters.PoisoningCandidatesInserted = 1
+			if wallet == "walletB" {
+				report.Counters.PoisoningCandidatesInserted = 2
+			}
+			return report, nil
+		}),
+	)
+
+	err := orch.Run(context.Background(), RunParams{
+		WalletFile:           writeWalletFile(t, []string{"walletA", "walletB"}),
+		ScanStart:            time.Now().UTC().Add(-2 * time.Hour),
+		ScanEnd:              time.Now().UTC().Add(-1 * time.Hour),
+		BaselineLookbackDays: 90,
+	})
+	if err != nil {
+		t.Fatalf("run returned unexpected error: %v", err)
+	}
+
+	if !runRepo.finalized {
+		t.Fatal("expected ingestion run to be finalized")
+	}
+	if runRepo.finalCounters.PoisoningCandidatesInserted != 3 {
+		t.Fatalf("expected aggregated poisoning candidate count=3, got %+v", runRepo.finalCounters)
 	}
 }
