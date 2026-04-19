@@ -84,6 +84,6 @@ type DustThresholdRepository interface {
 }
 
 type WalletLockRepository interface {
-	AcquireWalletLock(ctx context.Context, walletAddress string, ttlSeconds int) (bool, error)
-	ReleaseWalletLock(ctx context.Context, walletAddress string) error
+	AcquireWalletLock(ctx context.Context, walletAddress string, ttlSeconds int) (acquired bool, holderToken string, err error)
+	ReleaseWalletLock(ctx context.Context, walletAddress string, holderToken string) error
 }

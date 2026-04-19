@@ -41,9 +41,9 @@ func NewHTTPClient(baseURL, apiKey string, timeout time.Duration) (*HTTPClient, 
 		return nil, fmt.Errorf("baseURL must include scheme and host (e.g. https://api.helius.xyz)")
 	}
 	switch strings.ToLower(parsed.Scheme) {
-	case "http", "https":
+	case "https":
 	default:
-		return nil, fmt.Errorf("baseURL scheme must be http or https")
+		return nil, fmt.Errorf("baseURL scheme must be https")
 	}
 	if timeout <= 0 {
 		timeout = 15 * time.Second

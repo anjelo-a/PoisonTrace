@@ -222,7 +222,8 @@ func (o *Orchestrator) runWallet(ctx context.Context, walletAddress string, p Ru
 	}
 
 	if o.walletLocks != nil {
-		acquired, err := o.walletLocks.AcquireWalletLock(ctx, walletAddress, o.cfg.WalletSyncTimeoutSeconds)
+		lockTTLSeconds := o.cfg.WalletSyncTimeoutSeconds + walletLockTTLTailSeconds
+		acquired, holderToken, err := o.walletLocks.AcquireWalletLock(ctx, walletAddress, lockTTLSeconds)
 		if err != nil {
 			return WalletRunReport{}, fmt.Errorf("acquire lock: %w", err)
 		}
@@ -230,9 +231,9 @@ func (o *Orchestrator) runWallet(ctx context.Context, walletAddress string, p Ru
 			return WalletRunReport{}, ErrWalletAlreadyLocked
 		}
 		defer func() {
-			releaseCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			releaseCtx, cancel := context.WithTimeout(context.Background(), time.Duration(walletLockReleaseTimeoutSecs)*time.Second)
 			defer cancel()
-			_ = o.walletLocks.ReleaseWalletLock(releaseCtx, walletAddress)
+			_ = o.walletLocks.ReleaseWalletLock(releaseCtx, walletAddress, holderToken)
 		}()
 	}
 

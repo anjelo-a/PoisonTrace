@@ -58,3 +58,11 @@ func TestValidateRejectsBaselineNotGreaterThanScanWindow(t *testing.T) {
 		t.Fatal("expected error when baseline window is not greater than scan window")
 	}
 }
+
+func TestValidateRejectsNonHTTPSHeliusBaseURL(t *testing.T) {
+	cfg := validConfig()
+	cfg.HeliusBaseURL = "http://api.helius.xyz/v0"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error when HELIUS_BASE_URL is not https")
+	}
+}

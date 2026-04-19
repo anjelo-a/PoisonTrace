@@ -26,7 +26,12 @@ func TestNewHTTPClientRequiresAbsoluteHTTPBaseURL(t *testing.T) {
 		{
 			name:    "unsupported scheme",
 			baseURL: "ftp://api.helius.xyz/v0",
-			wantErr: "scheme must be http or https",
+			wantErr: "scheme must be https",
+		},
+		{
+			name:    "http scheme is rejected",
+			baseURL: "http://api.helius.xyz/v0",
+			wantErr: "scheme must be https",
 		},
 	}
 
