@@ -174,7 +174,9 @@ func (o *Orchestrator) Run(ctx context.Context, p RunParams) error {
 	notes := strings.Join(errs, "; ")
 	runStatus := deriveRunStatus(runCtx.Err(), total, len(errs), partialWallets)
 	if o.runRepo != nil {
-		if finalizeErr := o.runRepo.FinalizeIngestionRun(context.Background(), p.IngestionRunID, runStatus, time.Now().UTC(), total, notes); finalizeErr != nil {
+		finalizeCtx, finalizeCancel := context.WithTimeout(context.WithoutCancel(runCtx), time.Duration(ingestionFinalizeTimeoutSeconds)*time.Second)
+		defer finalizeCancel()
+		if finalizeErr := o.runRepo.FinalizeIngestionRun(finalizeCtx, p.IngestionRunID, runStatus, time.Now().UTC(), total, notes); finalizeErr != nil {
 			if len(errs) == 0 {
 				return fmt.Errorf("finalize ingestion run: %w", finalizeErr)
 			}
@@ -210,7 +212,7 @@ func deriveRunStatus(runErr error, total runs.Counters, errorCount int, partialC
 	return runs.RunStatusFailed
 }
 
-func (o *Orchestrator) runWallet(ctx context.Context, walletAddress string, p RunParams) (WalletRunReport, error) {
+func (o *Orchestrator) runWallet(ctx context.Context, walletAddress string, p RunParams) (report WalletRunReport, err error) {
 	limits := WalletRunLimits{
 		MaxTXPagesPerWallet: o.cfg.MaxTXPagesPerWallet,
 		MaxTXPerWallet:      o.cfg.MaxTXPerWallet,
@@ -223,9 +225,9 @@ func (o *Orchestrator) runWallet(ctx context.Context, walletAddress string, p Ru
 
 	if o.walletLocks != nil {
 		lockTTLSeconds := o.cfg.WalletSyncTimeoutSeconds + walletLockTTLTailSeconds
-		acquired, holderToken, err := o.walletLocks.AcquireWalletLock(ctx, walletAddress, lockTTLSeconds)
-		if err != nil {
-			return WalletRunReport{}, fmt.Errorf("acquire lock: %w", err)
+		acquired, holderToken, lockErr := o.walletLocks.AcquireWalletLock(ctx, walletAddress, lockTTLSeconds)
+		if lockErr != nil {
+			return WalletRunReport{}, fmt.Errorf("acquire lock: %w", lockErr)
 		}
 		if !acquired {
 			return WalletRunReport{}, ErrWalletAlreadyLocked
@@ -233,7 +235,13 @@ func (o *Orchestrator) runWallet(ctx context.Context, walletAddress string, p Ru
 		defer func() {
 			releaseCtx, cancel := context.WithTimeout(context.Background(), time.Duration(walletLockReleaseTimeoutSecs)*time.Second)
 			defer cancel()
-			_ = o.walletLocks.ReleaseWalletLock(releaseCtx, walletAddress, holderToken)
+			if releaseErr := o.walletLocks.ReleaseWalletLock(releaseCtx, walletAddress, holderToken); releaseErr != nil {
+				if err == nil {
+					err = fmt.Errorf("release lock: %w", releaseErr)
+					return
+				}
+				err = fmt.Errorf("%w; release lock: %v", err, releaseErr)
+			}
 		}()
 	}
 
@@ -241,9 +249,9 @@ func (o *Orchestrator) runWallet(ctx context.Context, walletAddress string, p Ru
 	case <-ctx.Done():
 		return WalletRunReport{}, ctx.Err()
 	default:
-		report, err := o.walletRunner(ctx, walletAddress, p, limits)
-		if err != nil {
-			return report, fmt.Errorf("wallet runner: %w", err)
+		report, runErr := o.walletRunner(ctx, walletAddress, p, limits)
+		if runErr != nil {
+			return report, fmt.Errorf("wallet runner: %w", runErr)
 		}
 		return report, nil
 	}

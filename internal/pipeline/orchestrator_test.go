@@ -22,6 +22,7 @@ type lockRepoStub struct {
 	acquired    []string
 	acquiredTTL []int
 	released    []string
+	releaseErr  error
 }
 
 type runRepoStub struct {
@@ -30,6 +31,7 @@ type runRepoStub struct {
 	finalized     bool
 	finalStatus   runs.RunStatus
 	finalCounters runs.Counters
+	finalizeFn    func(context.Context) error
 }
 
 func (r *runRepoStub) CreateIngestionRun(_ context.Context, _ time.Time) (int64, error) {
@@ -41,7 +43,12 @@ func (r *runRepoStub) CreateIngestionRun(_ context.Context, _ time.Time) (int64,
 	return r.nextID, nil
 }
 
-func (r *runRepoStub) FinalizeIngestionRun(_ context.Context, _ int64, status runs.RunStatus, _ time.Time, counters runs.Counters, _ string) error {
+func (r *runRepoStub) FinalizeIngestionRun(ctx context.Context, _ int64, status runs.RunStatus, _ time.Time, counters runs.Counters, _ string) error {
+	if r.finalizeFn != nil {
+		if err := r.finalizeFn(ctx); err != nil {
+			return err
+		}
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.finalized = true
@@ -86,6 +93,9 @@ func (l *lockRepoStub) AcquireWalletLock(_ context.Context, walletAddress string
 func (l *lockRepoStub) ReleaseWalletLock(_ context.Context, walletAddress string, holderToken string) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	if l.releaseErr != nil {
+		return l.releaseErr
+	}
 	if l.tokens[walletAddress] != holderToken {
 		return nil
 	}
@@ -258,5 +268,68 @@ func TestRunAggregatesPoisoningCandidateCounters(t *testing.T) {
 	}
 	if runRepo.finalCounters.PoisoningCandidatesInserted != 3 {
 		t.Fatalf("expected aggregated poisoning candidate count=3, got %+v", runRepo.finalCounters)
+	}
+}
+
+func TestRunReturnsErrorWhenLockReleaseFails(t *testing.T) {
+	lockRepo := newLockRepoStub()
+	lockRepo.releaseErr = errors.New("release failed")
+	cfg := testConfig()
+
+	orch := NewOrchestrator(
+		cfg,
+		WithWalletLockRepository(lockRepo),
+		WithWalletRunner(func(_ context.Context, _ string, _ RunParams, _ WalletRunLimits) (WalletRunReport, error) {
+			return WalletRunReport{}, nil
+		}),
+	)
+
+	err := orch.Run(context.Background(), RunParams{
+		WalletFile:           writeWalletFile(t, []string{"walletA"}),
+		ScanStart:            time.Now().UTC().Add(-2 * time.Hour),
+		ScanEnd:              time.Now().UTC().Add(-1 * time.Hour),
+		BaselineLookbackDays: 90,
+	})
+	if err == nil {
+		t.Fatal("expected run to fail when wallet lock release fails")
+	}
+	if !strings.Contains(err.Error(), "release lock") {
+		t.Fatalf("expected release lock error to surface, got: %v", err)
+	}
+}
+
+func TestRunFinalizeIngestionBoundedTimeout(t *testing.T) {
+	cfg := testConfig()
+	cfg.RunTimeoutSeconds = 1
+	runRepo := &runRepoStub{
+		finalizeFn: func(ctx context.Context) error {
+			<-ctx.Done()
+			return ctx.Err()
+		},
+	}
+
+	orch := NewOrchestrator(
+		cfg,
+		WithRunRepository(runRepo),
+		WithWalletRunner(func(_ context.Context, _ string, _ RunParams, _ WalletRunLimits) (WalletRunReport, error) {
+			return WalletRunReport{WalletStatus: runs.WalletStatusSucceeded}, nil
+		}),
+	)
+
+	start := time.Now()
+	err := orch.Run(context.Background(), RunParams{
+		WalletFile:           writeWalletFile(t, []string{"walletA"}),
+		ScanStart:            time.Now().UTC().Add(-2 * time.Hour),
+		ScanEnd:              time.Now().UTC().Add(-1 * time.Hour),
+		BaselineLookbackDays: 90,
+	})
+	if err == nil {
+		t.Fatal("expected run finalize failure from timeout")
+	}
+	if !strings.Contains(err.Error(), "finalize ingestion run") {
+		t.Fatalf("expected finalize ingestion error, got: %v", err)
+	}
+	if elapsed := time.Since(start); elapsed > 5*time.Second {
+		t.Fatalf("expected bounded finalize timeout, elapsed=%v", elapsed)
 	}
 }

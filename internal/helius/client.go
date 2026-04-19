@@ -71,7 +71,6 @@ func (c *HTTPClient) FetchEnhancedPage(ctx context.Context, walletAddress string
 	u := *c.baseURL
 	u.Path = path.Join(c.baseURL.Path, "addresses", walletAddress, "transactions")
 	q := u.Query()
-	q.Set("api-key", c.apiKey)
 	q.Set("limit", fmt.Sprintf("%d", c.pageLimit))
 	if before != "" {
 		q.Set("before", before)
@@ -83,6 +82,7 @@ func (c *HTTPClient) FetchEnhancedPage(ctx context.Context, walletAddress string
 		return EnhancedPage{}, fmt.Errorf("build helius request: %w", err)
 	}
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("X-API-Key", c.apiKey)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -118,7 +118,7 @@ type StatusError struct {
 }
 
 func (e StatusError) Error() string {
-	body := redactAPIKeyQueryValue(e.Body)
+	body := redactSensitiveValues(e.Body)
 	if len(body) > 256 {
 		body = body[:256]
 	}
@@ -136,20 +136,36 @@ func (e redactedError) Error() string {
 	if e.err == nil {
 		return ""
 	}
-	return redactAPIKeyQueryValue(e.err.Error())
+	return redactSensitiveValues(e.err.Error())
 }
 
 func (e redactedError) Unwrap() error {
 	return e.err
 }
 
-var apiKeyQueryPattern = regexp.MustCompile(`(?i)(api-key=)[^&\s"]+`)
+var (
+	sensitiveQueryPairPattern = regexp.MustCompile(`(?i)\b(api[-_]?key|apikey|token|access[-_]?token|authorization|auth|secret|password)=([^&\s"]+)`)
+	authorizationHeaderRegex  = regexp.MustCompile(`(?i)\bauthorization\s*:\s*(?:bearer\s+|basic\s+)?[A-Za-z0-9._~+/\-=]+`)
+	sensitiveHeaderPattern    = regexp.MustCompile(`(?i)\b(x-api-key|api-key|x-auth-token)\s*:\s*[^\s,;]+`)
+	sensitiveJSONPattern      = regexp.MustCompile(`(?i)"(api[-_]?key|apikey|token|access[-_]?token|authorization|auth|secret|password)"\s*:\s*"[^"]*"`)
+	bearerTokenPattern        = regexp.MustCompile(`(?i)\b(Bearer)\s+[A-Za-z0-9._~+/\-=]+`)
+)
 
-func redactAPIKeyQueryValue(text string) string {
+func redactSensitiveValues(text string) string {
 	if text == "" {
 		return ""
 	}
-	return apiKeyQueryPattern.ReplaceAllString(text, "${1}REDACTED")
+	redacted := sensitiveQueryPairPattern.ReplaceAllString(text, "${1}=REDACTED")
+	redacted = authorizationHeaderRegex.ReplaceAllString(redacted, "authorization: REDACTED")
+	redacted = sensitiveHeaderPattern.ReplaceAllStringFunc(redacted, func(match string) string {
+		idx := strings.Index(match, ":")
+		if idx < 0 {
+			return "REDACTED"
+		}
+		return match[:idx+1] + " REDACTED"
+	})
+	redacted = sensitiveJSONPattern.ReplaceAllString(redacted, `"$1":"REDACTED"`)
+	return bearerTokenPattern.ReplaceAllString(redacted, "$1 REDACTED")
 }
 
 func IsRetryable(err error) bool {
