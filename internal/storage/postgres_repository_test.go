@@ -144,3 +144,27 @@ func TestFinalizeWalletSyncRunClearsUnknownReasonWhenNotIncomplete(t *testing.T)
 		t.Fatalf("finalize wallet sync run: %v", err)
 	}
 }
+
+func TestNewHolderTokenRandomFormat(t *testing.T) {
+	t.Parallel()
+
+	first, err := newHolderToken()
+	if err != nil {
+		t.Fatalf("newHolderToken first: %v", err)
+	}
+	second, err := newHolderToken()
+	if err != nil {
+		t.Fatalf("newHolderToken second: %v", err)
+	}
+	if first == second {
+		t.Fatalf("expected random tokens, got identical value %q", first)
+	}
+
+	pattern := regexp.MustCompile(`^rnd:[a-f0-9]{32}$`)
+	if !pattern.MatchString(first) {
+		t.Fatalf("unexpected first token format: %q", first)
+	}
+	if !pattern.MatchString(second) {
+		t.Fatalf("unexpected second token format: %q", second)
+	}
+}

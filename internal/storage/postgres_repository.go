@@ -2,7 +2,9 @@ package storage
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -590,7 +592,10 @@ func (s *PostgresStore) AcquireWalletLock(ctx context.Context, walletAddress str
 		return false, "", fmt.Errorf("ttlSeconds must be >= 1")
 	}
 
-	holder := fmt.Sprintf("pid:%d", time.Now().UnixNano())
+	holder, err := newHolderToken()
+	if err != nil {
+		return false, "", fmt.Errorf("generate holder token: %w", err)
+	}
 	const q = `
 INSERT INTO wallet_locks (wallet_address, acquired_at, acquired_until, holder_token, updated_at)
 VALUES ($1, NOW(), NOW() + ($2 * INTERVAL '1 second'), $3, NOW())
@@ -613,6 +618,15 @@ WHERE wallet_locks.acquired_until <= NOW()`
 		return false, "", nil
 	}
 	return true, holder, nil
+}
+
+func newHolderToken() (string, error) {
+	// 16 random bytes => 32 hex chars for compact, collision-resistant lock ownership.
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "", err
+	}
+	return "rnd:" + hex.EncodeToString(b[:]), nil
 }
 
 func (s *PostgresStore) ReleaseWalletLock(ctx context.Context, walletAddress string, holderToken string) error {
