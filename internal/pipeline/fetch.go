@@ -43,6 +43,7 @@ func FetchEnhancedWindow(ctx context.Context, client helius.Client, walletAddres
 	before := ""
 	pageCount := 0
 
+	// Bounded pagination loop: exits on explicit page/tx caps, window boundary, or provider exhaustion.
 	for {
 		if pageCount >= p.MaxPages {
 			result.Partial = true
@@ -159,10 +160,12 @@ func retryBackoff(attempt int) time.Duration {
 		shift = maxBackoffShift
 	}
 
+	// Exponential backoff with bounded growth.
 	backoff := baseBackoff << shift
 	if backoff > maxBackoff {
 		backoff = maxBackoff
 	}
+	// Deterministic jitter smooths retry bursts without introducing non-reproducible tests.
 	jitterSeed := attempt % 97
 	jitter := time.Duration((jitterSeed*37)%97) * time.Millisecond
 	return backoff + jitter

@@ -61,6 +61,7 @@ func MaterializeCandidates(baseline []WalletTransferObservation, scan []WalletTr
 		return res
 	}
 
+	// Pre-index baseline/scan data with hash maps so gate checks stay O(1) per observation.
 	preWindowSeen := buildPreWindowInteractionSet(baseline)
 	legitBaseline := buildLegitBaselineCounterparties(baseline)
 	inboundStats := buildInboundCounterpartyStats(scan)
@@ -299,6 +300,7 @@ func evaluateLookalikeAndRecency(obs WalletTransferObservation, legit map[string
 		if !passesLookalikeThreshold(prefix, suffix, p) {
 			continue
 		}
+		// Greedy best-score match with deterministic lexical tie-break for stable reruns.
 		score := prefix + suffix
 		if score > bestScore || (score == bestScore && candidate < matchedLegit) {
 			bestScore = score
