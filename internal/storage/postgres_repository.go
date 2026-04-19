@@ -343,22 +343,29 @@ RETURNING (xmax = 0)`)
 
 func (s *PostgresStore) LinkWalletTransfer(ctx context.Context, walletID int64, relationType counterparties.RelationType, transfer transactions.NormalizedTransfer) (linked bool, err error) {
 	const q = `
-INSERT INTO wallet_transactions (wallet_id, transaction_id, relation_type)
-SELECT $1, t.id, $2
-FROM transactions t
-WHERE t.signature = $3
-  AND t.transfer_fingerprint = $4
-ON CONFLICT (wallet_id, transaction_id, relation_type) DO NOTHING
-RETURNING id`
-	var id int64
-	err = s.DB.QueryRowContext(ctx, q, walletID, relationType, transfer.Signature, transfer.TransferFingerprint).Scan(&id)
-	if errors.Is(err, sql.ErrNoRows) {
-		return false, nil
-	}
-	if err != nil {
+	WITH matched_tx AS (
+	  SELECT id
+	  FROM transactions
+	  WHERE signature = $3
+	    AND transfer_fingerprint = $4
+	),
+	inserted_link AS (
+	  INSERT INTO wallet_transactions (wallet_id, transaction_id, relation_type)
+	  SELECT $1, matched_tx.id, $2
+	  FROM matched_tx
+	  ON CONFLICT (wallet_id, transaction_id, relation_type) DO NOTHING
+	  RETURNING id
+	)
+	SELECT EXISTS(SELECT 1 FROM matched_tx), EXISTS(SELECT 1 FROM inserted_link)`
+	var txExists bool
+	var inserted bool
+	if err = s.DB.QueryRowContext(ctx, q, walletID, relationType, transfer.Signature, transfer.TransferFingerprint).Scan(&txExists, &inserted); err != nil {
 		return false, fmt.Errorf("link wallet transfer wallet=%d signature=%s fingerprint=%s: %w", walletID, transfer.Signature, transfer.TransferFingerprint, err)
 	}
-	return true, nil
+	if !txExists {
+		return false, fmt.Errorf("link wallet transfer wallet=%d signature=%s fingerprint=%s: backing transaction not found", walletID, transfer.Signature, transfer.TransferFingerprint)
+	}
+	return inserted, nil
 }
 
 func (s *PostgresStore) UpsertCounterpartyEvent(ctx context.Context, event counterparties.Event) (created bool, updated bool, err error) {
@@ -575,12 +582,12 @@ ORDER BY asset_key, active_from DESC`
 	return out, nil
 }
 
-func (s *PostgresStore) AcquireWalletLock(ctx context.Context, walletAddress string, ttlSeconds int) (bool, error) {
+func (s *PostgresStore) AcquireWalletLock(ctx context.Context, walletAddress string, ttlSeconds int) (acquired bool, holderToken string, err error) {
 	if walletAddress == "" {
-		return false, fmt.Errorf("wallet address is required")
+		return false, "", fmt.Errorf("wallet address is required")
 	}
 	if ttlSeconds < 1 {
-		return false, fmt.Errorf("ttlSeconds must be >= 1")
+		return false, "", fmt.Errorf("ttlSeconds must be >= 1")
 	}
 
 	holder := fmt.Sprintf("pid:%d", time.Now().UnixNano())
@@ -596,21 +603,27 @@ WHERE wallet_locks.acquired_until <= NOW()`
 
 	res, err := s.DB.ExecContext(ctx, q, walletAddress, ttlSeconds, holder)
 	if err != nil {
-		return false, fmt.Errorf("acquire wallet lock %s: %w", walletAddress, err)
+		return false, "", fmt.Errorf("acquire wallet lock %s: %w", walletAddress, err)
 	}
 	rows, err := res.RowsAffected()
 	if err != nil {
-		return false, fmt.Errorf("acquire wallet lock %s rows affected: %w", walletAddress, err)
+		return false, "", fmt.Errorf("acquire wallet lock %s rows affected: %w", walletAddress, err)
 	}
-	return rows > 0, nil
+	if rows == 0 {
+		return false, "", nil
+	}
+	return true, holder, nil
 }
 
-func (s *PostgresStore) ReleaseWalletLock(ctx context.Context, walletAddress string) error {
+func (s *PostgresStore) ReleaseWalletLock(ctx context.Context, walletAddress string, holderToken string) error {
 	if walletAddress == "" {
 		return fmt.Errorf("wallet address is required")
 	}
-	const q = `DELETE FROM wallet_locks WHERE wallet_address = $1`
-	if _, err := s.DB.ExecContext(ctx, q, walletAddress); err != nil {
+	if holderToken == "" {
+		return fmt.Errorf("holder token is required")
+	}
+	const q = `DELETE FROM wallet_locks WHERE wallet_address = $1 AND holder_token = $2`
+	if _, err := s.DB.ExecContext(ctx, q, walletAddress, holderToken); err != nil {
 		return fmt.Errorf("release wallet lock %s: %w", walletAddress, err)
 	}
 	return nil

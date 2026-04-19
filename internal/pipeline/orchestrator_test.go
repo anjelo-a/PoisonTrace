@@ -16,10 +16,12 @@ import (
 )
 
 type lockRepoStub struct {
-	mu       sync.Mutex
-	locked   map[string]bool
-	acquired []string
-	released []string
+	mu          sync.Mutex
+	locked      map[string]bool
+	tokens      map[string]string
+	acquired    []string
+	acquiredTTL []int
+	released    []string
 }
 
 type runRepoStub struct {
@@ -61,24 +63,34 @@ func (r *runRepoStub) FinalizeWalletSyncRun(context.Context, int64, runs.WalletS
 }
 
 func newLockRepoStub() *lockRepoStub {
-	return &lockRepoStub{locked: make(map[string]bool)}
+	return &lockRepoStub{
+		locked: make(map[string]bool),
+		tokens: make(map[string]string),
+	}
 }
 
-func (l *lockRepoStub) AcquireWalletLock(_ context.Context, walletAddress string, _ int) (bool, error) {
+func (l *lockRepoStub) AcquireWalletLock(_ context.Context, walletAddress string, ttlSeconds int) (bool, string, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.acquired = append(l.acquired, walletAddress)
+	l.acquiredTTL = append(l.acquiredTTL, ttlSeconds)
 	if l.locked[walletAddress] {
-		return false, nil
+		return false, "", nil
 	}
 	l.locked[walletAddress] = true
-	return true, nil
+	token := walletAddress + "-token"
+	l.tokens[walletAddress] = token
+	return true, token, nil
 }
 
-func (l *lockRepoStub) ReleaseWalletLock(_ context.Context, walletAddress string) error {
+func (l *lockRepoStub) ReleaseWalletLock(_ context.Context, walletAddress string, holderToken string) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	if l.tokens[walletAddress] != holderToken {
+		return nil
+	}
 	delete(l.locked, walletAddress)
+	delete(l.tokens, walletAddress)
 	l.released = append(l.released, walletAddress)
 	return nil
 }
@@ -145,6 +157,10 @@ func TestRunUsesWalletLockAndRunnerLimits(t *testing.T) {
 	}
 	if len(lockRepo.acquired) != 1 || len(lockRepo.released) != 1 {
 		t.Fatalf("expected one lock acquire/release, got acquired=%d released=%d", len(lockRepo.acquired), len(lockRepo.released))
+	}
+	wantTTL := cfg.WalletSyncTimeoutSeconds + walletLockTTLTailSeconds
+	if len(lockRepo.acquiredTTL) != 1 || lockRepo.acquiredTTL[0] != wantTTL {
+		t.Fatalf("expected lock ttl=%d, got %+v", wantTTL, lockRepo.acquiredTTL)
 	}
 }
 

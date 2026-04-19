@@ -137,8 +137,12 @@ func (c Config) Validate() error {
 	if c.HeliusBaseURL == "" {
 		return errors.New("HELIUS_BASE_URL is required")
 	}
-	if _, err := url.ParseRequestURI(c.HeliusBaseURL); err != nil {
+	parsedHeliusBaseURL, err := url.ParseRequestURI(c.HeliusBaseURL)
+	if err != nil {
 		return fmt.Errorf("HELIUS_BASE_URL must be a valid URI: %w", err)
+	}
+	if !strings.EqualFold(parsedHeliusBaseURL.Scheme, "https") {
+		return errors.New("HELIUS_BASE_URL must use https")
 	}
 	if c.MaxWalletsPerRun < 1 || c.MaxTXPagesPerWallet < 1 || c.MaxTXPerWallet < 1 {
 		return errors.New("wallet/page/tx caps must be >= 1")

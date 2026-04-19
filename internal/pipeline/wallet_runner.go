@@ -81,8 +81,10 @@ func (r *WalletExecutionRunner) RunWallet(ctx context.Context, walletAddress str
 		if incomplete && strings.TrimSpace(reason) == "" {
 			reason = "unknown_required_gates:runner_incomplete_without_reason"
 		}
+		finalizeCtx, finalizeCancel := context.WithTimeout(context.WithoutCancel(ctx), time.Duration(walletFinalizeTimeoutSeconds)*time.Second)
+		defer finalizeCancel()
 		if finalizeErr := r.store.FinalizeWalletSyncRun(
-			context.Background(),
+			finalizeCtx,
 			walletSyncRunID,
 			status,
 			time.Now().UTC(),
