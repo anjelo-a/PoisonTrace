@@ -3,6 +3,7 @@ package helius
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -72,7 +73,35 @@ func TestNewHTTPClientAcceptsValidHTTPSBaseURL(t *testing.T) {
 	}
 }
 
-func TestFetchEnhancedPageRedactsAPIKeyOnTransportError(t *testing.T) {
+func TestFetchEnhancedPageUsesHeaderAuthNotQueryParam(t *testing.T) {
+	t.Parallel()
+
+	const apiKey = "pt_test_secret_key"
+	client, err := NewHTTPClient("https://api.helius.xyz/v0", apiKey, 0)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	client.httpClient.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if got := req.URL.Query().Get("api-key"); got != "" {
+			t.Fatalf("expected api-key query param to be empty, got %q", got)
+		}
+		if got := req.Header.Get("X-API-Key"); got != apiKey {
+			t.Fatalf("expected X-API-Key header to be set")
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("[]")),
+			Header:     make(http.Header),
+			Request:    req,
+		}, nil
+	})
+
+	if _, err := client.FetchEnhancedPage(context.Background(), "wallet123", ""); err != nil {
+		t.Fatalf("fetch enhanced page failed: %v", err)
+	}
+}
+
+func TestFetchEnhancedPageRedactsSensitiveValuesOnTransportError(t *testing.T) {
 	t.Parallel()
 
 	const apiKey = "pt_test_secret_key"
@@ -83,8 +112,8 @@ func TestFetchEnhancedPageRedactsAPIKeyOnTransportError(t *testing.T) {
 	client.httpClient.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		return nil, &url.Error{
 			Op:  req.Method,
-			URL: req.URL.String(),
-			Err: errors.New("dial tcp: lookup api.helius.xyz: no such host"),
+			URL: req.URL.String() + "?authorization=Bearer+" + apiKey,
+			Err: errors.New("dial tcp: authorization: Bearer " + apiKey + " x-api-key: " + apiKey),
 		}
 	})
 
@@ -96,10 +125,25 @@ func TestFetchEnhancedPageRedactsAPIKeyOnTransportError(t *testing.T) {
 	if strings.Contains(msg, apiKey) {
 		t.Fatalf("error leaked api key: %q", msg)
 	}
-	if !strings.Contains(msg, "api-key=REDACTED") {
-		t.Fatalf("expected redacted api key marker in error, got %q", msg)
+	if !strings.Contains(strings.ToLower(msg), "authorization=redacted") {
+		t.Fatalf("expected redacted query marker in error, got %q", msg)
+	}
+	if !strings.Contains(strings.ToLower(msg), "x-api-key: redacted") {
+		t.Fatalf("expected redacted header marker in error, got %q", msg)
 	}
 	if !IsRetryable(err) {
 		t.Fatalf("expected transport error to remain retryable, got %q", msg)
+	}
+}
+
+func TestRedactSensitiveValuesCoversMultiplePatterns(t *testing.T) {
+	t.Parallel()
+
+	input := `api-key=secret1 apikey=secret2 token=secret3 access_token=secret4 authorization: Bearer secret5 x-api-key: secret6 {"api_key":"secret7","password":"secret8"}`
+	got := redactSensitiveValues(input)
+	for _, secret := range []string{"secret1", "secret2", "secret3", "secret4", "secret5", "secret6", "secret7", "secret8"} {
+		if strings.Contains(got, secret) {
+			t.Fatalf("redaction leaked secret value %q in %q", secret, got)
+		}
 	}
 }
