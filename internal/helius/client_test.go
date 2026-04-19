@@ -1,9 +1,19 @@
 package helius
 
 import (
+	"context"
+	"errors"
+	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 )
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
 
 func TestNewHTTPClientRequiresAbsoluteHTTPBaseURL(t *testing.T) {
 	t.Parallel()
@@ -59,5 +69,37 @@ func TestNewHTTPClientAcceptsValidHTTPSBaseURL(t *testing.T) {
 	}
 	if client == nil || client.baseURL == nil {
 		t.Fatal("expected initialized client")
+	}
+}
+
+func TestFetchEnhancedPageRedactsAPIKeyOnTransportError(t *testing.T) {
+	t.Parallel()
+
+	const apiKey = "pt_test_secret_key"
+	client, err := NewHTTPClient("https://api.helius.xyz/v0", apiKey, 0)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	client.httpClient.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return nil, &url.Error{
+			Op:  req.Method,
+			URL: req.URL.String(),
+			Err: errors.New("dial tcp: lookup api.helius.xyz: no such host"),
+		}
+	})
+
+	_, err = client.FetchEnhancedPage(context.Background(), "wallet123", "")
+	if err == nil {
+		t.Fatal("expected transport error")
+	}
+	msg := err.Error()
+	if strings.Contains(msg, apiKey) {
+		t.Fatalf("error leaked api key: %q", msg)
+	}
+	if !strings.Contains(msg, "api-key=REDACTED") {
+		t.Fatalf("expected redacted api key marker in error, got %q", msg)
+	}
+	if !IsRetryable(err) {
+		t.Fatalf("expected transport error to remain retryable, got %q", msg)
 	}
 }
