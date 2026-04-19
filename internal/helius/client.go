@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -85,7 +86,7 @@ func (c *HTTPClient) FetchEnhancedPage(ctx context.Context, walletAddress string
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return EnhancedPage{}, fmt.Errorf("helius request: %w", err)
+		return EnhancedPage{}, fmt.Errorf("helius request: %w", redactedError{err: err})
 	}
 	defer resp.Body.Close()
 
@@ -117,7 +118,7 @@ type StatusError struct {
 }
 
 func (e StatusError) Error() string {
-	body := e.Body
+	body := redactAPIKeyQueryValue(e.Body)
 	if len(body) > 256 {
 		body = body[:256]
 	}
@@ -125,6 +126,30 @@ func (e StatusError) Error() string {
 		return fmt.Sprintf("helius status %d", e.StatusCode)
 	}
 	return fmt.Sprintf("helius status %d: %s", e.StatusCode, body)
+}
+
+type redactedError struct {
+	err error
+}
+
+func (e redactedError) Error() string {
+	if e.err == nil {
+		return ""
+	}
+	return redactAPIKeyQueryValue(e.err.Error())
+}
+
+func (e redactedError) Unwrap() error {
+	return e.err
+}
+
+var apiKeyQueryPattern = regexp.MustCompile(`(?i)(api-key=)[^&\s"]+`)
+
+func redactAPIKeyQueryValue(text string) string {
+	if text == "" {
+		return ""
+	}
+	return apiKeyQueryPattern.ReplaceAllString(text, "${1}REDACTED")
 }
 
 func IsRetryable(err error) bool {
