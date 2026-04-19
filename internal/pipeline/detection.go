@@ -35,6 +35,7 @@ type CandidateDecision struct {
 }
 
 func EvaluateCandidate(g CandidateGate) CandidateDecision {
+	// Every required gate is treated as fail-closed: unknown blocks emission and marks incomplete_window.
 	required := []struct {
 		name  string
 		state GateState

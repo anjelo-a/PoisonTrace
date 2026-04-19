@@ -57,6 +57,7 @@ func RunWalletCoreSync(ctx context.Context, client helius.Client, p CoreSyncPara
 		return CoreSyncResult{}, fmt.Errorf("helius client is required")
 	}
 
+	// Phase flow is two-window by design: baseline establishes history/newness, scan evaluates injections.
 	baselineFetch, err := FetchEnhancedWindow(ctx, client, p.FocalWalletAddress, FetchWindowParams{
 		Start:        p.BaselineStart,
 		End:          p.BaselineEnd,
@@ -89,10 +90,12 @@ func RunWalletCoreSync(ctx context.Context, client helius.Client, p CoreSyncPara
 		return CoreSyncResult{}, fmt.Errorf("normalize scan transfers: %w", err)
 	}
 
+	// Build in-memory counterparty state from normalized relation observations.
 	cpState := make(map[string]counterparties.Counterparty)
 	applyObservationsToCounterparties(cpState, baselineNormalized.Observations)
 	applyObservationsToCounterparties(cpState, scanNormalized.Observations)
 
+	// Baseline completeness is strictly tied to bounded fetch outcomes; truncated baseline is never complete.
 	baselineComplete := !baselineFetch.Partial
 	materialized := MaterializeCandidates(baselineNormalized.Observations, scanNormalized.Observations, CandidateMaterializeParams{
 		BaselineComplete:       baselineComplete,
@@ -103,6 +106,7 @@ func RunWalletCoreSync(ctx context.Context, client helius.Client, p CoreSyncPara
 		MinInjectionCount:      p.MinInjectionCount,
 	})
 
+	// Unknown-gate/truncation reasons are merged so reruns emit deterministic reason strings.
 	incomplete := baselineFetch.Partial || scanFetch.Partial || materialized.IncompleteWindow
 	reason := mergeReasons(
 		materialized.UnknownGateReason,

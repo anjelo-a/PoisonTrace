@@ -76,6 +76,7 @@ func (r *WalletExecutionRunner) RunWallet(ctx context.Context, walletAddress str
 	progressPersisted := false
 
 	defer func() {
+		// Finalization runs in a bounded tail context so status is persisted even if the main wallet ctx is canceled.
 		incomplete := progress.IncompleteWindow
 		reason := progress.UnknownGateReason
 		if incomplete && strings.TrimSpace(reason) == "" {
@@ -163,6 +164,7 @@ func (r *WalletExecutionRunner) RunWallet(ctx context.Context, walletAddress str
 	}
 	report.Counters.TransactionsInserted = inserted
 
+	// Persistence order is intentional: transfers -> wallet links -> counterparties -> candidates.
 	allObservations := append(append([]WalletTransferObservation{}, coreRes.BaselineObservations...), coreRes.ScanObservations...)
 	for _, obs := range allObservations {
 		linked, linkErr := r.store.LinkWalletTransfer(ctx, walletID, obs.RelationType, obs.Transfer)
@@ -235,6 +237,7 @@ func (r *WalletExecutionRunner) RunWallet(ctx context.Context, walletAddress str
 	}
 	report.Counters.PoisoningCandidatesInserted = insertedCandidates
 
+	// Progress is derived from persisted outcomes and core result semantics, not in-memory assumptions.
 	progress = storage.WalletSyncProgress{
 		BaselineComplete:            coreRes.BaselineComplete,
 		IncompleteWindow:            coreRes.IncompleteWindow,

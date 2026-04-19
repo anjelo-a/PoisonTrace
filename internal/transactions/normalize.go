@@ -67,6 +67,7 @@ func NormalizeEnhancedTx(tx helius.EnhancedTransaction) ([]NormalizedTransfer, e
 			eligible = false
 			assetType = AssetTypeOther
 		} else {
+			// SPL poisoning logic requires owner-level endpoints. Ambiguous owner/token-account forms fail closed.
 			if src == "" || dst == "" {
 				status = NormalizationUnresolvedOwner
 				reason = "missing_spl_owner_endpoint"
@@ -95,6 +96,7 @@ func NormalizeEnhancedTx(tx helius.EnhancedTransaction) ([]NormalizedTransfer, e
 				instructionRef = fmt.Sprintf("%s:%d", instructionRef, *tt.InnerIndex)
 			}
 		} else {
+			// Fallback keeps fingerprints deterministic when provider instruction metadata is missing.
 			instructionRef = fmt.Sprintf("spl_fallback:%d", idx)
 		}
 
