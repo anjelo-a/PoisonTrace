@@ -50,6 +50,8 @@ type DustThresholdRecord struct {
 	ActiveTo   *time.Time
 }
 
+// Repository interfaces are the primary abstraction seam (polymorphism via interfaces)
+// so pipeline components can depend on contracts and swap concrete storage implementations in tests.
 type RunRepository interface {
 	CreateIngestionRun(ctx context.Context, startedAt time.Time) (int64, error)
 	FinalizeIngestionRun(ctx context.Context, runID int64, status runs.RunStatus, completedAt time.Time, counters runs.Counters, notes string) error
@@ -83,6 +85,7 @@ type DustThresholdRepository interface {
 	ListDustThresholds(ctx context.Context, startInclusive, endExclusive time.Time) ([]DustThresholdRecord, error)
 }
 
+// Lock ownership is token-scoped to prevent one worker from releasing another worker's lock.
 type WalletLockRepository interface {
 	AcquireWalletLock(ctx context.Context, walletAddress string, ttlSeconds int) (acquired bool, holderToken string, err error)
 	ReleaseWalletLock(ctx context.Context, walletAddress string, holderToken string) error

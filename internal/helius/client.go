@@ -19,6 +19,7 @@ type Client interface {
 	FetchEnhancedPage(ctx context.Context, walletAddress string, before string) (EnhancedPage, error)
 }
 
+// HTTPClient is the concrete implementation composed from stdlib HTTP primitives.
 type HTTPClient struct {
 	baseURL    *url.URL
 	apiKey     string

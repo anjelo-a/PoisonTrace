@@ -46,6 +46,7 @@ type WalletRunnerFunc func(ctx context.Context, walletAddress string, p RunParam
 
 var ErrWalletAlreadyLocked = errors.New("wallet sync lock is currently held")
 
+// Functional options are used for dependency injection in tests and alternate runtime wiring.
 type Option func(*Orchestrator)
 
 func WithRunRepository(repo storage.RunRepository) Option {
@@ -117,6 +118,7 @@ func (o *Orchestrator) Run(ctx context.Context, p RunParams) error {
 
 	sem := make(chan struct{}, o.cfg.MaxConcurrentWallets)
 	var wg sync.WaitGroup
+	// Buffered channel + worker semaphore gives bounded fan-out with deterministic result collection.
 	outcomeCh := make(chan walletOutcome, len(walletList))
 
 	for _, addr := range walletList {
