@@ -2,87 +2,72 @@
 
 ## 1. Bounded History Can Produce False Negatives
 
-PoisonTrace intentionally scans bounded windows.
-If relevant history is outside baseline/scan bounds:
-- legitimate history may be incomplete
-- newness may be unknown
-- candidates may be suppressed by fail-closed gates
+Constraint:
+- PoisonTrace scans bounded baseline and scan windows.
 
-This is expected behavior, not a bug.
+Impact:
+- history outside configured bounds can make newness and required gates `UNKNOWN`, which means no candidate emission and `incomplete_window = true` with a persisted reason.
 
 ## 2. Unresolved SPL Owner Endpoints
 
-Some SPL transfers may not provide resolvable owner endpoints in Helius-enhanced fields.
-When owner resolution fails:
-- transfer is persisted as `unresolved_owner`
-- it is marked non-poisoning-ready
-- it is excluded from poisoning candidate logic
+Constraint:
+- Some SPL transfers do not expose resolvable owner endpoints in Helius Enhanced fields.
 
-Result:
-- potential missed signals rather than risky inferred mappings.
+Impact:
+- transfers are persisted as `unresolved_owner`, marked non-poisoning-ready, excluded from candidate logic, and can reduce recall.
 
 ## 3. No Confirmed Victim Attribution
 
-Phase 0–1 detects probable poisoning injections only.
-It does not prove:
-- user confusion
-- incorrect fund routing
-- realized victim loss
+Constraint:
+- Phase 0–1 detects probable poisoning injection candidates only.
 
-No victim attribution claims should be made from this phase.
+Impact:
+- outputs do not prove user confusion, incorrect fund routing, or realized loss; victim attribution claims are out of scope.
 
 ## 4. No Campaign Clustering / Attacker Attribution
 
-The system is focal-wallet scoped.
-It does not perform:
-- attacker clustering across wallets
-- campaign graphing
-- entity attribution
+Constraint:
+- The system is focal-wallet scoped.
 
-Those are explicitly deferred.
+Impact:
+- attacker clustering across wallets, campaign graphing, and entity attribution are deferred.
 
 ## 5. Dependency on Helius Data Shape and Quality
 
-Pipeline correctness depends on:
-- completeness of Helius Enhanced Transaction transfer fields
-- consistency of owner endpoint exposure
-- stable token standard classification
+Constraint:
+- Pipeline correctness depends on complete and consistent Helius Enhanced transfer fields, owner endpoints, and token classification.
 
-If source data is incomplete or inconsistent:
-- unknown/unresolved rates increase
-- detection recall may drop
+Impact:
+- source data inconsistencies increase `UNKNOWN`/`unresolved` outcomes and lower detection recall.
 
 ## 6. Dust Threshold Limits
 
-Dust classification is threshold-based, not economic-value-aware.
-Constraints:
-- thresholds must be configured per asset (`SOL` or token mint)
-- missing threshold => `is_dust = unknown` (fail-closed for candidates)
-- threshold quality directly affects precision/recall
+Constraint:
+- Dust classification is threshold-based per asset (`SOL` or token mint), not dynamic or economic-value-aware.
 
-Phase 0–1 does not include dynamic threshold learning.
+Impact:
+- missing thresholds produce `is_dust = UNKNOWN`, which blocks candidates and sets `incomplete_window = true`; threshold quality directly affects precision/recall.
 
 ## 7. Strict Fail-Closed Candidate Policy May Reduce Recall
 
-Rule:
-- if any required gate is unknown, candidate is not emitted.
+Constraint:
+- Required-gate policy is fail-closed.
 
-Benefit:
-- prevents weak or unsafe inferences.
-
-Cost:
-- suppresses some true positives under incomplete baseline or metadata gaps.
+Impact:
+- when any required gate is `UNKNOWN`, candidates are blocked by design, improving safety while suppressing some true positives under incomplete baseline or metadata gaps.
 
 ## 8. Two-Injection Gate Trades Recall for Precision
 
-Phase 1 requires at least 2 qualifying inbound dust/zero events per focal+counterparty within scan window.
-Effect:
-- reduces one-off noise
-- may miss single-injection poisoning attempts
+Constraint:
+- Phase 1 requires at least 2 qualifying inbound dust/zero events per focal+counterparty within the scan window.
+
+Impact:
+- one-off noise drops, but single-injection poisoning attempts can be missed.
 
 ## 9. Event-Ordering Dependency Residual Risk
 
-Even with fingerprint-based dedup, provider-side field omissions (for instruction refs or transfer metadata) can reduce fingerprint strength in edge cases.
-Mitigation in Phase 1:
-- fallback to conservative unresolved status when canonical fingerprint fields are incomplete,
-- suppress candidate emission on unknown required gates.
+Constraint:
+- Provider-side omissions in instruction or transfer metadata can weaken fingerprint strength in edge cases.
+
+Impact:
+- conservative unresolved classification increases non-eligible events, and required-gate `UNKNOWN` outcomes block candidate emission.

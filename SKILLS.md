@@ -3,7 +3,7 @@
 ## Purpose
 
 This file is now a compact index for PoisonTrace discoverable skills.
-Mission-critical policy and invariants remain in `AGENTS.md`.
+Mission-critical policy and invariants remain in `AGENTS.md`; architecture contracts remain in `docs/architecture.md`.
 
 ## Discoverable Skills Map
 
@@ -21,14 +21,14 @@ Mission-critical policy and invariants remain in `AGENTS.md`.
 
 ## Layering Model
 
-1. `AGENTS.md` is the always-on constraint layer for project scope and invariants.
-2. Skills are task-scoped workflow layers selected explicitly (`$skill`) or implicitly via description matching.
-3. Skills must not loosen or override `AGENTS.md` constraints.
+1. `AGENTS.md` defines always-on scope, invariants, and failure semantics.
+2. `docs/architecture.md` defines system contracts and detection pipeline behavior.
+3. Skills provide task-scoped implementation workflows and must not loosen those contracts.
 
 ## Notes
 
 1. Default discovery is repo-scoped `.agents/skills`; no `.codex/config.toml` is required for basic skill discovery.
-2. Optional `.codex/config.toml` is only needed for tuning (for example, enable/disable skills or fallback instruction filenames).
+2. Optional `.codex/config.toml` is only for discovery tuning (for example, enable/disable skills or fallback instruction filenames).
 
 ## Delivery Output Requirement
 

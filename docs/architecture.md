@@ -4,29 +4,20 @@
 
 PoisonTrace is a scanner-first Solana pipeline that detects probable wallet poisoning injections.
 
-Design intent:
+Operational constraints:
 - ingest chain data in bounded batches
 - normalize transfers into wallet-owner endpoints
 - build wallet-scoped historical counterparties
-- materialize probable poisoning candidates with explicit confidence gates
+- materialize probable poisoning injection candidates only when required gates pass
 
 This is not a user product and not a generic risk platform in Phase 0–1.
 
 ## 2. Detection Target Definition
 
-A probable poisoning injection candidate is an inbound transfer to a focal wallet where:
-
-1. Transfer normalization is resolved and poisoning-eligible.
-2. Asset is native SOL or fungible SPL.
-3. Transfer is zero-value or dust.
-4. Counterparty is new relative to complete baseline.
-5. New counterparty resembles a legitimate historical counterparty.
-6. Legitimate counterparty was used recently enough before suspicious event.
-7. Suspicious counterparty has at least 2 qualifying inbound dust/zero injections in the scan window.
-8. Suspicious and matched legitimate addresses are not identical.
+A probable poisoning injection candidate is a new inbound counterparty sending a zero-value or dust transfer to a focal wallet, where the suspicious counterparty resembles a legitimate historical counterparty and has at least 2 qualifying injections in the scan window.
 
 Hard policy:
-- If any required gate is unknown, no candidate is emitted and wallet sync is marked incomplete.
+- If any required gate is `UNKNOWN`, no candidate is emitted, `incomplete_window = true`, and the reason is persisted.
 
 ## 3. Data Flow
 
@@ -119,7 +110,7 @@ Required conditions:
 
 Unknown-gate fail-closed rule:
 - if any required gate is `UNKNOWN`, candidate is not emitted,
-- wallet sync is marked `incomplete_window = true`,
+- `wallet_sync_run.incomplete_window = true`,
 - an `unknown_gate_reason` must be persisted.
 
 ## 8. Baseline and Newness Semantics
@@ -151,5 +142,5 @@ Benefits:
 - safer local-first iteration
 
 Tradeoff:
-- incomplete history can cause unknown states.
-- unknown states are fail-closed for candidate emission.
+- incomplete history can produce `UNKNOWN` gate states.
+- `UNKNOWN` required gates block candidate emission.
