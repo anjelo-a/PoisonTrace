@@ -5,7 +5,7 @@
 PoisonTrace Phase 0–1 is a scanner-first Solana poisoning-injection detection pipeline.
 
 Primary outcome:
-- Detect probable poisoning injections.
+- Detect probable poisoning injection candidates.
 - Do not claim confirmed victim attribution.
 - Preserve auditable signals and failure states.
 
@@ -16,7 +16,7 @@ In scope:
 - Helius Enhanced Transactions as source.
 - Batch ingestion.
 - Historical baseline + bounded scan window.
-- Probable poisoning candidate materialization.
+- Probable poisoning injection candidate materialization.
 - Idempotent reruns.
 - Wallet-level failure isolation.
 
@@ -36,7 +36,7 @@ Any PR that expands scope beyond the above is rejected unless explicitly approve
 3. No silent drops.
 4. No token-account-as-wallet shortcuts for poisoning logic.
 5. Bounded execution (time, concurrency, pages, tx count).
-6. Unknown gating state must block candidate emission.
+6. Unknown required gate state must block candidate emission.
 7. Do not ship unreliable or performance-hostile code paths.
 8. Do not introduce design or implementation choices that create future operational blockage.
 
@@ -156,11 +156,11 @@ A change is non-compliant unless all pass:
 
 2. CI gates:
 - Fixture suite must assert no candidate is emitted when any required gate is `UNKNOWN`.
-- Fixture suite must assert `wallet_sync_run.incomplete_window = true` on unknown required gates.
+- Fixture suite must assert `wallet_sync_run.incomplete_window = true` and persisted reason metadata on unknown required gates.
 
 3. Runtime guards:
 - Never mark `baseline_complete = true` when baseline stopped due to timeout, tx/page cap, retry exhaustion, or cancellation.
-- Every blocked candidate must persist an explicit `unknown_gate_reason`.
+- Every required-gate `UNKNOWN` block must persist an explicit `unknown_gate_reason`.
 
 ## Required Questions Before Implementation Starts
 
@@ -176,7 +176,7 @@ Implementation must stop and ask if any of these are unresolved:
 ## Anti-Patterns (Project-Specific)
 
 1. Using SPL token-account addresses as counterparties.
-2. Emitting candidates when any gate is unknown.
+2. Emitting candidates when any required gate is unknown.
 3. Treating truncated baseline as complete.
 4. Using global dust threshold across all assets.
 5. Counting inbound-only counterparties as legit baseline.
