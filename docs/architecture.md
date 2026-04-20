@@ -147,219 +147,319 @@ Tradeoff:
 
 ## 11. Roadmap Blueprint (Post Phase 0–1)
 
-Phase framing:
-- Phase 0–1 is complete foundation.
-- Remaining roadmap phases are 2 through 7.
+## System Objective
+
+PoisonTrace is a scanner-first Solana wallet poisoning injection detection system.
+
+Probable poisoning injection candidate:
+- new inbound counterparty
+- zero-value or dust transfer
+- lookalike of a known legitimate counterparty
+- valid temporal relationship
+- at least 2 qualifying injections within scan window
+
+## Global System Rules
+
+Core constraints:
+- scanner-first (no user dependency)
+- batch processing (foundation through dataset phases)
+- bounded ingestion always
+- idempotent storage
+- wallet-level failure isolation
+- no silent data loss
+- fail closed on unknown required signals
+
+Required data layers:
+1. raw provider response (implicit)
+2. normalized transfer events
+3. wallet-to-transaction relation
+4. counterparties (baseline + scan)
+5. materialized poisoning candidates
+
+## Phase Structure
+
+Each phase uses:
+- Goal
+- Inputs
+- Outputs
+- Components
+- Processing rules
+- Failure rules
+- Exit criteria
+
+### Phase 0–1: Foundation (Complete)
+
+Goal:
+- Establish deterministic, bounded, and poisoning-ready data pipeline.
+
+Inputs:
+- Helius Enhanced Transactions.
+- Seed wallet list.
+- Configured windows, caps, and thresholds.
+
+Outputs:
+- Normalized transactions.
+- `wallet_transactions`.
+- Counterparties.
+- `wallet_sync_runs`.
+- `ingestion_runs`.
+
+Components:
+- Helius client.
+- Normalization layer.
+- Wallet-owner resolver.
+- Relation mapper (`sender` / `receiver`).
+- Counterparty builder.
+- Run orchestrator.
+
+Processing rules:
+- Transfer identity uses canonical fingerprint uniqueness: `UNIQUE(signature, transfer_fingerprint)`.
+- Process native SOL and fungible SPL only for poisoning logic.
+- Owner resolution is required for poisoning-ready SPL transfers.
+- Baseline window and scan window are separated and bounded.
+- Legitimate counterparties require outbound non-dust baseline interactions.
+- Directionality is explicit via sender/receiver mapping.
+
+Failure rules:
+- `unresolved_owner` is persisted but non-poisoning-ready.
+- Unknown dust status blocks candidate emission.
+- Incomplete baseline blocks "new counterparty" claims.
+- Truncation is allowed only as explicit partial status.
+- Wallet failures remain isolated.
+
+Exit criteria:
+- Idempotent reruns are verified.
+- Normalization correctness is fixture-verified.
+- Fixture replay is deterministic.
+- Known poisoning patterns are reconstructable from persisted records.
 
 ### Phase 2: Detection Engine
 
 Goal:
-- Finalize deterministic candidate materialization as the primary scanner output for bounded batch runs.
+- Materialize poisoning candidates using strict gating logic.
 
 Inputs:
-- Wallet batch, baseline/scan windows, and bounded runtime caps.
-- Helius Enhanced Transactions payloads.
-- Asset dust thresholds and lookalike recency configuration.
-- Persisted global normalized transfers and wallet-scoped counterparties.
+- Normalized transactions.
+- `wallet_transactions`.
+- Counterparties.
+- `wallet_sync_runs` (including baseline completeness and windows).
 
 Outputs:
-- Materialized `poisoning_candidates` rows for qualifying events.
-- Wallet/run counters for gated, blocked, unresolved, and emitted outcomes.
-- Explicit unknown/truncation reason metadata.
+- `poisoning_candidates` materialized table.
 
 Components:
-- Window planner and wallet runner orchestration.
-- Fetch + normalize pipeline with owner-level SPL resolution.
-- Candidate gate evaluator and materializer.
-- Repository layer for idempotent upserts and run summaries.
+- Lookalike matcher.
+- Recency evaluator.
+- Injection counter.
+- Candidate materializer.
 
 Processing rules:
-- Emit only when required gates pass, including min-2 qualifying inbound injections per `(focal_wallet, suspicious_counterparty)` in scan window.
-- Treat unresolved owner, unsupported asset, and unknown dust as non-poisoning-ready.
-- Compute relation context via owner endpoints and evaluate candidates only on `receiver` direction.
-- Preserve canonical event identity with `UNIQUE(signature, transfer_fingerprint)`.
+- Emit candidate only if all required gates pass:
+1. `normalization_status = resolved`
+2. `asset_type in {native_sol, spl_fungible}`
+3. `relation_type = receiver`
+4. `amount_raw = 0 OR is_dust = true`
+5. `is_new_counterparty = true AND baseline_complete = true`
+6. lookalike similarity rule passes
+7. `0 < time_gap <= LOOKALIKE_RECENCY_DAYS`
+8. `suspicious_counterparty != matched_legit_counterparty`
+9. at least 2 qualifying inbound injections in scan window
 
 Failure rules:
-- If any required gate is `UNKNOWN`, do not emit candidate, set `wallet_sync_run.incomplete_window = true`, and persist `unknown_gate_reason`.
-- On timeout/cap/retry exhaustion, persist partial progress and truncation reason.
-- Contain failure at wallet level; do not drop normalized rows silently.
+- Any required gate `UNKNOWN` blocks candidate emission.
+- Incomplete baseline blocks candidate emission.
+- Unknown dust status blocks candidate emission.
+- Unresolved owner blocks poisoning eligibility.
 
 Exit criteria:
-- Candidate emission is deterministic and idempotent across reruns.
-- Unknown-gate blocking and `incomplete_window` persistence are enforced in fixtures and CI.
-- Run outputs are auditable from transfers to candidate rows with persisted reasons.
+- Candidate results are stable across reruns.
+- No duplicate candidate emissions per uniqueness contract.
+- Known in-scope poisoning patterns are detected.
+- Zero emission occurs when required gates are incomplete.
 
 ### Phase 3: Validation and Tuning
 
 Goal:
-- Calibrate detection quality and gate behavior without changing scanner-first bounded architecture.
+- Validate detection quality and tune thresholds within the same bounded rule-based model.
 
 Inputs:
-- Phase 2 emitted/blocked candidate corpus.
-- Fixture corpora for known poisoning patterns and edge cases.
-- Gate-level counters, unknown reasons, and unresolved-owner distributions.
+- `poisoning_candidates`.
+- Known poisoning-case datasets.
+- Fixture test cases.
 
 Outputs:
-- Versioned detection parameter profiles (dust, recency, similarity, window bounds).
-- Validation reports for precision/recall tradeoffs and blocked-candidate causes.
-- Updated fixture suites and CI assertions.
+- Tuned threshold configurations.
+- Validated detection rule settings.
+- Classified misses and false positives.
 
 Components:
-- Offline validation harness over persisted run artifacts.
-- Fixture management and replay tooling.
-- Parameter configuration layer used by scanner runtime.
+- Validation runner.
+- Threshold configuration manager.
+- Fixture and known-case harness.
 
 Processing rules:
-- Tune only through explicit configuration and fixture-backed acceptance thresholds.
-- Preserve hard invariants: fail-closed unknown gates, min-2 injections, owner-level SPL normalization, bounded execution.
-- Compare new profiles against baseline using deterministic replays.
+- Evaluate recall on known cases.
+- Evaluate false positives on representative wallet samples.
+- Tune lookalike thresholds, recency windows, and dust thresholds through explicit config revisions only.
 
 Failure rules:
-- Reject parameter updates that regress invariant checks or idempotency behavior.
-- Reject tuning outputs that require unbounded scans or live-credit-heavy routine CI.
-- Persist validation failures with gate-level attribution.
+- Unexplained false positives block phase exit.
+- Unexplained misses block phase exit.
+- Inconsistent rerun results block phase exit.
 
 Exit criteria:
-- Candidate quality metrics improve or remain stable under fixed fixture set.
-- CI passes for unknown-gate blocking, incomplete-window marking, and uniqueness constraints.
-- Tuned configuration is documented and reproducible.
+- Target recall is reached for known in-scope cases.
+- False positives are explainable from persisted evidence.
+- Threshold behavior is stable across reruns.
+- Validation outcomes are reproducible.
 
 ### Phase 4: Batch Scanner and Dataset Generation
 
 Goal:
-- Scale bounded batch execution and generate consistent datasets for downstream inspection and validation.
+- Execute bounded scans over wallet sets and generate reproducible poisoning datasets.
 
 Inputs:
-- Wallet batch definitions and schedule inputs.
-- Tuned Phase 3 configuration profiles.
-- Existing normalized transaction and counterparty state.
+- Seed wallet sets.
+- Configured limits and windows.
+- Validated detection engine configuration.
 
 Outputs:
-- Reproducible batch run snapshots with wallet/run-level status and counters.
-- Exportable candidate and gate-result datasets keyed to run identifiers.
-- Dataset manifests with configuration/version metadata.
+- Multi-run ingestion artifacts.
+- Poisoning candidate datasets.
+- Run summaries.
 
 Components:
-- Batch scheduler/runner with concurrency caps.
-- Dataset export job for candidate and gate outcomes.
-- Storage indexing and query paths for large-run retrieval.
+- Wallet scheduler.
+- Batch orchestrator.
+- Run summary aggregator.
 
 Processing rules:
-- Enforce configured caps for wallets/pages/transactions/concurrency/timeouts/retries.
-- Prefer incremental processing over recomputing unchanged history.
-- Generate datasets from persisted outcomes, not transient in-memory assumptions.
+- Use deterministic wallet ordering.
+- Enforce bounded per-wallet processing.
+- Scale batch size incrementally under configured caps.
+- Track run-level metrics: wallets processed, transactions processed, candidates emitted, truncation rate.
 
 Failure rules:
-- Mark partial/incomplete runs explicitly on cap/time/retry boundaries.
-- Skip candidate export for wallets with unresolved required-gate outcomes while preserving blocked evidence.
-- Fail export jobs loudly on schema/config mismatch.
+- Wallet-level failures are logged and isolated.
+- Runs continue unless run-level timeout/cancellation is reached.
+- Incomplete windows remain explicitly flagged.
 
 Exit criteria:
-- Batch runs complete predictably within configured bounds.
-- Dataset exports are reproducible for the same input set/configuration.
-- No silent record loss between persisted state and exported datasets.
+- Batch runs remain stable under configured caps.
+- Datasets are generated reproducibly.
+- Operational cost envelopes are measured.
+- Candidate distribution is analyzable from persisted outputs.
 
 ### Phase 5: Inspection and Reporting
 
 Goal:
-- Provide analyst-facing inspection and reporting outputs from materialized scanner results.
+- Make detection outputs explainable and inspectable without changing detection logic.
 
 Inputs:
-- Phase 4 datasets and run artifacts.
-- Candidate rows, gate evidence, and unknown/truncation reasons.
-- Counterparty history and matched-legit context fields.
+- `poisoning_candidates`.
+- Counterparties.
+- Transactions and wallet relation context.
 
 Outputs:
-- Structured reports for emitted, blocked, and unknown-gate outcomes.
-- Wallet-level investigation bundles with traceable event provenance.
-- Aggregated operational summaries by run, wallet, and reason code.
+- Inspection queries and views.
+- Exportable reports.
+- Candidate explanation artifacts.
 
 Components:
-- Report query layer on top of persisted tables.
-- Inspection views/templates for candidate lineage.
-- Export pipeline for machine-readable and human-readable reporting.
+- SQL read models.
+- Reporting queries.
+- Optional minimal read API.
 
 Processing rules:
-- Report only persisted facts; do not infer victim attribution or attacker identity.
-- Maintain one-to-one traceability from report rows back to signatures and transfer fingerprints.
-- Keep candidate definition consistent with Phase 2 emission contract.
+- Every candidate must be explainable from persisted data.
+- No hidden detection logic outside canonical persisted contracts.
 
 Failure rules:
-- Suppress derived assertions when underlying required signals are unknown.
-- Mark stale or partial source runs as non-authoritative in reports.
-- Reject report generation when input run metadata is incomplete.
+- Unexplainable candidates are invalid outputs.
+- Inconsistent explanation paths are invalid outputs.
 
 Exit criteria:
-- Reports are reproducible and auditable from storage records.
-- Analysts can distinguish emitted candidates from blocked/unknown outcomes unambiguously.
-- Reporting layer introduces no new detection logic divergence.
+- Every candidate is traceable to stored transfer evidence.
+- Explanation paths are consistent and reproducible.
+- Datasets are exportable for review and presentation.
 
 ### Phase 6: Operational Hardening
 
 Goal:
-- Harden reliability, observability, and recoverability for sustained bounded scanner operations.
+- Ensure robust behavior under repeated, partial, and interrupted execution.
 
 Inputs:
-- Runtime telemetry, failure distributions, and throughput baselines.
-- Historical retry/timeout/cap-hit metrics and lock-contention data.
-- Incident and rollback history from prior phases.
+- Full pipeline implementation.
+- Historical batch run outcomes.
 
 Outputs:
-- Operational runbooks and SLO-aligned alerts.
-- Hardened retry/backoff/timeout/concurrency profiles.
-- Recovery procedures for reruns, partial runs, and interrupted windows.
+- Stable operational behavior.
+- Improved observability and failure classification.
 
 Components:
-- Metrics and logging instrumentation across pipeline stages.
-- Alerting and health-check layer for run/wallet failure states.
-- Operational controls for safe restart and controlled backfill.
+- Retry manager.
+- Logging system.
+- Metrics collection.
+- Failure classification layer.
 
 Processing rules:
-- Keep execution bounded and deterministic under recovery scenarios.
-- Prioritize fail-contained wallet isolation over maximizing per-run throughput.
-- Use idempotent reruns as the default remediation path.
+- Retries are bounded with backoff.
+- Worker failures are recovered without global run collapse.
+- Errors are categorized and persisted with consistent run statuses.
 
 Failure rules:
-- Trigger explicit degraded status on repeated cap/time/retry failures.
-- Block unsafe operational modes that bypass invariant checks.
-- Preserve forensic audit trails for failed and restarted runs.
+- Silent failures are forbidden.
+- Unbounded retry loops are forbidden.
+- Single-wallet failures must not crash global runs.
 
 Exit criteria:
-- Operational failures are detected, classified, and recoverable without data corruption.
-- Rerun and recovery workflows preserve idempotency and candidate integrity.
-- Throughput and stability are predictable under configured limits.
+- Reruns after failure remain stable and idempotent.
+- Failure modes are observable and classified.
+- Recovery from interruption is safe and auditable.
 
-### Phase 7: Optional Extensions Only
+### Phase 7: Optional Extensions
 
 Goal:
-- Add explicitly approved extensions without weakening Phase 0–6 contracts.
+- Add approved extensions without weakening the core bounded detection pipeline.
 
 Inputs:
-- Stable outputs and operational baselines from Phase 6.
-- Explicitly approved extension scope and acceptance criteria.
-- Security/performance impact assessments for each extension.
+- Stable candidate datasets.
+- Stable rule-based detection engine.
 
 Outputs:
-- Extension-specific artifacts isolated behind clear interfaces.
-- Updated docs and fixtures proving no regression to core detection invariants.
-- Go/no-go decision records per extension.
+- Isolated enhancement modules and outputs.
+- No-regression validation evidence for core invariants.
 
 Components:
-- Optional modules (for example, integration adapters or advanced analytics overlays) decoupled from core scanner.
-- Feature flags or configuration gates controlling extension activation.
-- Regression test packs focused on invariant preservation.
+- Optional confidence scoring layer.
+- Optional cross-wallet pattern analysis.
+- Optional scheduled scan automation.
+- Optional ML-based ranking layer (ranking only).
 
 Processing rules:
-- Keep core scanner pipeline and candidate contract authoritative.
-- Do not backdoor unbounded, streaming-first, or generic cross-chain scope into core phases.
-- Require fixture-backed validation before enabling any extension by default.
+- Extensions must not alter core Phase 2 candidate gates.
+- Extensions must remain bounded and explicitly configurable.
 
 Failure rules:
-- Disable extension paths that degrade bounded performance or violate fail-closed behavior.
-- Reject extensions that require weakening owner-resolution or unknown-gate policies.
-- Roll back extension state without mutating canonical detection history.
+- Extensions are disabled if they degrade correctness, boundedness, or fail-closed behavior.
+- Extensions are rejected if they require scope expansion into generic cross-chain intelligence.
 
 Exit criteria:
-- Extensions remain optional and isolated.
-- Core Phase 0–6 behavior remains unchanged and validated.
-- Extension enablement is explicit, reversible, and documented.
+- Enhancements remain isolated and reversible.
+- Core pipeline behavior is unchanged.
+- No regression in detection correctness.
+
+## Final System Definition
+
+PoisonTrace is:
+- a bounded, deterministic, idempotent scanner
+- ingesting Solana wallet history via Helius Enhanced Transactions
+- resolving owner-level transfer behavior
+- building wallet-scoped counterparty relationships
+- materializing probable poisoning injection candidates
+
+And it guarantees:
+- strict gating
+- fail-contained execution
+- reproducible outputs
+- auditable detection logic
