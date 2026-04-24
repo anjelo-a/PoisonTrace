@@ -24,6 +24,21 @@ func TestValidateCorpusCanonicalFixtures(t *testing.T) {
 	}
 }
 
+func TestValidateCorpusCanonicalFixtures_StrictMissReason(t *testing.T) {
+	report, err := ValidateCorpus(context.Background(), fixturesRootForTest(), CorpusValidationOptions{
+		StrictMissReason: true,
+	})
+	if err != nil {
+		t.Fatalf("validate corpus (strict): %v", err)
+	}
+	if report.Summary.TotalCases == 0 {
+		t.Fatalf("expected non-empty fixture corpus")
+	}
+	if report.Summary.FailedCases != 0 {
+		t.Fatalf("expected zero failed cases under strict miss reason, got %d", report.Summary.FailedCases)
+	}
+}
+
 func TestEvaluateMissReasonEvidence_KnownSignals(t *testing.T) {
 	fx, err := LoadCase(fixturesRootForTest(), "missing_threshold_dust_unknown")
 	if err != nil {

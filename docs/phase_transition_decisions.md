@@ -5,6 +5,9 @@ This document locks the required decisions from `AGENTS.md` before starting the 
 Lock date:
 - 2026-04-24
 
+Phase 3 closeout evidence:
+- [`docs/phase3_closeout.md`](./phase3_closeout.md)
+
 ## 1. Scan and baseline window bounds
 
 Locked:
