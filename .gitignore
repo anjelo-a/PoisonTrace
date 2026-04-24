@@ -30,6 +30,7 @@ secrets.json
 tmp/
 temp/
 .cache/
+artifacts/
 
 # Go build/test artifacts
 bin/

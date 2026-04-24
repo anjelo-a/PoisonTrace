@@ -1,4 +1,4 @@
-.PHONY: build test test-guardrails migrate run-fixture run
+.PHONY: build test test-guardrails test-fixture-metadata validate-corpus migrate run-fixture run
 
 build:
 	go build ./cmd/scanner
@@ -8,6 +8,13 @@ test:
 
 test-guardrails:
 	./scripts/ci_guardrails.sh
+
+test-fixture-metadata:
+	./scripts/ci_fixture_metadata_lint.sh
+
+validate-corpus:
+	mkdir -p artifacts
+	go run ./cmd/scanner validate-corpus --fixtures-root data/fixtures --report-out ./artifacts/corpus_validation_report.json
 
 migrate:
 	./scripts/migrate.sh

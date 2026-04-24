@@ -18,5 +18,18 @@ jobs:
         run: go test ./...
       - name: Invariant guardrails
         run: ./scripts/ci_guardrails.sh
+      - name: Fixture metadata consistency
+        run: ./scripts/ci_fixture_metadata_lint.sh
       - name: Fixture execution guardrails
         run: go test ./internal/fixtures -count=1
+      - name: Corpus validation
+        run: |
+          mkdir -p artifacts
+          go run ./cmd/scanner validate-corpus --fixtures-root data/fixtures --report-out ./artifacts/corpus_validation_report.json
+      - name: Upload corpus validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: corpus-validation-report
+          path: artifacts/corpus_validation_report.json
+          if-no-files-found: warn
