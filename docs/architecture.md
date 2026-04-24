@@ -1,4 +1,4 @@
-# PoisonTrace Architecture (Phase 0–1)
+# PoisonTrace Architecture (Phase 0–2)
 
 ## 1. System Overview
 
@@ -10,7 +10,7 @@ Operational constraints:
 - build wallet-scoped historical counterparties
 - materialize probable poisoning injection candidates only when required gates pass
 
-This is not a user product and not a generic risk platform in Phase 0–1.
+This is not a user product and not a generic risk platform in Phase 0–2.
 
 ## 2. Detection Target Definition
 
@@ -136,7 +136,7 @@ New counterparty:
 
 ## 10. Bounded Ingestion and Its Implications
 
-Phase 0–1 is bounded by configured caps and windows.
+Phase 0–2 is bounded by configured caps and windows.
 Benefits:
 - predictable cost and runtime
 - safer local-first iteration
@@ -145,7 +145,7 @@ Tradeoff:
 - incomplete history can produce `UNKNOWN` gate states.
 - `UNKNOWN` required gates block candidate emission.
 
-## 11. Roadmap Blueprint (Post Phase 0–1)
+## 11. Roadmap Blueprint (Post Phase 0–2)
 
 ## System Objective
 
@@ -233,7 +233,7 @@ Exit criteria:
 - Fixture replay is deterministic.
 - Known poisoning patterns are reconstructable from persisted records.
 
-### Phase 2: Detection Engine
+### Phase 2: Detection Engine (Complete)
 
 Goal:
 - Materialize poisoning candidates using strict gating logic.
@@ -276,6 +276,10 @@ Exit criteria:
 - No duplicate candidate emissions per uniqueness contract.
 - Known in-scope poisoning patterns are detected.
 - Zero emission occurs when required gates are incomplete.
+
+Current status:
+- Implemented in code paths under `internal/pipeline/*` and `internal/storage/*`.
+- Covered by deterministic fixture replay and CI guardrail tests.
 
 ### Phase 3: Validation and Tuning
 
@@ -463,3 +467,11 @@ And it guarantees:
 - fail-contained execution
 - reproducible outputs
 - auditable detection logic
+
+## 12. Locked Decisions For The Next Step
+
+The `AGENTS.md` "Required Questions Before Implementation Starts" are explicitly locked for the next step (Validation and Tuning) in:
+- [`docs/phase_transition_decisions.md`](./phase_transition_decisions.md)
+
+Lock date:
+- 2026-04-24
