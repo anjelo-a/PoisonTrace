@@ -301,6 +301,11 @@ Components:
 - Threshold configuration manager.
 - Fixture and known-case harness.
 
+Current status:
+- Validation runner is implemented via `scanner validate-corpus` on deterministic fixture replay.
+- Case-level recall and out-of-scope emission metrics are materialized in a JSON report artifact.
+- Threshold tuning remains configuration-driven and must be validated by fixture replay evidence.
+
 Processing rules:
 - Evaluate recall on known cases.
 - Evaluate false positives on representative wallet samples.

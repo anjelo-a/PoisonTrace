@@ -14,6 +14,7 @@ Scanner-first Solana wallet poisoning injection detection pipeline.
 2. Run migrations: `source .env && make migrate`.
 3. Build: `make build`
 4. Test: `make test`
+5. Validate corpus: `go run ./cmd/scanner validate-corpus --fixtures-root data/fixtures --report-out /tmp/phase3_report.json`
 
 ## Important
 Implementation enforces fail-safe and idempotency constraints from `AGENTS.md` and project skills.

@@ -248,3 +248,7 @@ Validate one fixture against canonical expected files:
 Regenerate canonical expected files for one fixture:
 
 `go run ./cmd/scanner replay-fixture --fixture <case_id> --write-expected`
+
+Validate full fixture corpus and emit Phase 3 metrics:
+
+`go run ./cmd/scanner validate-corpus --fixtures-root data/fixtures --report-out /tmp/phase3_report.json`

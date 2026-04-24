@@ -6,6 +6,5 @@
   "baseline_end": "2026-04-01T00:00:00Z",
   "scan_start": "2026-04-01T00:00:00Z",
   "scan_end": "2026-04-08T00:00:00Z",
-  "expected_in_scope": false,
-  "expected_miss_reason": "insufficient_injections"
+  "expected_in_scope": true
 }
