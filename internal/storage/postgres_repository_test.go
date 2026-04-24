@@ -49,6 +49,8 @@ func TestFinalizeIngestionRunReturnsNotFoundOnZeroRows(t *testing.T) {
 			counters.WalletsProcessed,
 			counters.WalletsFailed,
 			counters.WalletsSkipped,
+			counters.TruncationWalletCount,
+			counters.TruncationWalletRate,
 			counters.TransactionsFetched,
 			counters.TransactionsInserted,
 			counters.TransactionsLinked,

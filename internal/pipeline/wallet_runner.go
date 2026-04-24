@@ -102,6 +102,9 @@ func (r *WalletExecutionRunner) RunWallet(ctx context.Context, walletAddress str
 			}
 		}
 		report.WalletStatus = status
+		report.IncompleteWindow = progress.IncompleteWindow
+		report.TruncationReason = progress.TruncationReason
+		report.TruncationObserved = strings.TrimSpace(progress.TruncationReason) != ""
 	}()
 
 	classifyDust, err := r.buildDustClassifier(ctx, window.BaselineStart, window.ScanEnd)

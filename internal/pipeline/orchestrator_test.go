@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,6 +32,7 @@ type runRepoStub struct {
 	finalized     bool
 	finalStatus   runs.RunStatus
 	finalCounters runs.Counters
+	finalNotes    string
 	finalizeFn    func(context.Context) error
 }
 
@@ -43,7 +45,11 @@ func (r *runRepoStub) CreateIngestionRun(_ context.Context, _ time.Time) (int64,
 	return r.nextID, nil
 }
 
-func (r *runRepoStub) FinalizeIngestionRun(ctx context.Context, _ int64, status runs.RunStatus, _ time.Time, counters runs.Counters, _ string) error {
+func (r *runRepoStub) FinalizeIngestionRun(ctx context.Context, _ int64, status runs.RunStatus, _ time.Time, counters runs.Counters, notes string) error {
+	return r.finalize(ctx, status, counters, notes)
+}
+
+func (r *runRepoStub) finalize(ctx context.Context, status runs.RunStatus, counters runs.Counters, notes string) error {
 	if r.finalizeFn != nil {
 		if err := r.finalizeFn(ctx); err != nil {
 			return err
@@ -54,6 +60,7 @@ func (r *runRepoStub) FinalizeIngestionRun(ctx context.Context, _ int64, status 
 	r.finalized = true
 	r.finalStatus = status
 	r.finalCounters = counters
+	r.finalNotes = notes
 	return nil
 }
 
@@ -331,5 +338,74 @@ func TestRunFinalizeIngestionBoundedTimeout(t *testing.T) {
 	}
 	if elapsed := time.Since(start); elapsed > 5*time.Second {
 		t.Fatalf("expected bounded finalize timeout, elapsed=%v", elapsed)
+	}
+}
+
+func TestRunAggregatesTruncationMetrics(t *testing.T) {
+	cfg := testConfig()
+	runRepo := &runRepoStub{}
+
+	orch := NewOrchestrator(
+		cfg,
+		WithRunRepository(runRepo),
+		WithWalletRunner(func(_ context.Context, wallet string, _ RunParams, _ WalletRunLimits) (WalletRunReport, error) {
+			report := WalletRunReport{WalletStatus: runs.WalletStatusSucceeded}
+			if wallet == "walletA" {
+				report.TruncationObserved = true
+				report.TruncationReason = "scan_truncation:max_tx_cap"
+			}
+			return report, nil
+		}),
+	)
+
+	err := orch.Run(context.Background(), RunParams{
+		WalletFile:           writeWalletFile(t, []string{"walletB", "walletA"}),
+		ScanStart:            time.Now().UTC().Add(-2 * time.Hour),
+		ScanEnd:              time.Now().UTC().Add(-1 * time.Hour),
+		BaselineLookbackDays: 90,
+	})
+	if err != nil {
+		t.Fatalf("run returned unexpected error: %v", err)
+	}
+
+	if runRepo.finalCounters.TruncationWalletCount != 1 {
+		t.Fatalf("expected truncation wallet count=1, got %+v", runRepo.finalCounters)
+	}
+	if runRepo.finalCounters.TruncationWalletRate != 0.5 {
+		t.Fatalf("expected truncation wallet rate=0.5, got %.8f", runRepo.finalCounters.TruncationWalletRate)
+	}
+}
+
+func TestRunNotesDeterministicByWalletAddress(t *testing.T) {
+	cfg := testConfig()
+	runRepo := &runRepoStub{}
+
+	orch := NewOrchestrator(
+		cfg,
+		WithRunRepository(runRepo),
+		WithWalletRunner(func(_ context.Context, wallet string, _ RunParams, _ WalletRunLimits) (WalletRunReport, error) {
+			if wallet == "walletA" {
+				time.Sleep(20 * time.Millisecond)
+			}
+			return WalletRunReport{}, fmt.Errorf("boom_%s", wallet)
+		}),
+	)
+
+	err := orch.Run(context.Background(), RunParams{
+		WalletFile:           writeWalletFile(t, []string{"walletB", "walletA"}),
+		ScanStart:            time.Now().UTC().Add(-2 * time.Hour),
+		ScanEnd:              time.Now().UTC().Add(-1 * time.Hour),
+		BaselineLookbackDays: 90,
+	})
+	if err == nil {
+		t.Fatal("expected run error")
+	}
+
+	wantSnippet := "wallet walletA: wallet runner: boom_walletA; wallet walletB: wallet runner: boom_walletB"
+	if !strings.Contains(err.Error(), wantSnippet) {
+		t.Fatalf("expected sorted wallet errors, got: %v", err)
+	}
+	if runRepo.finalNotes != wantSnippet {
+		t.Fatalf("expected deterministic final notes %q, got %q", wantSnippet, runRepo.finalNotes)
 	}
 }
