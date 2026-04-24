@@ -1,4 +1,4 @@
-# PoisonTrace Architecture (Phase 0–2)
+# PoisonTrace Architecture (Phase 0–3)
 
 ## 1. System Overview
 
@@ -10,7 +10,7 @@ Operational constraints:
 - build wallet-scoped historical counterparties
 - materialize probable poisoning injection candidates only when required gates pass
 
-This is not a user product and not a generic risk platform in Phase 0–2.
+This is not a user product and not a generic risk platform in Phase 0–3.
 
 ## 2. Detection Target Definition
 
@@ -136,7 +136,7 @@ New counterparty:
 
 ## 10. Bounded Ingestion and Its Implications
 
-Phase 0–2 is bounded by configured caps and windows.
+Phase 0–3 is bounded by configured caps and windows.
 Benefits:
 - predictable cost and runtime
 - safer local-first iteration
@@ -145,7 +145,7 @@ Tradeoff:
 - incomplete history can produce `UNKNOWN` gate states.
 - `UNKNOWN` required gates block candidate emission.
 
-## 11. Roadmap Blueprint (Post Phase 0–2)
+## 11. Roadmap Blueprint (Post Phase 0–3)
 
 ## System Objective
 
@@ -281,7 +281,7 @@ Current status:
 - Implemented in code paths under `internal/pipeline/*` and `internal/storage/*`.
 - Covered by deterministic fixture replay and CI guardrail tests.
 
-### Phase 3: Validation and Tuning
+### Phase 3: Validation and Tuning (Complete)
 
 Goal:
 - Validate detection quality and tune thresholds within the same bounded rule-based model.
@@ -305,6 +305,7 @@ Current status:
 - Validation runner is implemented via `scanner validate-corpus` on deterministic fixture replay.
 - Case-level recall and out-of-scope emission metrics are materialized in a JSON report artifact.
 - Threshold tuning remains configuration-driven and must be validated by fixture replay evidence.
+- Strict closeout checklist and evidence are recorded in [`docs/phase3_closeout.md`](./phase3_closeout.md).
 
 Processing rules:
 - Evaluate recall on known cases.

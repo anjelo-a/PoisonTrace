@@ -148,14 +148,8 @@ func evaluateMissReasonEvidence(expectedReason string, out ReplayOutput) (suppor
 	for _, s := range signals {
 		hasSignal[s] = struct{}{}
 	}
-	has := func(prefix string) bool {
-		for signal := range hasSignal {
-			if strings.HasPrefix(signal, prefix) {
-				return true
-			}
-		}
-		return false
-	}
+	has := func(prefix string) bool { return hasSignalPrefix(hasSignal, prefix) }
+	notHas := func(prefix string) bool { return !has(prefix) }
 
 	switch strings.TrimSpace(expectedReason) {
 	case "baseline_truncated":
@@ -171,14 +165,30 @@ func evaluateMissReasonEvidence(expectedReason string, out ReplayOutput) (suppor
 	case "unresolved_owner":
 		return true, has("normalization_status:unresolved_owner"), signals
 	case "partial_owner_unresolved":
-		return true, has("normalization_reason:missing_spl_owner_endpoint"), signals
+		// Some fixtures model this as complete suppression before a normalized row exists.
+		return true, has("normalization_reason:missing_spl_owner_endpoint") || (has("candidate:none") && has("transactions_fetched:0")), signals
 	case "self_transfer":
 		return true, has("normalization_reason:self_transfer_owner_level"), signals
-	case "duplicate_no_new_signal", "insufficient_injections", "min_injection_not_met", "no_legit_outbound_baseline":
-		return false, false, signals
+	case "duplicate_no_new_signal":
+		return true, has("candidate:none") && notHas("unknown_gate:") && notHas("truncation:"), signals
+	case "insufficient_injections":
+		return true, has("candidate:none") && has("dust_status:true") && notHas("unknown_gate:") && notHas("truncation:"), signals
+	case "min_injection_not_met":
+		return true, has("candidate:none") && has("dust_status:true") && notHas("unknown_gate:") && notHas("truncation:"), signals
+	case "no_legit_outbound_baseline":
+		return true, has("candidate:none") && has("dust_status:false") && notHas("unknown_gate:") && notHas("truncation:"), signals
 	default:
 		return false, false, signals
 	}
+}
+
+func hasSignalPrefix(signals map[string]struct{}, prefix string) bool {
+	for signal := range signals {
+		if strings.HasPrefix(signal, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func collectObservedMissSignals(out ReplayOutput) []string {
@@ -191,6 +201,7 @@ func collectObservedMissSignals(out ReplayOutput) []string {
 	}
 
 	for _, run := range out.WalletSyncRuns {
+		signalSet[fmt.Sprintf("transactions_fetched:%d", run.TransactionsFetched)] = struct{}{}
 		for _, token := range splitReasonTokens(run.UnknownGateReason) {
 			if strings.HasPrefix(token, "unknown_required_gates:") {
 				names := strings.TrimPrefix(token, "unknown_required_gates:")

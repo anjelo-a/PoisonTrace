@@ -2,12 +2,13 @@
 
 Scanner-first Solana wallet poisoning injection detection pipeline.
 
-## Phase 0–2 implementation status
+## Phase 0–3 implementation status
 - Scanner CLI with bounded wallet execution, timeout handling, and wallet-level failure isolation.
 - Helius Enhanced Transaction ingestion for Solana baseline + scan windows.
 - Owner-level normalization for native SOL and SPL fungible transfers, with unresolved/unsupported gating.
 - Persisted poisoning-candidate materialization with strict fail-closed gate enforcement.
 - Deterministic/idempotent persistence with fixture replay tests and CI policy checks.
+- Phase 3 validation/tuning closeout with strict corpus checklist evidence in `docs/phase3_closeout.md`.
 
 ## Quick start
 1. Copy `.env.example` to `.env` and set real values.
