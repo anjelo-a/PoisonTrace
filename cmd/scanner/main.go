@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"poisontrace/internal/config"
+	"poisontrace/internal/exports"
 	"poisontrace/internal/fixtures"
 	"poisontrace/internal/helius"
 	"poisontrace/internal/pipeline"
@@ -37,6 +38,13 @@ func main() {
 		replayFixtureCmd(os.Args[2:])
 	case "validate-corpus":
 		validateCorpusCmd(os.Args[2:])
+	case "export-dataset":
+		cfg, err := config.LoadFromEnv()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "config error: %v\n", err)
+			os.Exit(1)
+		}
+		exportDatasetCmd(cfg, os.Args[2:])
 	default:
 		printUsage()
 		os.Exit(2)
@@ -203,11 +211,84 @@ func validateCorpusCmd(args []string) {
 	}
 }
 
+func exportDatasetCmd(cfg config.Config, args []string) {
+	fs := flag.NewFlagSet("export-dataset", flag.ExitOnError)
+	outDir := fs.String("out-dir", "", "output directory for JSONL artifacts + manifest")
+	runID := fs.Int64("run-id", 0, "ingestion run id to export")
+	startedAtFrom := fs.String("started-at-from", "", "inclusive ingestion_run.started_at lower bound (RFC3339)")
+	startedAtTo := fs.String("started-at-to", "", "exclusive ingestion_run.started_at upper bound (RFC3339)")
+	_ = fs.Parse(args)
+
+	if *outDir == "" {
+		fmt.Fprintln(os.Stderr, "missing required flag: --out-dir")
+		fs.Usage()
+		os.Exit(2)
+	}
+
+	var filter storage.ExportFilter
+	if *runID > 0 {
+		filter.RunID = runID
+	}
+	if *startedAtFrom != "" || *startedAtTo != "" {
+		if *startedAtFrom == "" || *startedAtTo == "" {
+			fmt.Fprintln(os.Stderr, "both --started-at-from and --started-at-to are required for time-window export")
+			os.Exit(2)
+		}
+		from, err := time.Parse(time.RFC3339, *startedAtFrom)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "invalid --started-at-from: %v\n", err)
+			os.Exit(2)
+		}
+		to, err := time.Parse(time.RFC3339, *startedAtTo)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "invalid --started-at-to: %v\n", err)
+			os.Exit(2)
+		}
+		if !from.Before(to) {
+			fmt.Fprintln(os.Stderr, "invalid range: started-at-from must be before started-at-to")
+			os.Exit(2)
+		}
+		filter.StartedAtFrom = &from
+		filter.StartedAtTo = &to
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	db, err := sql.Open("postgres", cfg.DatabaseURL)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "database connection error: %v\n", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	store := storage.NewPostgresStore(db)
+	if err := store.Ping(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "database ping error: %v\n", err)
+		os.Exit(1)
+	}
+
+	result, err := exports.ExportDataset(ctx, store, exports.ExportOptions{
+		OutDir: *outDir,
+		Filter: filter,
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "export dataset failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	for _, file := range result.Manifest.Files {
+		fmt.Printf("exported %s rows=%d sha256=%s\n", file.Name, file.RowCount, file.SHA256)
+	}
+	fmt.Printf("manifest: %s/manifest.json\n", strings.TrimRight(*outDir, "/"))
+}
+
 func printUsage() {
 	fmt.Println(`PoisonTrace scanner
 
 Usage:
   scanner run --wallets <path> --scan-start <RFC3339> --scan-end <RFC3339> [--baseline-lookback-days N]
   scanner replay-fixture --fixture <case_id> [--fixtures-root data/fixtures] [--write-expected]
-  scanner validate-corpus [--fixtures-root data/fixtures] [--report-out path] [--strict-miss-reason]`)
+  scanner validate-corpus [--fixtures-root data/fixtures] [--report-out path] [--strict-miss-reason]
+  scanner export-dataset --out-dir <dir> [--run-id N | --started-at-from <RFC3339> --started-at-to <RFC3339>]`)
 }

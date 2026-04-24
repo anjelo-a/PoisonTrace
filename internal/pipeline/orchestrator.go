@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -38,8 +39,11 @@ type WalletRunLimits struct {
 }
 
 type WalletRunReport struct {
-	WalletStatus runs.WalletStatus
-	Counters     runs.Counters
+	WalletStatus       runs.WalletStatus
+	IncompleteWindow   bool
+	TruncationObserved bool
+	TruncationReason   string
+	Counters           runs.Counters
 }
 
 type WalletRunnerFunc func(ctx context.Context, walletAddress string, p RunParams, limits WalletRunLimits) (WalletRunReport, error)
@@ -99,6 +103,7 @@ func (o *Orchestrator) Run(ctx context.Context, p RunParams) error {
 	if err != nil {
 		return err
 	}
+	sort.Strings(walletList)
 	if len(walletList) == 0 {
 		return fmt.Errorf("no wallets to process")
 	}
@@ -144,9 +149,23 @@ func (o *Orchestrator) Run(ctx context.Context, p RunParams) error {
 	wg.Wait()
 	close(outcomeCh)
 
-	errs := make([]string, 0, len(walletList))
-	partialWallets := 0
+	outcomes := make([]walletOutcome, 0, len(walletList))
 	for outcome := range outcomeCh {
+		outcomes = append(outcomes, outcome)
+	}
+	sort.Slice(outcomes, func(i, j int) bool {
+		if outcomes[i].address == outcomes[j].address {
+			return outcomes[i].errString() < outcomes[j].errString()
+		}
+		return outcomes[i].address < outcomes[j].address
+	})
+
+	errs := make([]string, 0, len(outcomes))
+	partialWallets := 0
+	for _, outcome := range outcomes {
+		if outcome.report.TruncationObserved {
+			total.TruncationWalletCount++
+		}
 		total.TransactionsFetched += outcome.report.Counters.TransactionsFetched
 		total.TransactionsInserted += outcome.report.Counters.TransactionsInserted
 		total.TransactionsLinked += outcome.report.Counters.TransactionsLinked
@@ -172,6 +191,9 @@ func (o *Orchestrator) Run(ctx context.Context, p RunParams) error {
 			errs = append(errs, fmt.Sprintf("wallet %s: %v", outcome.address, outcome.err))
 		}
 	}
+	if total.WalletsRequested > 0 {
+		total.TruncationWalletRate = float64(total.TruncationWalletCount) / float64(total.WalletsRequested)
+	}
 
 	notes := strings.Join(errs, "; ")
 	runStatus := deriveRunStatus(runCtx.Err(), total, len(errs), partialWallets)
@@ -193,6 +215,13 @@ func (o *Orchestrator) Run(ctx context.Context, p RunParams) error {
 		return runCtx.Err()
 	}
 	return nil
+}
+
+func (o walletOutcome) errString() string {
+	if o.err == nil {
+		return ""
+	}
+	return o.err.Error()
 }
 
 func deriveRunStatus(runErr error, total runs.Counters, errorCount int, partialCount int) runs.RunStatus {
