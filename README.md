@@ -17,5 +17,12 @@ Scanner-first Solana wallet poisoning injection detection pipeline.
 4. Test: `make test`
 5. Validate corpus: `go run ./cmd/scanner validate-corpus --fixtures-root data/fixtures --report-out /tmp/phase3_report.json`
 
+## TypeScript tooling (project utilities)
+- Install Node dependencies: `make ts-install`
+- Type-check TS utilities: `make ts-check`
+- Run fixture utility example: `make ts-fixtures`
+
+TypeScript files live under `scripts/ts/` and are configured with strict type checking.
+
 ## Important
 Implementation enforces fail-safe and idempotency constraints from `AGENTS.md` and project skills.

@@ -1,0 +1,16 @@
+{
+  "name": "poisontrace",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "TypeScript tooling for PoisonTrace project scripts and utilities",
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "ts:run": "node --experimental-strip-types",
+    "ts:fixtures": "node --experimental-strip-types scripts/ts/check-fixtures.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.18",
+    "typescript": "^5.8.3"
+  }
+}
