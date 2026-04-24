@@ -1,4 +1,4 @@
-.PHONY: build test test-guardrails test-fixture-metadata validate-corpus migrate run-fixture run
+.PHONY: build test test-guardrails test-fixture-metadata validate-corpus migrate run-fixture run ts-install ts-check ts-fixtures
 
 build:
 	go build ./cmd/scanner
@@ -24,3 +24,12 @@ run:
 
 run-fixture:
 	go run ./cmd/scanner replay-fixture --fixture baseline_truncated_newness_unknown
+
+ts-install:
+	npm install
+
+ts-check:
+	npm run typecheck
+
+ts-fixtures:
+	npm run ts:fixtures

@@ -39,6 +39,9 @@ coverage.out
 *.test
 /scanner
 
+# Node/TypeScript artifacts
+node_modules/
+
 # OS/editor noise
 .DS_Store
 Thumbs.db
