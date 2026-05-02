@@ -93,6 +93,7 @@ export interface TransactionRecord {
   toTokenAccount: string | null;
   amountRaw: string;
   isDust: boolean | null;
+  dustStatus?: string;
 }
 
 export interface CounterpartyRecord {
@@ -106,6 +107,7 @@ export interface CounterpartyRecord {
   outboundCount: number;
   isNewCounterparty: boolean | null;
   baselineComplete: boolean;
+  candidateLinks?: number;
 }
 
 export interface ExportManifestFile {

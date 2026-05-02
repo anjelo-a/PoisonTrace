@@ -1,140 +1,40 @@
-import { Database, Settings as SettingsIcon } from "lucide-react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "../../lib/apiClient";
+import { useUrlPagination } from "../../lib/useUrlPagination";
 
 export default function WalletSync() {
+  const { page, pageSize, setPage } = useUrlPagination(1, 25);
+  const settings = useQuery({ queryKey: ["settings"], queryFn: () => apiClient.getSettings() });
+  const sync = useQuery({ queryKey: ["wallet-sync", page, pageSize], queryFn: () => apiClient.getWalletSync(page, pageSize), placeholderData: (prev) => prev });
+
+  const incompleteMissingReason = useMemo(
+    () => (sync.data?.items ?? []).filter((row) => row.incompleteWindow && !(row.unknownGateReason ?? "").trim()).length,
+    [sync.data?.items],
+  );
+
   return (
-    <div className="p-8 max-w-5xl">
-      <div className="mb-12">
-        <h1 className="text-2xl mb-2 tracking-tight">Scan Configuration</h1>
-        <p className="text-muted-foreground text-sm">Current scan bounds, caps, and window definitions (read-only)</p>
+    <div className="p-8 max-w-6xl">
+      <div className="mb-12"><h1 className="text-2xl mb-2 tracking-tight">Scan Configuration</h1><p className="text-muted-foreground text-sm">Read-only bounds plus wallet sync incomplete/unknown state evidence</p></div>
+
+      <div className="border border-border mb-16 p-8 grid grid-cols-2 gap-6 text-sm font-mono">
+        <KV k="Max Wallets per Run" v={String(settings.data?.maxWalletsPerRun ?? "-")} />
+        <KV k="Max TX Pages per Wallet" v={String(settings.data?.maxTXPagesPerWallet ?? "-")} />
+        <KV k="Max TX per Wallet" v={String(settings.data?.maxTXPerWallet ?? "-")} />
+        <KV k="Max Concurrent Wallets" v={String(settings.data?.maxConcurrentWallets ?? "-")} />
       </div>
 
-      {/* Execution Bounds & Caps */}
-      <div className="border border-border mb-16">
-        <div className="px-8 py-4 border-b border-border bg-muted/30 flex items-center gap-4">
-          <SettingsIcon className="w-4 h-4 text-muted-foreground" />
-          <div className="text-sm uppercase tracking-widest font-mono text-muted-foreground">Execution Bounds & Caps</div>
-        </div>
-        <div className="p-8">
-          <div className="grid grid-cols-2 gap-x-12 gap-y-6 text-sm font-mono">
-            <div className="flex justify-between py-3 border-b border-border">
-              <span className="text-muted-foreground">Max Wallets per Run:</span>
-              <span>50</span>
-            </div>
-            <div className="flex justify-between py-3 border-b border-border">
-              <span className="text-muted-foreground">Max TX Pages per Wallet:</span>
-              <span>10</span>
-            </div>
-            <div className="flex justify-between py-3 border-b border-border">
-              <span className="text-muted-foreground">Max TX per Wallet:</span>
-              <span>1000</span>
-            </div>
-            <div className="flex justify-between py-3 border-b border-border">
-              <span className="text-muted-foreground">Max Concurrent Wallets:</span>
-              <span>5</span>
-            </div>
-            <div className="flex justify-between py-3 border-b border-border">
-              <span className="text-muted-foreground">Wallet Timeout:</span>
-              <span>30s</span>
-            </div>
-            <div className="flex justify-between py-3 border-b border-border">
-              <span className="text-muted-foreground">Run Timeout:</span>
-              <span>300s</span>
-            </div>
-            <div className="flex justify-between py-3 border-b border-border">
-              <span className="text-muted-foreground">Max Retries:</span>
-              <span>3</span>
-            </div>
-            <div className="flex justify-between py-3 border-b border-border">
-              <span className="text-muted-foreground">Request Delay:</span>
-              <span>100ms</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      {incompleteMissingReason > 0 ? <div className="mb-6 text-sm text-destructive-foreground">Data integrity warning: {incompleteMissingReason} incomplete wallet sync rows are missing unknown-gate reason.</div> : null}
 
-      {/* Scan Window Definitions */}
-      <div className="border border-border mb-16">
-        <div className="px-8 py-4 border-b border-border bg-muted/30 flex items-center gap-4">
-          <Database className="w-4 h-4 text-muted-foreground" />
-          <div className="text-sm uppercase tracking-widest font-mono text-muted-foreground">Scan Window Definitions</div>
-        </div>
-        <div className="p-8 space-y-8">
-          <div>
-            <div className="text-sm mb-4">Baseline Window</div>
-            <div className="border border-border p-6 bg-muted/30">
-              <div className="grid grid-cols-2 gap-6 text-sm font-mono">
-                <div>
-                  <div className="text-xs text-muted-foreground mb-2">Purpose:</div>
-                  <div>Establish known counterparties</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground mb-2">Default Depth:</div>
-                  <div>90 days</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground mb-2">Status:</div>
-                  <div>Active</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground mb-2">Last Update:</div>
-                  <div>2m ago</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <div className="text-sm mb-4">Scan Window</div>
-            <div className="border border-border p-6 bg-muted/30">
-              <div className="grid grid-cols-2 gap-6 text-sm font-mono">
-                <div>
-                  <div className="text-xs text-muted-foreground mb-2">Purpose:</div>
-                  <div>Analyze recent activity for patterns</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground mb-2">Default Depth:</div>
-                  <div>7 days</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground mb-2">Status:</div>
-                  <div>Active</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground mb-2">Last Update:</div>
-                  <div>2m ago</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Current Scan Status */}
       <div className="border border-border">
-        <div className="px-8 py-4 border-b border-border bg-muted/30 text-sm uppercase tracking-widest font-mono text-muted-foreground">
-          Current Scan Status
-        </div>
-        <div className="p-8">
-          <div className="grid grid-cols-3 gap-12">
-            <div>
-              <div className="text-xs uppercase tracking-widest text-muted-foreground font-mono mb-2">Transactions Scanned</div>
-              <div className="text-2xl font-mono tracking-tight">1,243</div>
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-widest text-muted-foreground font-mono mb-2">Last Block</div>
-              <div className="text-2xl font-mono tracking-tight">285,493,721</div>
-            </div>
-            <div>
-              <div className="text-xs uppercase tracking-widest text-muted-foreground font-mono mb-2">Last Update</div>
-              <div className="text-2xl font-mono tracking-tight">2m ago</div>
-            </div>
-          </div>
-
-          <p className="text-sm text-muted-foreground mt-8 leading-relaxed">
-            Configuration values are set at system level. Contact support for bounded window adjustments.
-          </p>
-        </div>
+        <table className="w-full"><thead className="bg-muted/30 border-b border-border"><tr><th className="px-6 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Wallet</th><th className="px-6 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Status</th><th className="px-6 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Baseline Complete</th><th className="px-6 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Incomplete Window</th><th className="px-6 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Unknown Gate Reason</th></tr></thead><tbody className="divide-y divide-border">{(sync.data?.items ?? []).map((row) => <tr key={row.walletSyncRunId}><td className="px-6 py-4 font-mono text-sm">{row.focalWallet}</td><td className="px-6 py-4 text-sm">{row.status}</td><td className="px-6 py-4 text-sm">{String(row.baselineComplete)}</td><td className="px-6 py-4 text-sm">{String(row.incompleteWindow)}</td><td className="px-6 py-4 text-sm text-destructive-foreground">{row.unknownGateReason || "-"}</td></tr>)}</tbody></table>
       </div>
+
+      <div className="mt-4 flex gap-3"><button onClick={() => setPage(page - 1)} disabled={page <= 1} className="px-4 py-2 border border-border text-xs disabled:opacity-50">Previous</button><button onClick={() => setPage(page + 1)} disabled={Boolean(sync.data && page * pageSize >= sync.data.total)} className="px-4 py-2 border border-border text-xs disabled:opacity-50">Next</button></div>
     </div>
   );
+}
+
+function KV({ k, v }: { k: string; v: string }) {
+  return <div className="flex justify-between py-3 border-b border-border"><span className="text-muted-foreground">{k}:</span><span>{v}</span></div>;
 }

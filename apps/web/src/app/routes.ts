@@ -12,7 +12,7 @@ import Exports from "./pages/app/Exports";
 import Settings from "./pages/app/Settings";
 import NotFound from "./pages/NotFound";
 
-export const router = createBrowserRouter([
+export const routes = [
   {
     path: "/",
     Component: Landing,
@@ -39,4 +39,6 @@ export const router = createBrowserRouter([
     path: "*",
     Component: NotFound,
   },
-]);
+];
+
+export const router = createBrowserRouter(routes);
