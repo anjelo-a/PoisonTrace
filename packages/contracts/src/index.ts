@@ -46,6 +46,19 @@ export interface IngestionRunSummary {
   truncationReason: string | null;
 }
 
+export interface IngestionRunListItem {
+  runId: number;
+  status: RunStatus;
+  startedAt: string;
+  completedAt: string | null;
+  walletsProcessed: number;
+  walletsFailed: number;
+  walletsSkipped: number;
+  incompleteWindows: number;
+  truncationWalletRate: string;
+  unknownGatePresent: boolean;
+}
+
 export interface WalletSyncRunSummary {
   walletSyncRunId: number;
   runId: number;
@@ -60,6 +73,23 @@ export interface WalletSyncRunSummary {
   unknownGateReason: UnknownGateReason | null;
   truncationReason: string | null;
   poisoningCandidatesInserted: number;
+}
+
+export interface WalletSyncRunListItem {
+  walletSyncRunId: number;
+  runId: number;
+  focalWallet: string;
+  status: WalletSyncStatus;
+  baselineStartAt: string;
+  baselineEndAt: string;
+  scanStartAt: string;
+  scanEndAt: string;
+  baselineComplete: boolean;
+  incompleteWindow: boolean;
+  unknownGateReason: UnknownGateReason | null;
+  transactionsFetched: number;
+  truncationReason: string | null;
+  updatedAt: string;
 }
 
 export interface CandidateRecord {
@@ -79,6 +109,18 @@ export interface CandidateRecord {
   unknownGateReason: UnknownGateReason | null;
 }
 
+export interface CandidateListItem {
+  walletSyncRunId: number;
+  focalWallet: string;
+  signature: string;
+  transferIndex: number;
+  blockTime: string;
+  suspiciousCounterparty: string;
+  matchedLegitCounterparty: string;
+  repeatInjectionCount: number;
+  recencyDays: number;
+}
+
 export interface TransactionRecord {
   signature: string;
   transferIndex: number;
@@ -96,6 +138,19 @@ export interface TransactionRecord {
   dustStatus?: string;
 }
 
+export interface TransactionListItem {
+  focalWallet: string;
+  signature: string;
+  transferIndex: number;
+  blockTime: string;
+  normalizationStatus: NormalizationStatus;
+  poisoningEligible: boolean;
+  relationType: RelationType;
+  dustStatus: string;
+  amountRaw: string;
+  assetType: "native_sol" | "spl_fungible" | "unsupported";
+}
+
 export interface CounterpartyRecord {
   focalWallet: string;
   counterpartyAddress: string;
@@ -108,6 +163,17 @@ export interface CounterpartyRecord {
   isNewCounterparty: boolean | null;
   baselineComplete: boolean;
   candidateLinks?: number;
+}
+
+export interface CounterpartyListItem {
+  focalWallet: string;
+  counterpartyAddress: string;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  inboundCount: number;
+  outboundCount: number;
+  lastOutboundAt: string | null;
+  candidateLinks: number;
 }
 
 export interface ExportManifestFile {
