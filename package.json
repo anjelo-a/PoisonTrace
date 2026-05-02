@@ -4,10 +4,18 @@
   "private": true,
   "type": "module",
   "description": "TypeScript tooling for PoisonTrace project scripts and utilities",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "typecheck": "tsc --project tsconfig.json --noEmit",
     "ts:run": "node --experimental-strip-types",
-    "ts:fixtures": "node --experimental-strip-types scripts/ts/check-fixtures.ts"
+    "ts:fixtures": "node --experimental-strip-types scripts/ts/check-fixtures.ts",
+    "web:dev": "npm run dev --workspace @poisontrace/web",
+    "web:build": "npm run build --workspace @poisontrace/web",
+    "web:typecheck": "npm run typecheck --workspace @poisontrace/web",
+    "contracts:typecheck": "npm run typecheck --workspace @poisontrace/contracts"
   },
   "devDependencies": {
     "@types/node": "^22.15.18",
