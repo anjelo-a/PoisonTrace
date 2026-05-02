@@ -22,6 +22,11 @@ Scanner-first Solana wallet poisoning injection detection pipeline.
 - Type-check TS utilities: `make ts-check`
 - Run fixture utility example: `make ts-fixtures`
 
+## Web dashboard (Phase C/D scaffold)
+- Start read-only API server: `go run ./cmd/scanner serve-api --addr :8080`
+- Start frontend dev server: `npm run web:dev`
+- Frontend uses `/api/*` endpoints (proxied to `http://localhost:8080` in Vite dev mode).
+
 TypeScript files live under `scripts/ts/` and are configured with strict type checking.
 
 ## Important

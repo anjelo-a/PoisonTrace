@@ -6,10 +6,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
+	"net/http"
 	"os"
 	"strings"
 	"time"
 
+	"poisontrace/internal/api"
 	"poisontrace/internal/config"
 	"poisontrace/internal/exports"
 	"poisontrace/internal/fixtures"
@@ -45,9 +48,45 @@ func main() {
 			os.Exit(1)
 		}
 		exportDatasetCmd(cfg, os.Args[2:])
+	case "serve-api":
+		cfg, err := config.LoadFromEnv()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "config error: %v\n", err)
+			os.Exit(1)
+		}
+		serveAPICmd(cfg, os.Args[2:])
 	default:
 		printUsage()
 		os.Exit(2)
+	}
+}
+
+func serveAPICmd(cfg config.Config, args []string) {
+	fs := flag.NewFlagSet("serve-api", flag.ExitOnError)
+	addr := fs.String("addr", ":8080", "HTTP bind address")
+	_ = fs.Parse(args)
+
+	db, err := sql.Open("postgres", cfg.DatabaseURL)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "database connection error: %v\n", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	store := storage.NewPostgresStore(db)
+	if err := store.Ping(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "database ping error: %v\n", err)
+		os.Exit(1)
+	}
+
+	srv := api.NewServer(store, cfg)
+	log.Printf("api server listening on %s", *addr)
+	if err := http.ListenAndServe(*addr, srv.Handler()); err != nil {
+		fmt.Fprintf(os.Stderr, "api server failed: %v\n", err)
+		os.Exit(1)
 	}
 }
 
