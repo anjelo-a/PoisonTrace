@@ -15,6 +15,7 @@
     "web:dev": "npm run dev --workspace @poisontrace/web",
     "web:build": "npm run build --workspace @poisontrace/web",
     "web:typecheck": "npm run typecheck --workspace @poisontrace/web",
+    "web:test": "npm run test --workspace @poisontrace/web",
     "contracts:typecheck": "npm run typecheck --workspace @poisontrace/contracts"
   },
   "devDependencies": {

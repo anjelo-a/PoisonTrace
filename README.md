@@ -24,5 +24,15 @@ Scanner-first Solana wallet poisoning injection detection pipeline.
 
 TypeScript files live under `scripts/ts/` and are configured with strict type checking.
 
+## Web dashboard
+1. Start API: `go run ./cmd/scanner serve-api --addr :8080`
+2. Start web app: `npm run web:dev`
+3. Run web tests: `npm run web:test`
+
+Phase coverage in current implementation:
+1. Milestone 1: app shell + API contracts + overview/candidates wired.
+2. Milestone 2: remaining pages wired with URL-driven pagination/filters where applicable.
+3. Milestone 3: test hardening via API contract tests + frontend route/UI/format tests.
+
 ## Important
 Implementation enforces fail-safe and idempotency constraints from `AGENTS.md` and project skills.
