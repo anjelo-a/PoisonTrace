@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 export default function Methodology() {
   return (
@@ -188,19 +188,20 @@ export default function Methodology() {
             <div className="border border-border">
               <div className="p-8 space-y-6 text-muted-foreground leading-relaxed">
                 <p>
-                  A transaction is flagged as a probable poisoning signal when <strong className="text-foreground">2 or more gates fail</strong>.
+                  A transaction is emitted as a probable poisoning candidate only when <strong className="text-foreground">all required gates pass</strong>.
                 </p>
                 <p>
-                  Each gate runs independently. Results are logged as pass, fail, or unknown (see below).
-                  One failed gate alone usually isn't enough—poisoning patterns show multiple red flags together.
+                  Required gate results are treated as pass/fail/unknown. Unknown required gates are fail-closed and block emission.
+                  Candidate emission also requires repeat qualifying inbound events from the same suspicious counterparty in the current scan window.
                 </p>
                 <div className="bg-muted/30 border border-border p-6 text-sm font-mono mt-6">
                   <div className="mb-2 text-foreground">Simple version:</div>
-                  if (failed_gates &gt;= 2) → FLAG as probable signal<br />
-                  else → PASS (no flag)
+                  if (all_required_gates_pass &amp;&amp; min_injections_gate_pass) → EMIT probable candidate<br />
+                  else if (required_gate_unknown) → BLOCK + log unknown-gate reason<br />
+                  else → DO NOT EMIT
                 </div>
                 <p className="text-sm">
-                  Flagged doesn't mean confirmed scam. It means "this pattern looks suspicious, review the evidence."
+                  Emitted candidate doesn't mean confirmed scam. It means "this pattern meets probable-candidate rules, review the evidence."
                 </p>
               </div>
             </div>
