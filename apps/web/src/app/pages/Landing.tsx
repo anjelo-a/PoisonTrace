@@ -92,9 +92,6 @@ export default function Landing() {
                 loading="lazy"
               />
             </div>
-            <p className="mt-3 text-xs font-mono text-muted-foreground">
-              Source: <code>apps/web/public/landing-screenshot.jpeg</code>
-            </p>
           </div>
         </div>
       </section>
