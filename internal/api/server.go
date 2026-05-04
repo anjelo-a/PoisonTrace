@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -58,7 +57,7 @@ func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	since := time.Now().Add(-24 * time.Hour)
+	since := time.Now().Add(-time.Duration(s.cfg.ScanWindowDays) * 24 * time.Hour)
 	metrics, err := s.repo.GetOverviewMetrics(ctx, since)
 	if err != nil {
 		writeError(w, err)
@@ -112,7 +111,7 @@ func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
 			"transactionsScanned": metrics.TransactionsScanned,
 			"passedTransactions":  metrics.PassedTransactions,
 			"lastScanUpdateAt":    lastScan,
-			"scanWindowLabel":     "24h",
+			"scanWindowLabel":     strconv.Itoa(s.cfg.ScanWindowDays) + "d",
 			"passRatePct":         passRate,
 		},
 		"recentCandidates": items,
@@ -208,7 +207,7 @@ func (s *Server) handleRuns(w http.ResponseWriter, r *http.Request) {
 			completed = rec.CompletedAt.UTC().Format(time.RFC3339)
 		}
 		items = append(items, map[string]any{
-			"id":                   rec.ID,
+			"runId":                rec.ID,
 			"status":               rec.Status,
 			"startedAt":            rec.StartedAt.UTC().Format(time.RFC3339),
 			"completedAt":          completed,
@@ -240,13 +239,15 @@ func (s *Server) handleWalletSync(w http.ResponseWriter, r *http.Request) {
 	}
 	items := make([]map[string]any, 0, len(rows))
 	for _, rec := range rows {
-		reason := rec.UnknownGateReason
-		if rec.IncompleteWindow && strings.TrimSpace(reason) == "" {
-			reason = "missing_unknown_gate_reason"
+		if rec.IncompleteWindow && strings.TrimSpace(rec.UnknownGateReason) == "" {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "wallet sync row missing unknown_gate_reason while incomplete_window=true",
+			})
+			return
 		}
 		items = append(items, map[string]any{
 			"walletSyncRunId":     rec.WalletSyncRunID,
-			"ingestionRunId":      rec.IngestionRunID,
+			"runId":               rec.IngestionRunID,
 			"focalWallet":         rec.FocalWallet,
 			"status":              rec.Status,
 			"baselineStartAt":     rec.BaselineStartAt.UTC().Format(time.RFC3339),
@@ -255,7 +256,7 @@ func (s *Server) handleWalletSync(w http.ResponseWriter, r *http.Request) {
 			"scanEndAt":           rec.ScanEndAt.UTC().Format(time.RFC3339),
 			"baselineComplete":    rec.BaselineComplete,
 			"incompleteWindow":    rec.IncompleteWindow,
-			"unknownGateReason":   reason,
+			"unknownGateReason":   rec.UnknownGateReason,
 			"transactionsFetched": rec.TransactionsFetched,
 			"truncationReason":    rec.TruncationReason,
 			"updatedAt":           rec.UpdatedAt.UTC().Format(time.RFC3339),
@@ -379,8 +380,4 @@ func withCORS(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
-}
-
-func BuildExportID(prefix string, id int64) string {
-	return fmt.Sprintf("%s-%d", prefix, id)
 }

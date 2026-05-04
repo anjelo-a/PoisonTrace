@@ -1,14 +1,14 @@
 import { useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import type { CandidateRecord } from "@poisontrace/contracts";
+import type { CandidateListItem } from "@poisontrace/contracts";
 import { apiClient } from "../../lib/apiClient";
 import { formatDateTime, shortAddress, timeAgo } from "../../lib/format";
 import { useUrlPagination } from "../../lib/useUrlPagination";
 
 export default function Candidates() {
   const { page, pageSize, setPage, params, setParams } = useUrlPagination(1, 25);
-  const [selected, setSelected] = useState<CandidateRecord | null>(null);
+  const [selected, setSelected] = useState<CandidateListItem | null>(null);
 
   const recencyFilter = params.get("recency") ?? "all";
   const sort = params.get("sort") ?? "latest";

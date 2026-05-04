@@ -83,7 +83,7 @@ func TestCandidatesAPI_NoUnknownOrIncompleteCandidates(t *testing.T) {
 	}
 }
 
-func TestWalletSyncAPI_IncompleteWindowIncludesReason(t *testing.T) {
+func TestWalletSyncAPI_IncompleteWindowMissingReasonReturnsError(t *testing.T) {
 	now := time.Date(2026, 5, 2, 10, 0, 0, 0, time.UTC)
 	repo := fakeRepo{walletSync: []storage.WalletSyncListRecord{
 		{
@@ -109,12 +109,43 @@ func TestWalletSyncAPI_IncompleteWindowIncludesReason(t *testing.T) {
 	res := httptest.NewRecorder()
 	s.Handler().ServeHTTP(res, req)
 
+	if res.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", res.Code)
+	}
+}
+
+func TestWalletSyncAPI_UsesRunIDAndReasonAsIs(t *testing.T) {
+	now := time.Date(2026, 5, 2, 10, 0, 0, 0, time.UTC)
+	repo := fakeRepo{walletSync: []storage.WalletSyncListRecord{
+		{
+			WalletSyncRunID:     1,
+			IngestionRunID:      9,
+			FocalWallet:         "wallet",
+			Status:              "partial",
+			BaselineStartAt:     now,
+			BaselineEndAt:       now,
+			ScanStartAt:         now,
+			ScanEndAt:           now,
+			BaselineComplete:    false,
+			IncompleteWindow:    true,
+			UnknownGateReason:   "baseline_truncated",
+			TransactionsFetched: 10,
+			TruncationReason:    "timeout",
+			UpdatedAt:           now,
+		},
+	}}
+
+	s := NewServer(repo, config.Config{})
+	req := httptest.NewRequest(http.MethodGet, "/api/wallet-sync", nil)
+	res := httptest.NewRecorder()
+	s.Handler().ServeHTTP(res, req)
 	if res.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", res.Code)
 	}
 
 	var body struct {
 		Items []struct {
+			RunID             int64  `json:"runId"`
 			IncompleteWindow  bool   `json:"incompleteWindow"`
 			UnknownGateReason string `json:"unknownGateReason"`
 		} `json:"items"`
@@ -125,10 +156,10 @@ func TestWalletSyncAPI_IncompleteWindowIncludesReason(t *testing.T) {
 	if len(body.Items) != 1 {
 		t.Fatalf("expected 1 item, got %d", len(body.Items))
 	}
-	if !body.Items[0].IncompleteWindow {
-		t.Fatalf("expected incomplete_window=true")
+	if body.Items[0].RunID != 9 {
+		t.Fatalf("expected runId=9, got %d", body.Items[0].RunID)
 	}
-	if body.Items[0].UnknownGateReason == "" {
-		t.Fatalf("expected unknown_gate_reason to be populated when incomplete_window=true")
+	if body.Items[0].UnknownGateReason != "baseline_truncated" {
+		t.Fatalf("expected preserved unknownGateReason, got %q", body.Items[0].UnknownGateReason)
 	}
 }

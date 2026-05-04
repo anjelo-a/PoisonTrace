@@ -4,12 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"poisontrace/internal/api"
@@ -327,8 +330,36 @@ func serveAPICmd(cfg config.Config, args []string) {
 
 	srv := api.NewServer(store, cfg)
 	log.Printf("api server listening on %s", *addr)
-	if err := http.ListenAndServe(*addr, srv.Handler()); err != nil {
-		fmt.Fprintf(os.Stderr, "api server failed: %v\n", err)
-		os.Exit(1)
+
+	httpServer := &http.Server{
+		Addr:              *addr,
+		Handler:           srv.Handler(),
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- httpServer.ListenAndServe()
+	}()
+
+	sigCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	select {
+	case <-sigCtx.Done():
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer shutdownCancel()
+		if err := httpServer.Shutdown(shutdownCtx); err != nil {
+			fmt.Fprintf(os.Stderr, "api server shutdown failed: %v\n", err)
+			os.Exit(1)
+		}
+	case err := <-serverErr:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			fmt.Fprintf(os.Stderr, "api server failed: %v\n", err)
+			os.Exit(1)
+		}
 	}
 }

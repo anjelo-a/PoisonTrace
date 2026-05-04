@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import type { IngestionRunListItem } from "@poisontrace/contracts";
 import { apiClient } from "../../lib/apiClient";
 import { percentFromString, timeAgo } from "../../lib/format";
 import { useUrlPagination } from "../../lib/useUrlPagination";
@@ -11,8 +12,8 @@ export default function Runs() {
     const rows = data?.items ?? [];
     return {
       total: rows.length,
-      unknown: rows.filter((r) => Boolean((r as any).unknownGatePresent)).length,
-      nonCompleted: rows.filter((r) => (r as any).status !== "completed").length,
+      unknown: rows.filter((r) => Boolean(r.unknownGatePresent)).length,
+      nonCompleted: rows.filter((r) => r.status !== "completed").length,
     };
   }, [data?.items]);
 
@@ -22,7 +23,7 @@ export default function Runs() {
       <div className="px-8 py-6 border-b border-border grid grid-cols-3 gap-12"><Stat label="Loaded Runs" value={String(stats.total)} /><Stat label="Partial/Failed" value={String(stats.nonCompleted)} /><Stat label="Unknown Gates" value={String(stats.unknown)} /></div>
       {isLoading ? <div className="px-8 py-4 text-sm text-muted-foreground">Loading runs...</div> : null}
       {error ? <div className="px-8 py-4 text-sm text-destructive-foreground">Failed to load runs: {(error as Error).message}</div> : null}
-      <div className="flex-1 overflow-auto"><table className="w-full"><thead className="bg-muted/30 border-b border-border sticky top-0"><tr><th className="px-8 py-4 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Run</th><th className="px-8 py-4 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Status</th><th className="px-8 py-4 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Wallets P/F/S</th><th className="px-8 py-4 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Incomplete</th><th className="px-8 py-4 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Truncation</th></tr></thead><tbody className="divide-y divide-border">{(data?.items ?? []).map((run: any) => <tr key={run.id} className="hover:bg-muted/30"><td className="px-8 py-5"><div className="font-mono text-sm">run-{run.id}</div><div className="text-xs text-muted-foreground mt-1">{timeAgo(run.startedAt)}</div></td><td className="px-8 py-5 text-sm">{run.status}</td><td className="px-8 py-5 text-sm font-mono">{run.walletsProcessed}/{run.walletsFailed}/{run.walletsSkipped}</td><td className="px-8 py-5 text-sm">{run.incompleteWindows}</td><td className="px-8 py-5 text-sm text-muted-foreground">{percentFromString(run.truncationWalletRate)}</td></tr>)}</tbody></table></div>
+      <div className="flex-1 overflow-auto"><table className="w-full"><thead className="bg-muted/30 border-b border-border sticky top-0"><tr><th className="px-8 py-4 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Run</th><th className="px-8 py-4 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Status</th><th className="px-8 py-4 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Wallets P/F/S</th><th className="px-8 py-4 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Incomplete</th><th className="px-8 py-4 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Truncation</th></tr></thead><tbody className="divide-y divide-border">{(data?.items ?? []).map((run: IngestionRunListItem) => <tr key={run.runId} className="hover:bg-muted/30"><td className="px-8 py-5"><div className="font-mono text-sm">run-{run.runId}</div><div className="text-xs text-muted-foreground mt-1">{timeAgo(run.startedAt)}</div></td><td className="px-8 py-5 text-sm">{run.status}</td><td className="px-8 py-5 text-sm font-mono">{run.walletsProcessed}/{run.walletsFailed}/{run.walletsSkipped}</td><td className="px-8 py-5 text-sm">{run.incompleteWindows}</td><td className="px-8 py-5 text-sm text-muted-foreground">{percentFromString(run.truncationWalletRate)}</td></tr>)}</tbody></table></div>
       <div className="px-8 py-4 border-t border-border flex items-center justify-between text-sm text-muted-foreground"><div className="font-mono">page {page} • {data?.total ?? 0} total</div><div className="flex gap-3"><button onClick={() => setPage(page - 1)} disabled={page <= 1} className="px-4 py-2 border border-border text-xs disabled:opacity-50">Previous</button><button onClick={() => setPage(page + 1)} disabled={Boolean(data && page * pageSize >= data.total)} className="px-4 py-2 border border-border text-xs disabled:opacity-50">Next</button></div></div>
     </div>
   );
