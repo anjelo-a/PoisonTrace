@@ -19,64 +19,82 @@ export default function Landing() {
       </header>
 
       {/* Hero */}
-      <section className="max-w-4xl mx-auto px-8 pt-24 pb-16">
-        <div className="mb-6 text-xs uppercase tracking-widest text-muted-foreground font-mono">
-          Solana Poisoning Detection
-        </div>
-        <h1 className="text-5xl mb-6 leading-tight tracking-tight">
-          Scams Show Patterns.<br />
-          PoisonTrace Surfaces Them.
-        </h1>
-        <p className="text-lg text-muted-foreground mb-8 max-w-2xl leading-relaxed">
-          PoisonTrace scans bounded Solana transaction windows for probable poisoning signals—lookalike addresses,
-          dust attacks, repeat injections. Rule-based detection. Transparent reasoning. Fail-closed by default.
-        </p>
+      <section className="max-w-7xl mx-auto px-8 pt-24 pb-16">
+        <div className="grid gap-14 items-start lg:grid-cols-[minmax(0,1fr)_minmax(0,620px)]">
+          <div>
+            <div className="mb-6 text-xs uppercase tracking-widest text-muted-foreground font-mono">
+              Solana Poisoning Detection
+            </div>
+            <h1 className="text-5xl mb-6 leading-tight tracking-tight">
+              Scams Show Patterns.<br />
+              PoisonTrace Surfaces Them.
+            </h1>
+            <p className="text-lg text-muted-foreground mb-8 max-w-2xl leading-relaxed">
+              PoisonTrace scans bounded Solana transaction windows for probable poisoning signals—lookalike addresses,
+              dust attacks, repeat injections. Rule-based detection. Transparent reasoning. Fail-closed by default.
+            </p>
 
-        {/* Live metric - understated */}
-        <div className="mb-12 pb-8 border-b border-border/50">
-          <div className="flex items-baseline gap-3">
-            <div className="text-3xl font-mono tracking-tight">847</div>
-            <div className="text-sm text-muted-foreground">probable poisoning signals detected this week</div>
-          </div>
-          <div className="text-xs text-muted-foreground font-mono mt-2">
-            Based on current scan window and configured rules.
-          </div>
-        </div>
+            {/* Live metric - understated */}
+            <div className="mb-12 pb-8 border-b border-border/50">
+              <div className="flex items-baseline gap-3">
+                <div className="text-3xl font-mono tracking-tight">847</div>
+                <div className="text-sm text-muted-foreground">probable poisoning signals detected this week</div>
+              </div>
+              <div className="text-xs text-muted-foreground font-mono mt-2">
+                Based on current scan window and configured rules.
+              </div>
+            </div>
 
-        {/* CTAs */}
-        <div className="flex gap-6 mb-8">
-          <Link
-            to="/app/candidates"
-            className="px-8 py-3 bg-foreground text-background hover:bg-muted-foreground transition-colors"
-          >
-            Review Poisoning Patterns
-          </Link>
-          <Link
-            to="/methodology"
-            className="px-8 py-3 border border-border hover:border-foreground transition-colors"
-          >
-            View Methodology
-          </Link>
-        </div>
+            {/* CTAs */}
+            <div className="flex gap-6 mb-8">
+              <Link
+                to="/app/candidates"
+                className="px-8 py-3 bg-foreground text-background hover:bg-muted-foreground transition-colors"
+              >
+                Review Poisoning Patterns
+              </Link>
+              <Link
+                to="/methodology"
+                className="px-8 py-3 border border-border hover:border-foreground transition-colors"
+              >
+                View Methodology
+              </Link>
+            </div>
 
-        {/* Trust disclaimer */}
-        <p className="text-sm text-muted-foreground mb-10 leading-relaxed max-w-lg">
-          PoisonTrace flags patterns for review. You make the final decision.
-        </p>
+            {/* Trust disclaimer */}
+            <p className="text-sm text-muted-foreground mb-10 leading-relaxed max-w-lg">
+              PoisonTrace flags patterns for review. You make the final decision.
+            </p>
 
-        {/* Proof strip - understated */}
-        <div className="flex gap-8 text-xs text-muted-foreground font-mono">
-          <div className="flex items-center gap-2">
-            <div className="w-1 h-1 bg-muted-foreground" />
-            <span>Rule-based only</span>
+            {/* Proof strip - understated */}
+            <div className="flex gap-8 text-xs text-muted-foreground font-mono">
+              <div className="flex items-center gap-2">
+                <div className="w-1 h-1 bg-muted-foreground" />
+                <span>Rule-based only</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-1 h-1 bg-muted-foreground" />
+                <span>Fail-closed by default</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-1 h-1 bg-muted-foreground" />
+                <span>No black-box scoring</span>
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-1 h-1 bg-muted-foreground" />
-            <span>Fail-closed by default</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-1 h-1 bg-muted-foreground" />
-            <span>No black-box scoring</span>
+
+          <div className="hidden lg:block">
+            <div className="rounded-sm border border-border/70 bg-muted/10 p-3">
+              <img
+                src="/landing-transactions-screenshot.png"
+                alt="PoisonTrace transactions table preview"
+                className="w-full rounded-sm border border-border/50 object-cover"
+                loading="lazy"
+              />
+            </div>
+            <p className="mt-3 text-xs font-mono text-muted-foreground">
+              Place screenshot at <code>apps/web/public/landing-transactions-screenshot.png</code>
+            </p>
           </div>
         </div>
       </section>
