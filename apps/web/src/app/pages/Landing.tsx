@@ -83,17 +83,17 @@ export default function Landing() {
             </div>
           </div>
 
-          <div className="hidden lg:block">
+          <div className="block">
             <div className="rounded-sm border border-border/70 bg-muted/10 p-3">
               <img
-                src="/landing-transactions-screenshot.png"
+                src="/landing-screenshot.jpeg"
                 alt="PoisonTrace transactions table preview"
                 className="w-full rounded-sm border border-border/50 object-cover"
                 loading="lazy"
               />
             </div>
             <p className="mt-3 text-xs font-mono text-muted-foreground">
-              Place screenshot at <code>apps/web/public/landing-transactions-screenshot.png</code>
+              Source: <code>apps/web/public/landing-screenshot.jpeg</code>
             </p>
           </div>
         </div>
