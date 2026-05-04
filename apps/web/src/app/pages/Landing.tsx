@@ -88,8 +88,10 @@ export default function Landing() {
               <img
                 src="/landing-screenshot.jpeg"
                 alt="PoisonTrace transactions table preview"
+                width={1240}
+                height={930}
                 className="w-full rounded-sm border border-border/50 object-cover"
-                loading="lazy"
+                loading="eager"
               />
             </div>
           </div>
