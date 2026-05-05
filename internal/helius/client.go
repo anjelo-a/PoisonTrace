@@ -73,6 +73,9 @@ func (c *HTTPClient) FetchEnhancedPage(ctx context.Context, walletAddress string
 	u.Path = path.Join(c.baseURL.Path, "addresses", walletAddress, "transactions")
 	q := u.Query()
 	q.Set("limit", fmt.Sprintf("%d", c.pageLimit))
+	// Helius enhanced transactions endpoint authenticates via api-key query param.
+	// Keep header auth as a compatibility fallback for environments that accept it.
+	q.Set("api-key", c.apiKey)
 	if before != "" {
 		q.Set("before", before)
 	}

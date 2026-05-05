@@ -1,4 +1,4 @@
-.PHONY: build test test-guardrails test-fixture-metadata validate-corpus migrate run-fixture run ts-install ts-check ts-fixtures
+.PHONY: build test test-guardrails test-fixture-metadata validate-corpus migrate run-fixture run ts-install ts-check ts-fixtures phase4-preflight phase4-integrity phase4-repro
 
 build:
 	go build ./cmd/scanner
@@ -33,3 +33,14 @@ ts-check:
 
 ts-fixtures:
 	npm run ts:fixtures
+
+phase4-preflight:
+	./scripts/phase4_preflight.sh
+
+phase4-integrity:
+	@test -n "$(RUN_ID)" || (echo "RUN_ID is required, example: make phase4-integrity RUN_ID=42" && exit 1)
+	./scripts/phase4_integrity_check.sh --run-id $(RUN_ID)
+
+phase4-repro:
+	@test -n "$(RUN_ID)" || (echo "RUN_ID is required, example: make phase4-repro RUN_ID=42" && exit 1)
+	./scripts/phase4_repro_check.sh --run-id $(RUN_ID)

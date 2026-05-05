@@ -36,3 +36,12 @@ Phase coverage in current implementation:
 
 ## Important
 Implementation enforces fail-safe and idempotency constraints from `AGENTS.md` and project skills.
+
+## Phase 4 execution kit
+- Playbook: `docs/phase4_execution.md`
+- Comprehensive plan: `docs/phase4_execution_plan.md`
+- Profile matrix template: `docs/phase4_profile_matrix.template.md`
+- Closeout template: `docs/phase4_closeout.template.md`
+- Preflight command: `make phase4-preflight`
+- Integrity check command: `make phase4-integrity RUN_ID=<ingestion_run_id>`
+- Reproducibility check command: `make phase4-repro RUN_ID=<ingestion_run_id>`
