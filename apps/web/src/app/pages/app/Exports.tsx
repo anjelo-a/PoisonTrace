@@ -18,13 +18,19 @@ export default function Exports() {
   return (
     <div className="p-8 max-w-7xl">
       <div className="mb-8">
-        <h1 className="text-2xl mb-2 tracking-tight">Candidate Report Exports</h1>
-        <p className="text-muted-foreground text-sm">Deterministic candidate evidence view for run-scoped JSONL/CSV exports</p>
+        <h1 className="text-2xl mb-2 tracking-tight">Reports and Exports</h1>
+        <p className="text-muted-foreground text-sm">Browse run-scoped report rows via `/api/reports/*`. Dataset generation remains CLI-driven in this phase.</p>
+      </div>
+
+      <div className="mb-6 border border-border bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
+        API-backed now: report browsing (`/api/reports/candidates`, `/api/reports/wallets`).
+        <br />
+        Not yet API-backed: dataset generation/write actions.
       </div>
 
       <div className="mb-6">
         <label className="text-xs text-muted-foreground uppercase tracking-widest font-mono">Run ID</label>
-        <div className="mt-2 flex gap-3">
+        <div className="mt-2 flex flex-wrap items-center gap-3">
           <input
             value={runId > 0 ? String(runId) : ""}
             onChange={(e) => {
@@ -36,6 +42,20 @@ export default function Exports() {
             className="px-4 py-2 bg-transparent border border-border text-sm font-mono"
             placeholder="e.g. 42"
           />
+          <Link
+            className={`px-3 py-2 border border-border text-xs ${runId > 0 ? "hover:border-foreground" : "pointer-events-none opacity-50"}`}
+            to={runId > 0 ? `/app/reports/wallets?run_id=${runId}` : "#"}
+          >
+            Open Wallet Reports
+          </Link>
+          <button
+            type="button"
+            disabled
+            className="px-3 py-2 border border-border text-xs opacity-60 cursor-not-allowed"
+            aria-label="Generate dataset (not yet API-backed)"
+          >
+            Generate Dataset (not yet API-backed)
+          </button>
         </div>
       </div>
 
