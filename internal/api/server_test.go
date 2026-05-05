@@ -38,6 +38,15 @@ func (f fakeRepo) ListWalletSyncRuns(ctx context.Context, limit, offset int) ([]
 func (f fakeRepo) ListCounterparties(ctx context.Context, limit, offset int) ([]storage.CounterpartyListRecord, int, error) {
 	return nil, 0, nil
 }
+func (f fakeRepo) GetCandidateExplanation(ctx context.Context, walletSyncRunID int64, signature string, transferIndex int) (storage.CandidateExplanationRecord, bool, error) {
+	return storage.CandidateExplanationRecord{}, false, nil
+}
+func (f fakeRepo) ListCandidateExplanationsForRun(ctx context.Context, runID int64, limit, offset int) ([]storage.CandidateExplanationRecord, int, error) {
+	return nil, 0, nil
+}
+func (f fakeRepo) ListWalletInspectionSummaryForRun(ctx context.Context, runID int64, limit, offset int) ([]storage.WalletInspectionSummaryRecord, int, error) {
+	return nil, 0, nil
+}
 
 func TestCandidatesAPI_NoUnknownOrIncompleteCandidates(t *testing.T) {
 	now := time.Date(2026, 5, 2, 10, 0, 0, 0, time.UTC)
@@ -161,5 +170,25 @@ func TestWalletSyncAPI_UsesRunIDAndReasonAsIs(t *testing.T) {
 	}
 	if body.Items[0].UnknownGateReason != "baseline_truncated" {
 		t.Fatalf("expected preserved unknownGateReason, got %q", body.Items[0].UnknownGateReason)
+	}
+}
+
+func TestReportsCandidatesRequiresRunID(t *testing.T) {
+	s := NewServer(fakeRepo{}, config.Config{})
+	req := httptest.NewRequest(http.MethodGet, "/api/reports/candidates", nil)
+	res := httptest.NewRecorder()
+	s.Handler().ServeHTTP(res, req)
+	if res.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", res.Code)
+	}
+}
+
+func TestCandidateDetailNotFound(t *testing.T) {
+	s := NewServer(fakeRepo{}, config.Config{})
+	req := httptest.NewRequest(http.MethodGet, "/api/candidates/1/sig/0", nil)
+	res := httptest.NewRecorder()
+	s.Handler().ServeHTTP(res, req)
+	if res.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", res.Code)
 	}
 }

@@ -1,9 +1,11 @@
 import type {
+  CandidateExplanation,
   CandidateListItem,
   CandidateRecord,
   CounterpartyListItem,
   PagedResponse,
   TransactionListItem,
+  WalletInspectionSummary,
   WalletSyncRunListItem,
   IngestionRunListItem,
   OverviewMetrics,
@@ -49,5 +51,11 @@ export const apiClient = {
   getRuns: (page = 1, pageSize = 50) => request<PagedResponse<IngestionRunListItem>>(`/api/runs?page=${page}&page_size=${pageSize}`),
   getWalletSync: (page = 1, pageSize = 50) => request<PagedResponse<WalletSyncRunListItem>>(`/api/wallet-sync?page=${page}&page_size=${pageSize}`),
   getCounterparties: (page = 1, pageSize = 50) => request<PagedResponse<CounterpartyListItem>>(`/api/counterparties?page=${page}&page_size=${pageSize}`),
+  getCandidateExplanation: (walletSyncRunId: number, signature: string, transferIndex: number) =>
+    request<CandidateExplanation>(`/api/candidates/${walletSyncRunId}/${encodeURIComponent(signature)}/${transferIndex}`),
+  getCandidateReports: (runId: number, page = 1, pageSize = 50) =>
+    request<PagedResponse<CandidateExplanation>>(`/api/reports/candidates?run_id=${runId}&page=${page}&page_size=${pageSize}`),
+  getWalletReports: (runId: number, page = 1, pageSize = 50) =>
+    request<PagedResponse<WalletInspectionSummary>>(`/api/reports/wallets?run_id=${runId}&page=${page}&page_size=${pageSize}`),
   getSettings: () => request<SettingsResponse>("/api/settings"),
 };

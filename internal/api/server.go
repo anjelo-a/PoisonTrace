@@ -21,6 +21,9 @@ type ReadRepository interface {
 	ListRuns(ctx context.Context, limit, offset int) ([]storage.IngestionRunListRecord, int, error)
 	ListWalletSyncRuns(ctx context.Context, limit, offset int) ([]storage.WalletSyncListRecord, int, error)
 	ListCounterparties(ctx context.Context, limit, offset int) ([]storage.CounterpartyListRecord, int, error)
+	GetCandidateExplanation(ctx context.Context, walletSyncRunID int64, signature string, transferIndex int) (storage.CandidateExplanationRecord, bool, error)
+	ListCandidateExplanationsForRun(ctx context.Context, runID int64, limit, offset int) ([]storage.CandidateExplanationRecord, int, error)
+	ListWalletInspectionSummaryForRun(ctx context.Context, runID int64, limit, offset int) ([]storage.WalletInspectionSummaryRecord, int, error)
 }
 
 type Server struct {
@@ -36,6 +39,9 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/overview", s.handleOverview)
 	mux.HandleFunc("/api/candidates", s.handleCandidates)
+	mux.HandleFunc("/api/candidates/", s.handleCandidateDetail)
+	mux.HandleFunc("/api/reports/candidates", s.handleCandidateReports)
+	mux.HandleFunc("/api/reports/wallets", s.handleWalletReports)
 	mux.HandleFunc("/api/transactions", s.handleTransactions)
 	mux.HandleFunc("/api/runs", s.handleRuns)
 	mux.HandleFunc("/api/wallet-sync", s.handleWalletSync)
@@ -322,6 +328,176 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		"lookalikeSingleSideMin":   s.cfg.LookalikeSingleSideMin,
 		"minInjectionCount":        s.cfg.MinInjectionCount,
 	})
+}
+
+func (s *Server) handleCandidateDetail(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		methodNotAllowed(w)
+		return
+	}
+	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/candidates/"), "/")
+	if len(parts) != 3 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "expected path: /api/candidates/:walletSyncRunId/:signature/:transferIndex"})
+		return
+	}
+	walletSyncRunID, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil || walletSyncRunID <= 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid walletSyncRunId"})
+		return
+	}
+	signature := strings.TrimSpace(parts[1])
+	if signature == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid signature"})
+		return
+	}
+	transferIndex, err := strconv.Atoi(parts[2])
+	if err != nil || transferIndex < 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid transferIndex"})
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	rec, ok, err := s.repo.GetCandidateExplanation(ctx, walletSyncRunID, signature, transferIndex)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	if !ok {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "candidate not found"})
+		return
+	}
+	writeJSON(w, http.StatusOK, candidateExplanationPayload(rec))
+}
+
+func (s *Server) handleCandidateReports(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		methodNotAllowed(w)
+		return
+	}
+	runID, ok := parseRunID(w, r)
+	if !ok {
+		return
+	}
+	page, pageSize := parsePage(r)
+	offset := (page - 1) * pageSize
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	rows, total, err := s.repo.ListCandidateExplanationsForRun(ctx, runID, pageSize, offset)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	items := make([]map[string]any, 0, len(rows))
+	for _, rec := range rows {
+		items = append(items, candidateExplanationPayload(rec))
+	}
+	writePaged(w, items, total, page, pageSize)
+}
+
+func (s *Server) handleWalletReports(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		methodNotAllowed(w)
+		return
+	}
+	runID, ok := parseRunID(w, r)
+	if !ok {
+		return
+	}
+	page, pageSize := parsePage(r)
+	offset := (page - 1) * pageSize
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	rows, total, err := s.repo.ListWalletInspectionSummaryForRun(ctx, runID, pageSize, offset)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	items := make([]map[string]any, 0, len(rows))
+	for _, rec := range rows {
+		items = append(items, map[string]any{
+			"runId":                 rec.RunID,
+			"walletSyncRunId":       rec.WalletSyncRunID,
+			"focalWallet":           rec.FocalWallet,
+			"candidateCount":        rec.CandidateCount,
+			"unknownGateBlockCount": rec.UnknownGateBlockCount,
+			"incompleteWindow":      rec.IncompleteWindow,
+			"unknownGateReason":     rec.UnknownGateReason,
+			"truncationReason":      rec.TruncationReason,
+			"baselineComplete":      rec.BaselineComplete,
+			"scanStartAt":           rec.ScanStartAt.UTC().Format(time.RFC3339),
+			"scanEndAt":             rec.ScanEndAt.UTC().Format(time.RFC3339),
+			"baselineStartAt":       rec.BaselineStartAt.UTC().Format(time.RFC3339),
+			"baselineEndAt":         rec.BaselineEndAt.UTC().Format(time.RFC3339),
+			"transactionsFetched":   rec.TransactionsFetched,
+			"sourceReferences": map[string]any{
+				"walletSyncRunId": rec.WalletSyncRunID,
+				"runId":           rec.RunID,
+			},
+		})
+	}
+	writePaged(w, items, total, page, pageSize)
+}
+
+func parseRunID(w http.ResponseWriter, r *http.Request) (int64, bool) {
+	raw := strings.TrimSpace(r.URL.Query().Get("run_id"))
+	if raw == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "run_id is required"})
+		return 0, false
+	}
+	runID, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || runID <= 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid run_id"})
+		return 0, false
+	}
+	return runID, true
+}
+
+func candidateExplanationPayload(rec storage.CandidateExplanationRecord) map[string]any {
+	return map[string]any{
+		"walletSyncRunId":          rec.WalletSyncRunID,
+		"runId":                    rec.IngestionRunID,
+		"focalWallet":              rec.FocalWallet,
+		"signature":                rec.Signature,
+		"transferIndex":            rec.TransferIndex,
+		"blockTime":                rec.BlockTime.UTC().Format(time.RFC3339),
+		"suspiciousCounterparty":   rec.SuspiciousCounterparty,
+		"matchedLegitCounterparty": rec.MatchedLegitCounterparty,
+		"relationType":             rec.RelationType,
+		"assetType":                rec.AssetType,
+		"normalizationStatus":      rec.NormalizationStatus,
+		"poisoningEligible":        rec.PoisoningEligible,
+		"sourceOwner":              rec.SourceOwner,
+		"destinationOwner":         rec.DestinationOwner,
+		"fromTokenAccount":         rec.FromTokenAccount,
+		"toTokenAccount":           rec.ToTokenAccount,
+		"tokenMint":                rec.TokenMint,
+		"amountRaw":                rec.AmountRaw,
+		"dustStatus":               rec.DustStatus,
+		"isDust":                   rec.IsDust,
+		"isZeroValue":              rec.IsZeroValue,
+		"isInbound":                rec.IsInbound,
+		"isNewCounterparty":        rec.IsNewCounterparty,
+		"recencyDays":              rec.RecencyDays,
+		"repeatInjectionCount":     rec.RepeatInjectionCount,
+		"lookalikePrefixMatch":     rec.LookalikePrefixMatch,
+		"lookalikeSuffixMatch":     rec.LookalikeSuffixMatch,
+		"matchRuleVersion":         rec.MatchRuleVersion,
+		"legitLastSeenAt":          rec.LegitLastSeenAt.UTC().Format(time.RFC3339),
+		"baselineComplete":         rec.BaselineComplete,
+		"incompleteWindow":         rec.IncompleteWindow,
+		"unknownGateReason":        rec.UnknownGateReason,
+		"scanStartAt":              rec.ScanStartAt.UTC().Format(time.RFC3339),
+		"scanEndAt":                rec.ScanEndAt.UTC().Format(time.RFC3339),
+		"baselineStartAt":          rec.BaselineStartAt.UTC().Format(time.RFC3339),
+		"baselineEndAt":            rec.BaselineEndAt.UTC().Format(time.RFC3339),
+		"sourceReferences": map[string]any{
+			"walletSyncRunId":     rec.WalletSyncRunID,
+			"runId":               rec.IngestionRunID,
+			"transactionId":       rec.TransactionID,
+			"walletTransactionId": rec.WalletTransactionID,
+			"counterpartyId":      rec.CounterpartyID,
+		},
+	}
 }
 
 func parsePage(r *http.Request) (int, int) {

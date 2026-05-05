@@ -176,6 +176,73 @@ export interface CounterpartyListItem {
   candidateLinks: number;
 }
 
+export interface CandidateExplanation {
+  walletSyncRunId: number;
+  runId: number;
+  focalWallet: string;
+  signature: string;
+  transferIndex: number;
+  blockTime: string;
+  suspiciousCounterparty: string;
+  matchedLegitCounterparty: string;
+  relationType: RelationType;
+  assetType: "native_sol" | "spl_fungible" | "unsupported";
+  normalizationStatus: NormalizationStatus;
+  poisoningEligible: boolean;
+  sourceOwner: string;
+  destinationOwner: string;
+  fromTokenAccount: string;
+  toTokenAccount: string;
+  tokenMint: string;
+  amountRaw: string;
+  dustStatus: string;
+  isDust: boolean;
+  isZeroValue: boolean;
+  isInbound: boolean;
+  isNewCounterparty: boolean;
+  recencyDays: number;
+  repeatInjectionCount: number;
+  lookalikePrefixMatch: number;
+  lookalikeSuffixMatch: number;
+  matchRuleVersion: string;
+  legitLastSeenAt: string;
+  baselineComplete: boolean;
+  incompleteWindow: boolean;
+  unknownGateReason: UnknownGateReason | "";
+  scanStartAt: string;
+  scanEndAt: string;
+  baselineStartAt: string;
+  baselineEndAt: string;
+  sourceReferences: {
+    walletSyncRunId: number;
+    runId: number;
+    transactionId: number;
+    walletTransactionId: number;
+    counterpartyId: number;
+  };
+}
+
+export interface WalletInspectionSummary {
+  runId: number;
+  walletSyncRunId: number;
+  focalWallet: string;
+  candidateCount: number;
+  unknownGateBlockCount: number;
+  incompleteWindow: boolean;
+  unknownGateReason: UnknownGateReason | "";
+  truncationReason: string;
+  baselineComplete: boolean;
+  scanStartAt: string;
+  scanEndAt: string;
+  baselineStartAt: string;
+  baselineEndAt: string;
+  transactionsFetched: number;
+  sourceReferences: {
+    walletSyncRunId: number;
+    runId: number;
+  };
+}
+
 export interface ExportManifestFile {
   name: string;
   rowCount: number;

@@ -1,157 +1,89 @@
-import { Download, FileText } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
+import { apiClient } from "../../lib/apiClient";
+import { formatDateTime, shortAddress } from "../../lib/format";
+import { useUrlPagination } from "../../lib/useUrlPagination";
 
 export default function Exports() {
-  const exports = [
-    {
-      id: "export-2026-05-01-001",
-      timestamp: "2026-05-01 14:15:32",
-      timeAgo: "19m ago",
-      type: "Candidate Report",
-      records: 7,
-      format: "PDF",
-      size: "342 KB",
-      status: "Ready",
-    },
-    {
-      id: "export-2026-04-30-002",
-      timestamp: "2026-04-30 18:22:15",
-      timeAgo: "20h ago",
-      type: "Transaction Log",
-      records: 1243,
-      format: "CSV",
-      size: "1.2 MB",
-      status: "Ready",
-    },
-    {
-      id: "export-2026-04-29-001",
-      timestamp: "2026-04-29 12:10:08",
-      timeAgo: "2d ago",
-      type: "Full Audit",
-      records: 3847,
-      format: "JSON",
-      size: "4.5 MB",
-      status: "Ready",
-    },
-  ];
+  const { page, pageSize, setPage, params, setParams } = useUrlPagination(1, 25);
+  const runId = Number(params.get("run_id") ?? "0");
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["candidate-reports", runId, page, pageSize],
+    queryFn: () => apiClient.getCandidateReports(runId, page, pageSize),
+    enabled: runId > 0,
+    placeholderData: (prev) => prev,
+  });
 
   return (
-    <div className="p-8 max-w-6xl">
-      <div className="mb-12">
-        <h1 className="text-2xl mb-2 tracking-tight">Exports</h1>
-        <p className="text-muted-foreground text-sm">Generate and download forensic reports</p>
+    <div className="p-8 max-w-7xl">
+      <div className="mb-8">
+        <h1 className="text-2xl mb-2 tracking-tight">Candidate Report Exports</h1>
+        <p className="text-muted-foreground text-sm">Deterministic candidate evidence view for run-scoped JSONL/CSV exports</p>
       </div>
 
-      {/* Create New Export */}
-      <div className="border border-border mb-16">
-        <div className="px-8 py-4 border-b border-border bg-muted/30 text-sm uppercase tracking-widest font-mono text-muted-foreground">
-          Create New Export
-        </div>
-        <div className="p-8 space-y-8">
-          <div className="grid md:grid-cols-2 gap-8">
-            <div>
-              <label className="block text-sm mb-3">
-                Export Type
-              </label>
-              <select className="w-full px-4 py-3 bg-transparent border border-border text-muted-foreground hover:border-foreground focus:outline-none focus:border-foreground transition-colors">
-                <option>Candidate Report</option>
-                <option>Transaction Log</option>
-                <option>Detection Run Summary</option>
-                <option>Counterparty Analysis</option>
-                <option>Full Audit Report</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm mb-3">
-                Format
-              </label>
-              <select className="w-full px-4 py-3 bg-transparent border border-border text-muted-foreground hover:border-foreground focus:outline-none focus:border-foreground transition-colors">
-                <option>PDF (Formatted Report)</option>
-                <option>CSV (Data Export)</option>
-                <option>JSON (Machine-Readable)</option>
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm mb-3">
-              Date Range
-            </label>
-            <div className="grid md:grid-cols-2 gap-6">
-              <input
-                type="date"
-                className="px-4 py-3 bg-transparent border border-border text-muted-foreground hover:border-foreground focus:outline-none focus:border-foreground transition-colors"
-                defaultValue="2026-04-01"
-              />
-              <input
-                type="date"
-                className="px-4 py-3 bg-transparent border border-border text-muted-foreground hover:border-foreground focus:outline-none focus:border-foreground transition-colors"
-                defaultValue="2026-05-01"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-start gap-4">
-            <input type="checkbox" id="include-passed" className="mt-1" />
-            <div>
-              <label htmlFor="include-passed" className="text-sm block mb-1">
-                Include passed transactions
-              </label>
-              <p className="text-xs text-muted-foreground font-mono">
-                Export includes transactions that passed all gates (not flagged)
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-4">
-            <input type="checkbox" id="include-trace" className="mt-1" defaultChecked />
-            <div>
-              <label htmlFor="include-trace" className="text-sm block mb-1">
-                Include full gate trace logs
-              </label>
-              <p className="text-xs text-muted-foreground font-mono">
-                Detailed gate evaluation logs for each transaction (increases file size)
-              </p>
-            </div>
-          </div>
-
-          <div className="pt-6 border-t border-border">
-            <button className="flex items-center gap-3 px-6 py-3 bg-foreground text-background hover:bg-muted-foreground transition-colors">
-              <Download className="w-4 h-4" />
-              <span>Generate Export</span>
-            </button>
-          </div>
+      <div className="mb-6">
+        <label className="text-xs text-muted-foreground uppercase tracking-widest font-mono">Run ID</label>
+        <div className="mt-2 flex gap-3">
+          <input
+            value={runId > 0 ? String(runId) : ""}
+            onChange={(e) => {
+              const next = new URLSearchParams(params);
+              next.set("run_id", e.target.value);
+              next.set("page", "1");
+              setParams(next, { replace: false });
+            }}
+            className="px-4 py-2 bg-transparent border border-border text-sm font-mono"
+            placeholder="e.g. 42"
+          />
         </div>
       </div>
 
-      {/* Export History */}
-      <div className="border border-border">
-        <div className="px-8 py-4 border-b border-border bg-muted/30 text-sm uppercase tracking-widest font-mono text-muted-foreground">
-          Export History
+      {runId <= 0 ? <div className="text-sm text-muted-foreground">Enter a run ID to inspect candidate evidence rows.</div> : null}
+      {isLoading ? <div className="text-sm text-muted-foreground">Loading report rows...</div> : null}
+      {error ? <div className="text-sm text-destructive-foreground">Failed to load report rows: {(error as Error).message}</div> : null}
+
+      {runId > 0 ? (
+        <div className="border border-border">
+          <table className="w-full">
+            <thead className="bg-muted/30 border-b border-border">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Wallet</th>
+                <th className="px-4 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Signature</th>
+                <th className="px-4 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Block Time</th>
+                <th className="px-4 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Suspicious</th>
+                <th className="px-4 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Legit</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {(data?.items ?? []).map((item) => (
+                <tr key={`${item.walletSyncRunId}-${item.signature}-${item.transferIndex}`} className="hover:bg-muted/30">
+                  <td className="px-4 py-3 text-sm font-mono">{shortAddress(item.focalWallet, 6, 4)}</td>
+                  <td className="px-4 py-3 text-sm font-mono">
+                    <Link className="hover:underline" to={`/app/candidates?wallet_sync_run_id=${item.walletSyncRunId}&signature=${encodeURIComponent(item.signature)}&transfer_index=${item.transferIndex}`}>
+                      {shortAddress(item.signature, 8, 8)}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">{formatDateTime(item.blockTime)}</td>
+                  <td className="px-4 py-3 text-sm font-mono">{shortAddress(item.suspiciousCounterparty, 6, 4)}</td>
+                  <td className="px-4 py-3 text-sm font-mono text-destructive-foreground">{shortAddress(item.matchedLegitCounterparty, 6, 4)}</td>
+                </tr>
+              ))}
+              {(data?.items?.length ?? 0) === 0 ? <tr><td className="px-4 py-4 text-sm text-muted-foreground" colSpan={5}>No rows for selected run.</td></tr> : null}
+            </tbody>
+          </table>
         </div>
-        <div className="divide-y divide-border">
-          {exports.map((exp) => (
-            <div key={exp.id} className="p-8 flex items-center justify-between hover:bg-muted/30 transition-colors">
-              <div className="flex items-center gap-6">
-                <FileText className="w-6 h-6 text-muted-foreground" />
-                <div>
-                  <div className="text-sm mb-2">{exp.type}</div>
-                  <div className="text-xs text-muted-foreground font-mono">
-                    {exp.timestamp} • {exp.records} records • {exp.format} • {exp.size}
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-6">
-                <div className="text-sm text-muted-foreground">{exp.timeAgo}</div>
-                <button className="flex items-center gap-3 px-6 py-3 border border-border hover:border-foreground hover:text-foreground transition-colors">
-                  <Download className="w-4 h-4" />
-                  <span className="text-sm">Download</span>
-                </button>
-              </div>
-            </div>
-          ))}
+      ) : null}
+
+      {runId > 0 ? (
+        <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
+          <div className="font-mono">Showing page {page} • {data?.total ?? 0} total</div>
+          <div className="flex gap-2">
+            <button onClick={() => setPage(page - 1)} disabled={page <= 1} className="px-3 py-2 border border-border text-xs disabled:opacity-50">Previous</button>
+            <button onClick={() => setPage(page + 1)} disabled={Boolean(data && page * pageSize >= data.total)} className="px-3 py-2 border border-border text-xs disabled:opacity-50">Next</button>
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }

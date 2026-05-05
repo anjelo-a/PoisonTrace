@@ -9,6 +9,9 @@ import { useUrlPagination } from "../../lib/useUrlPagination";
 export default function Candidates() {
   const { page, pageSize, setPage, params, setParams } = useUrlPagination(1, 25);
   const [selected, setSelected] = useState<CandidateListItem | null>(null);
+  const detailWalletSyncRunID = Number(params.get("wallet_sync_run_id") ?? "0");
+  const detailSignature = params.get("signature") ?? "";
+  const detailTransferIndex = Number(params.get("transfer_index") ?? "-1");
 
   const recencyFilter = params.get("recency") ?? "all";
   const sort = params.get("sort") ?? "latest";
@@ -33,6 +36,26 @@ export default function Candidates() {
     });
     return byRecency;
   }, [data?.items, recencyFilter, sort]);
+
+  const selectedForDetail = selected ?? (detailWalletSyncRunID > 0 && detailSignature && detailTransferIndex >= 0
+    ? {
+        walletSyncRunId: detailWalletSyncRunID,
+        focalWallet: "",
+        signature: detailSignature,
+        transferIndex: detailTransferIndex,
+        blockTime: "",
+        suspiciousCounterparty: "",
+        matchedLegitCounterparty: "",
+        repeatInjectionCount: 0,
+        recencyDays: 0,
+      }
+    : null);
+
+  const detailQuery = useQuery({
+    queryKey: ["candidate-detail", selectedForDetail?.walletSyncRunId, selectedForDetail?.signature, selectedForDetail?.transferIndex],
+    queryFn: () => apiClient.getCandidateExplanation(selectedForDetail!.walletSyncRunId, selectedForDetail!.signature, selectedForDetail!.transferIndex),
+    enabled: selectedForDetail !== null,
+  });
 
   const setFilter = (key: string, value: string) => {
     const next = new URLSearchParams(params);
@@ -79,7 +102,14 @@ export default function Candidates() {
             </thead>
             <tbody className="divide-y divide-border">
               {filtered.map((candidate) => (
-                <tr key={`${candidate.signature}-${candidate.transferIndex}`} onClick={() => setSelected(candidate)} className={`cursor-pointer hover:bg-muted/30 transition-colors ${selected?.signature === candidate.signature ? "bg-muted/30" : ""}`}>
+                <tr key={`${candidate.signature}-${candidate.transferIndex}`} onClick={() => {
+                  setSelected(candidate);
+                  const next = new URLSearchParams(params);
+                  next.set("wallet_sync_run_id", String(candidate.walletSyncRunId));
+                  next.set("signature", candidate.signature);
+                  next.set("transfer_index", String(candidate.transferIndex));
+                  setParams(next, { replace: false });
+                }} className={`cursor-pointer hover:bg-muted/30 transition-colors ${selected?.signature === candidate.signature ? "bg-muted/30" : ""}`}>
                   <td className="px-8 py-5"><div className="font-mono text-sm">{shortAddress(candidate.signature, 6, 6)}</div><div className="text-xs text-muted-foreground mt-1">{timeAgo(candidate.blockTime)}</div></td>
                   <td className="px-8 py-5 text-sm text-muted-foreground font-mono">{formatDateTime(candidate.blockTime)}</td>
                   <td className="px-8 py-5 font-mono text-sm">{shortAddress(candidate.suspiciousCounterparty, 6, 4)}</td>
@@ -102,18 +132,33 @@ export default function Candidates() {
         </div>
       </div>
 
-      {selected ? (
+      {selectedForDetail ? (
         <div className="w-full md:w-[560px] border-l border-border flex flex-col">
           <div className="p-8 border-b border-border flex items-start justify-between">
-            <div><div className="text-xs uppercase tracking-widest text-muted-foreground font-mono mb-2">Candidate Detail</div><div className="font-mono text-sm break-all">{selected.signature}</div></div>
-            <button onClick={() => setSelected(null)} className="ml-6 p-2 hover:bg-muted/30"><X className="w-4 h-4 text-muted-foreground" /></button>
+            <div><div className="text-xs uppercase tracking-widest text-muted-foreground font-mono mb-2">Candidate Detail</div><div className="font-mono text-sm break-all">{selectedForDetail.signature}</div></div>
+            <button onClick={() => {
+              setSelected(null);
+              const next = new URLSearchParams(params);
+              next.delete("wallet_sync_run_id");
+              next.delete("signature");
+              next.delete("transfer_index");
+              setParams(next, { replace: false });
+            }} className="ml-6 p-2 hover:bg-muted/30"><X className="w-4 h-4 text-muted-foreground" /></button>
           </div>
           <div className="flex-1 overflow-auto p-8 space-y-6 text-sm font-mono">
-            <Row label="Block Time" value={formatDateTime(selected.blockTime)} />
-            <Row label="Suspicious Counterparty" value={selected.suspiciousCounterparty} />
-            <Row label="Matched Legit" value={selected.matchedLegitCounterparty} danger />
-            <Row label="Repeat Injections" value={`${selected.repeatInjectionCount} events`} />
-            <Row label="Recency" value={`${selected.recencyDays} days`} />
+            {detailQuery.isLoading ? <div className="text-muted-foreground text-sm">Loading evidence...</div> : null}
+            {detailQuery.isError ? <div className="text-destructive-foreground text-sm">Failed to load evidence detail.</div> : null}
+            {detailQuery.data ? (
+              <>
+                <Row label="Block Time" value={formatDateTime(detailQuery.data.blockTime)} />
+                <Row label="Suspicious Counterparty" value={detailQuery.data.suspiciousCounterparty} />
+                <Row label="Matched Legit" value={detailQuery.data.matchedLegitCounterparty} danger />
+                <Row label="Relation Type" value={detailQuery.data.relationType} />
+                <Row label="Normalization" value={detailQuery.data.normalizationStatus} />
+                <Row label="Repeat Injections" value={`${detailQuery.data.repeatInjectionCount} events`} />
+                <Row label="Unknown Gate Reason" value={detailQuery.data.unknownGateReason || ""} />
+              </>
+            ) : null}
             <div className="text-xs text-muted-foreground">This view shows probable candidate evidence only. Unknown-gate blocked events are excluded from emitted candidates by contract.</div>
           </div>
         </div>
