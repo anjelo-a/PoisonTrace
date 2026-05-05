@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -31,11 +32,31 @@ type ReadRepository interface {
 	ListWalletInspectionSummaryForRun(ctx context.Context, runID int64, limit, offset int) ([]storage.WalletInspectionSummaryRecord, int, error)
 }
 
+type SettingsStore interface {
+	GetConfigOverride(ctx context.Context) (storage.ConfigOverrideRecord, bool, error)
+	UpsertConfigOverride(ctx context.Context, rec storage.ConfigOverrideRecord) error
+}
+
+type ExportJobStore interface {
+	CreateExportJob(ctx context.Context, runID int64, outDir string) (int64, error)
+	UpdateExportJobStatus(ctx context.Context, jobID int64, status string, errMsg *string, startedAt, completedAt *time.Time) error
+	GetExportJob(ctx context.Context, jobID int64) (storage.ExportJobRecord, bool, error)
+	ListExportJobsForRun(ctx context.Context, runID int64, limit int) ([]storage.ExportJobRecord, error)
+}
+
+type OpsStore interface {
+	ListOpsRunHealth(ctx context.Context, limit int, offset int) ([]storage.OpsRunHealthRecord, int, error)
+	ListFailureClassCounts(ctx context.Context) ([]storage.FailureClassCountRecord, error)
+}
+
 type Server struct {
 	repo         ReadRepository
 	cfg          config.Config
 	exportSource exportspkg.DatasetSource
 	exportRoot   string
+	settings     SettingsStore
+	exportJobs   ExportJobStore
+	ops          OpsStore
 }
 
 func NewServer(repo ReadRepository, cfg config.Config) *Server {
@@ -46,6 +67,15 @@ func NewServer(repo ReadRepository, cfg config.Config) *Server {
 	}
 	if ds, ok := any(repo).(exportspkg.DatasetSource); ok {
 		s.exportSource = ds
+	}
+	if ss, ok := any(repo).(SettingsStore); ok {
+		s.settings = ss
+	}
+	if ej, ok := any(repo).(ExportJobStore); ok {
+		s.exportJobs = ej
+	}
+	if ops, ok := any(repo).(OpsStore); ok {
+		s.ops = ops
 	}
 	return s
 }
@@ -58,15 +88,19 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/reports/candidates", s.handleCandidateReports)
 	mux.HandleFunc("/api/reports/wallets", s.handleWalletReports)
 	mux.HandleFunc("/api/exports/generate", s.handleExportGenerate)
+	mux.HandleFunc("/api/exports/jobs", s.handleExportJobs)
+	mux.HandleFunc("/api/exports/jobs/", s.handleExportJobByID)
 	mux.HandleFunc("/api/exports/files", s.handleExportFiles)
 	mux.HandleFunc("/api/exports/download", s.handleExportDownload)
+	mux.HandleFunc("/api/ops/runs", s.handleOpsRuns)
+	mux.HandleFunc("/api/ops/failures", s.handleOpsFailures)
 	mux.HandleFunc("/api/transactions", s.handleTransactions)
 	mux.HandleFunc("/api/runs", s.handleRuns)
 	mux.HandleFunc("/api/wallet-sync", s.handleWalletSync)
 	mux.HandleFunc("/api/counterparties", s.handleCounterparties)
 	mux.HandleFunc("/api/settings", s.handleSettings)
 	mux.HandleFunc("/healthz", s.handleHealth)
-	return withCORS(mux)
+	return withCORS(withAuth(mux, s.cfg.APIBearerToken))
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, _ *http.Request) {
@@ -113,7 +147,6 @@ func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
 		RepeatInjectionCount   int    `json:"repeatInjectionCount"`
 		RecencyDays            int    `json:"recencyDays"`
 	}
-
 	items := make([]recentItem, 0, len(recent))
 	for _, rec := range recent {
 		items = append(items, recentItem{
@@ -264,9 +297,7 @@ func (s *Server) handleWalletSync(w http.ResponseWriter, r *http.Request) {
 	items := make([]map[string]any, 0, len(rows))
 	for _, rec := range rows {
 		if rec.IncompleteWindow && strings.TrimSpace(rec.UnknownGateReason) == "" {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{
-				"error": "wallet sync row missing unknown_gate_reason while incomplete_window=true",
-			})
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "wallet sync row missing unknown_gate_reason while incomplete_window=true"})
 			return
 		}
 		items = append(items, map[string]any{
@@ -325,27 +356,97 @@ func (s *Server) handleCounterparties(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
+	switch r.Method {
+	case http.MethodGet:
+		s.handleSettingsGet(w, r)
+	case http.MethodPut, http.MethodPatch:
+		s.handleSettingsWrite(w, r)
+	default:
 		methodNotAllowed(w)
+	}
+}
+
+func (s *Server) handleSettingsGet(w http.ResponseWriter, r *http.Request) {
+	override, _, err := s.loadSettingsOverride(r.Context())
+	if err != nil {
+		writeError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"maxWalletsPerRun":         s.cfg.MaxWalletsPerRun,
-		"maxTXPagesPerWallet":      s.cfg.MaxTXPagesPerWallet,
-		"maxTXPerWallet":           s.cfg.MaxTXPerWallet,
-		"maxConcurrentWallets":     s.cfg.MaxConcurrentWallets,
-		"walletSyncTimeoutSeconds": s.cfg.WalletSyncTimeoutSeconds,
-		"runTimeoutSeconds":        s.cfg.RunTimeoutSeconds,
-		"maxHeliusRetries":         s.cfg.MaxHeliusRetries,
-		"heliusRequestDelayMS":     s.cfg.HeliusRequestDelayMS,
-		"baselineLookbackDays":     s.cfg.BaselineLookbackDays,
-		"scanWindowDays":           s.cfg.ScanWindowDays,
-		"lookalikeRecencyDays":     s.cfg.LookalikeRecencyDays,
-		"lookalikePrefixMin":       s.cfg.LookalikePrefixMin,
-		"lookalikeSuffixMin":       s.cfg.LookalikeSuffixMin,
-		"lookalikeSingleSideMin":   s.cfg.LookalikeSingleSideMin,
-		"minInjectionCount":        s.cfg.MinInjectionCount,
+		"maxWalletsPerRun":         withOverrideInt(s.cfg.MaxWalletsPerRun, override.MaxWalletsPerRun),
+		"maxTXPagesPerWallet":      withOverrideInt(s.cfg.MaxTXPagesPerWallet, override.MaxTXPagesPerWallet),
+		"maxTXPerWallet":           withOverrideInt(s.cfg.MaxTXPerWallet, override.MaxTXPerWallet),
+		"maxConcurrentWallets":     withOverrideInt(s.cfg.MaxConcurrentWallets, override.MaxConcurrentWallets),
+		"walletSyncTimeoutSeconds": withOverrideInt(s.cfg.WalletSyncTimeoutSeconds, override.WalletSyncTimeoutSeconds),
+		"runTimeoutSeconds":        withOverrideInt(s.cfg.RunTimeoutSeconds, override.RunTimeoutSeconds),
+		"maxHeliusRetries":         withOverrideInt(s.cfg.MaxHeliusRetries, override.MaxHeliusRetries),
+		"heliusRequestDelayMS":     withOverrideInt(s.cfg.HeliusRequestDelayMS, override.HeliusRequestDelayMS),
+		"baselineLookbackDays":     withOverrideInt(s.cfg.BaselineLookbackDays, override.BaselineLookbackDays),
+		"scanWindowDays":           withOverrideInt(s.cfg.ScanWindowDays, override.ScanWindowDays),
+		"lookalikeRecencyDays":     withOverrideInt(s.cfg.LookalikeRecencyDays, override.LookalikeRecencyDays),
+		"lookalikePrefixMin":       withOverrideInt(s.cfg.LookalikePrefixMin, override.LookalikePrefixMin),
+		"lookalikeSuffixMin":       withOverrideInt(s.cfg.LookalikeSuffixMin, override.LookalikeSuffixMin),
+		"lookalikeSingleSideMin":   withOverrideInt(s.cfg.LookalikeSingleSideMin, override.LookalikeSingleSideMin),
+		"minInjectionCount":        withOverrideInt(s.cfg.MinInjectionCount, override.MinInjectionCount),
 	})
+}
+
+func (s *Server) handleSettingsWrite(w http.ResponseWriter, r *http.Request) {
+	if s.settings == nil {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "settings write is not configured"})
+		return
+	}
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid body"})
+		return
+	}
+	type payload struct {
+		MaxWalletsPerRun         *int `json:"maxWalletsPerRun"`
+		MaxTXPagesPerWallet      *int `json:"maxTXPagesPerWallet"`
+		MaxTXPerWallet           *int `json:"maxTXPerWallet"`
+		MaxConcurrentWallets     *int `json:"maxConcurrentWallets"`
+		WalletSyncTimeoutSeconds *int `json:"walletSyncTimeoutSeconds"`
+		RunTimeoutSeconds        *int `json:"runTimeoutSeconds"`
+		MaxHeliusRetries         *int `json:"maxHeliusRetries"`
+		HeliusRequestDelayMS     *int `json:"heliusRequestDelayMS"`
+		BaselineLookbackDays     *int `json:"baselineLookbackDays"`
+		ScanWindowDays           *int `json:"scanWindowDays"`
+		LookalikeRecencyDays     *int `json:"lookalikeRecencyDays"`
+		LookalikePrefixMin       *int `json:"lookalikePrefixMin"`
+		LookalikeSuffixMin       *int `json:"lookalikeSuffixMin"`
+		LookalikeSingleSideMin   *int `json:"lookalikeSingleSideMin"`
+		MinInjectionCount        *int `json:"minInjectionCount"`
+	}
+	var in payload
+	if err := json.Unmarshal(body, &in); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid json"})
+		return
+	}
+	rec := storage.ConfigOverrideRecord{
+		MaxWalletsPerRun:         in.MaxWalletsPerRun,
+		MaxTXPagesPerWallet:      in.MaxTXPagesPerWallet,
+		MaxTXPerWallet:           in.MaxTXPerWallet,
+		MaxConcurrentWallets:     in.MaxConcurrentWallets,
+		WalletSyncTimeoutSeconds: in.WalletSyncTimeoutSeconds,
+		RunTimeoutSeconds:        in.RunTimeoutSeconds,
+		MaxHeliusRetries:         in.MaxHeliusRetries,
+		HeliusRequestDelayMS:     in.HeliusRequestDelayMS,
+		BaselineLookbackDays:     in.BaselineLookbackDays,
+		ScanWindowDays:           in.ScanWindowDays,
+		LookalikeRecencyDays:     in.LookalikeRecencyDays,
+		LookalikePrefixMin:       in.LookalikePrefixMin,
+		LookalikeSuffixMin:       in.LookalikeSuffixMin,
+		LookalikeSingleSideMin:   in.LookalikeSingleSideMin,
+		MinInjectionCount:        in.MinInjectionCount,
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	if err := s.settings.UpsertConfigOverride(ctx, rec); err != nil {
+		writeError(w, err)
+		return
+	}
+	s.handleSettingsGet(w, r)
 }
 
 func (s *Server) handleCandidateDetail(w http.ResponseWriter, r *http.Request) {
@@ -457,7 +558,7 @@ func (s *Server) handleWalletReports(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleExportGenerate(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
 		methodNotAllowed(w)
 		return
 	}
@@ -473,10 +574,7 @@ func (s *Server) handleExportGenerate(w http.ResponseWriter, r *http.Request) {
 	filter := storage.ExportFilter{RunID: &runID}
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
-	res, err := exportspkg.ExportDataset(ctx, s.exportSource, exportspkg.ExportOptions{
-		OutDir: outDir,
-		Filter: filter,
-	})
+	res, err := exportspkg.ExportDataset(ctx, s.exportSource, exportspkg.ExportOptions{OutDir: outDir, Filter: filter})
 	if err != nil {
 		writeError(w, err)
 		return
@@ -489,20 +587,116 @@ func (s *Server) handleExportGenerate(w http.ResponseWriter, r *http.Request) {
 	}
 	files := make([]fileItem, 0, len(res.Manifest.Files))
 	for _, f := range res.Manifest.Files {
-		files = append(files, fileItem{
-			Name:        f.Name,
-			RowCount:    f.RowCount,
-			SHA256:      f.SHA256,
-			DownloadURL: fmt.Sprintf("/api/exports/download?run_id=%d&file=%s", runID, f.Name),
-		})
+		files = append(files, fileItem{Name: f.Name, RowCount: f.RowCount, SHA256: f.SHA256, DownloadURL: fmt.Sprintf("/api/exports/download?run_id=%d&file=%s", runID, f.Name)})
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"runId":         runID,
-		"outDir":        outDir,
-		"schemaVersion": res.Manifest.SchemaVersion,
-		"generatedAt":   res.Manifest.GeneratedAt,
-		"files":         files,
-	})
+	writeJSON(w, http.StatusOK, map[string]any{"runId": runID, "outDir": outDir, "schemaVersion": res.Manifest.SchemaVersion, "generatedAt": res.Manifest.GeneratedAt, "files": files})
+}
+
+func (s *Server) handleExportJobs(w http.ResponseWriter, r *http.Request) {
+	if s.exportJobs == nil || s.exportSource == nil {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "export jobs are not configured"})
+		return
+	}
+	switch r.Method {
+	case http.MethodPost:
+		runID, ok := parseRunID(w, r)
+		if !ok {
+			return
+		}
+		outDir := filepath.Join(s.exportRoot, fmt.Sprintf("run_%d", runID))
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+		jobID, err := s.exportJobs.CreateExportJob(ctx, runID, outDir)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		go s.runExportJob(jobID, runID, outDir)
+		writeJSON(w, http.StatusAccepted, map[string]any{"jobId": jobID, "runId": runID, "status": "queued"})
+	case http.MethodGet:
+		runID, ok := parseRunID(w, r)
+		if !ok {
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+		rows, err := s.exportJobs.ListExportJobsForRun(ctx, runID, 50)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		items := make([]map[string]any, 0, len(rows))
+		for _, rec := range rows {
+			items = append(items, exportJobPayload(rec))
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"items": items})
+	default:
+		methodNotAllowed(w)
+	}
+}
+
+func (s *Server) handleExportJobByID(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		methodNotAllowed(w)
+		return
+	}
+	if s.exportJobs == nil {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "export jobs are not configured"})
+		return
+	}
+	idRaw := strings.TrimPrefix(r.URL.Path, "/api/exports/jobs/")
+	jobID, err := strconv.ParseInt(strings.TrimSpace(idRaw), 10, 64)
+	if err != nil || jobID <= 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid job id"})
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	rec, ok, err := s.exportJobs.GetExportJob(ctx, jobID)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	if !ok {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "job not found"})
+		return
+	}
+	writeJSON(w, http.StatusOK, exportJobPayload(rec))
+}
+
+func (s *Server) runExportJob(jobID int64, runID int64, outDir string) {
+	now := time.Now().UTC()
+	_ = s.exportJobs.UpdateExportJobStatus(context.Background(), jobID, "running", nil, &now, nil)
+	filter := storage.ExportFilter{RunID: &runID}
+	_, err := exportspkg.ExportDataset(context.Background(), s.exportSource, exportspkg.ExportOptions{OutDir: outDir, Filter: filter})
+	done := time.Now().UTC()
+	if err != nil {
+		msg := err.Error()
+		_ = s.exportJobs.UpdateExportJobStatus(context.Background(), jobID, "failed", &msg, nil, &done)
+		return
+	}
+	_ = s.exportJobs.UpdateExportJobStatus(context.Background(), jobID, "succeeded", nil, nil, &done)
+}
+
+func exportJobPayload(rec storage.ExportJobRecord) map[string]any {
+	started := ""
+	if rec.StartedAt != nil {
+		started = rec.StartedAt.UTC().Format(time.RFC3339)
+	}
+	completed := ""
+	if rec.CompletedAt != nil {
+		completed = rec.CompletedAt.UTC().Format(time.RFC3339)
+	}
+	return map[string]any{
+		"jobId":        rec.ID,
+		"runId":        rec.RunID,
+		"status":       rec.Status,
+		"outDir":       rec.OutDir,
+		"errorMessage": rec.ErrorMessage,
+		"createdAt":    rec.CreatedAt.UTC().Format(time.RFC3339),
+		"startedAt":    started,
+		"completedAt":  completed,
+	}
 }
 
 func (s *Server) handleExportFiles(w http.ResponseWriter, r *http.Request) {
@@ -518,10 +712,7 @@ func (s *Server) handleExportFiles(w http.ResponseWriter, r *http.Request) {
 	entries, err := os.ReadDir(outDir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			writeJSON(w, http.StatusOK, map[string]any{
-				"runId": runID,
-				"files": []any{},
-			})
+			writeJSON(w, http.StatusOK, map[string]any{"runId": runID, "files": []any{}})
 			return
 		}
 		writeError(w, err)
@@ -538,23 +729,15 @@ func (s *Server) handleExportFiles(w http.ResponseWriter, r *http.Request) {
 		if e.IsDir() {
 			continue
 		}
-		name := e.Name()
 		info, infoErr := e.Info()
 		if infoErr != nil {
 			continue
 		}
-		files = append(files, fileItem{
-			Name:        name,
-			SizeBytes:   info.Size(),
-			ModifiedAt:  info.ModTime().UTC().Format(time.RFC3339),
-			DownloadURL: fmt.Sprintf("/api/exports/download?run_id=%d&file=%s", runID, name),
-		})
+		name := e.Name()
+		files = append(files, fileItem{Name: name, SizeBytes: info.Size(), ModifiedAt: info.ModTime().UTC().Format(time.RFC3339), DownloadURL: fmt.Sprintf("/api/exports/download?run_id=%d&file=%s", runID, name)})
 	}
 	sort.Slice(files, func(i, j int) bool { return files[i].Name < files[j].Name })
-	writeJSON(w, http.StatusOK, map[string]any{
-		"runId": runID,
-		"files": files,
-	})
+	writeJSON(w, http.StatusOK, map[string]any{"runId": runID, "files": files})
 }
 
 func (s *Server) handleExportDownload(w http.ResponseWriter, r *http.Request) {
@@ -589,6 +772,69 @@ func (s *Server) handleExportDownload(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, path)
 }
 
+func (s *Server) handleOpsRuns(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		methodNotAllowed(w)
+		return
+	}
+	if s.ops == nil {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "ops read model is not configured"})
+		return
+	}
+	page, pageSize := parsePage(r)
+	offset := (page - 1) * pageSize
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	rows, total, err := s.ops.ListOpsRunHealth(ctx, pageSize, offset)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	items := make([]map[string]any, 0, len(rows))
+	for _, rec := range rows {
+		completed := ""
+		if rec.CompletedAt != nil {
+			completed = rec.CompletedAt.UTC().Format(time.RFC3339)
+		}
+		items = append(items, map[string]any{
+			"runId":                rec.RunID,
+			"status":               rec.Status,
+			"startedAt":            rec.StartedAt.UTC().Format(time.RFC3339),
+			"completedAt":          completed,
+			"walletsRequested":     rec.WalletsRequested,
+			"walletsProcessed":     rec.WalletsProcessed,
+			"walletsFailed":        rec.WalletsFailed,
+			"walletsSkipped":       rec.WalletsSkipped,
+			"truncationWalletRate": rec.TruncationWalletRate,
+			"retryExhaustedCount":  rec.RetryExhaustedCount,
+		})
+	}
+	writePaged(w, items, total, page, pageSize)
+}
+
+func (s *Server) handleOpsFailures(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		methodNotAllowed(w)
+		return
+	}
+	if s.ops == nil {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "ops read model is not configured"})
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	rows, err := s.ops.ListFailureClassCounts(ctx)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	items := make([]map[string]any, 0, len(rows))
+	for _, rec := range rows {
+		items = append(items, map[string]any{"failureClass": rec.FailureClass, "count": rec.Count})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
 func parseRunID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 	raw := strings.TrimSpace(r.URL.Query().Get("run_id"))
 	if raw == "" {
@@ -601,6 +847,22 @@ func parseRunID(w http.ResponseWriter, r *http.Request) (int64, bool) {
 		return 0, false
 	}
 	return runID, true
+}
+
+func (s *Server) loadSettingsOverride(ctx context.Context) (storage.ConfigOverrideRecord, bool, error) {
+	if s.settings == nil {
+		return storage.ConfigOverrideRecord{}, false, nil
+	}
+	c, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	return s.settings.GetConfigOverride(c)
+}
+
+func withOverrideInt(base int, override *int) int {
+	if override == nil {
+		return base
+	}
+	return *override
 }
 
 func candidateExplanationPayload(rec storage.CandidateExplanationRecord) map[string]any {
@@ -699,10 +961,30 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 func withCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func withAuth(next http.Handler, bearerToken string) http.Handler {
+	token := strings.TrimSpace(bearerToken)
+	if token == "" {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/healthz" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		auth := strings.TrimSpace(r.Header.Get("Authorization"))
+		const prefix = "Bearer "
+		if !strings.HasPrefix(auth, prefix) || strings.TrimSpace(strings.TrimPrefix(auth, prefix)) != token {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 			return
 		}
 		next.ServeHTTP(w, r)
