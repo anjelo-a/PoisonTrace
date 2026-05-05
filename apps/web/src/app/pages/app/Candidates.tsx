@@ -50,11 +50,12 @@ export default function Candidates() {
         recencyDays: 0,
       }
     : null);
+  const hasDetailSelection = selectedForDetail !== null;
 
   const detailQuery = useQuery({
     queryKey: ["candidate-detail", selectedForDetail?.walletSyncRunId, selectedForDetail?.signature, selectedForDetail?.transferIndex],
-    queryFn: () => apiClient.getCandidateExplanation(selectedForDetail!.walletSyncRunId, selectedForDetail!.signature, selectedForDetail!.transferIndex),
-    enabled: selectedForDetail !== null,
+      queryFn: () => apiClient.getCandidateExplanation(selectedForDetail!.walletSyncRunId, selectedForDetail!.signature, selectedForDetail!.transferIndex),
+    enabled: hasDetailSelection,
   });
 
   const setFilter = (key: string, value: string) => {
@@ -66,7 +67,7 @@ export default function Candidates() {
 
   return (
     <div className="h-full flex">
-      <div className={`flex-1 flex flex-col ${selected ? "hidden md:flex" : ""}`}>
+      <div className={`flex-1 flex flex-col ${hasDetailSelection ? "hidden md:flex" : ""}`}>
         <div className="p-8 border-b border-border">
           <h1 className="text-2xl mb-2 tracking-tight">Candidates</h1>
           <p className="text-muted-foreground text-sm">Emitted probable candidates requiring review</p>
@@ -109,7 +110,7 @@ export default function Candidates() {
                   next.set("signature", candidate.signature);
                   next.set("transfer_index", String(candidate.transferIndex));
                   setParams(next, { replace: false });
-                }} className={`cursor-pointer hover:bg-muted/30 transition-colors ${selected?.signature === candidate.signature ? "bg-muted/30" : ""}`}>
+                }} className={`cursor-pointer hover:bg-muted/30 transition-colors ${selectedForDetail?.walletSyncRunId === candidate.walletSyncRunId && selectedForDetail?.signature === candidate.signature && selectedForDetail?.transferIndex === candidate.transferIndex ? "bg-muted/30" : ""}`}>
                   <td className="px-8 py-5"><div className="font-mono text-sm">{shortAddress(candidate.signature, 6, 6)}</div><div className="text-xs text-muted-foreground mt-1">{timeAgo(candidate.blockTime)}</div></td>
                   <td className="px-8 py-5 text-sm text-muted-foreground font-mono">{formatDateTime(candidate.blockTime)}</td>
                   <td className="px-8 py-5 font-mono text-sm">{shortAddress(candidate.suspiciousCounterparty, 6, 4)}</td>
@@ -150,13 +151,45 @@ export default function Candidates() {
             {detailQuery.isError ? <div className="text-destructive-foreground text-sm">Failed to load evidence detail.</div> : null}
             {detailQuery.data ? (
               <>
+                <Row label="Run ID" value={String(detailQuery.data.runId)} />
+                <Row label="Wallet Sync Run ID" value={String(detailQuery.data.walletSyncRunId)} />
+                <Row label="Focal Wallet" value={detailQuery.data.focalWallet} mono />
                 <Row label="Block Time" value={formatDateTime(detailQuery.data.blockTime)} />
-                <Row label="Suspicious Counterparty" value={detailQuery.data.suspiciousCounterparty} />
-                <Row label="Matched Legit" value={detailQuery.data.matchedLegitCounterparty} danger />
+                <Row label="Suspicious Counterparty" value={detailQuery.data.suspiciousCounterparty} mono />
+                <Row label="Matched Legit" value={detailQuery.data.matchedLegitCounterparty} danger mono />
                 <Row label="Relation Type" value={detailQuery.data.relationType} />
-                <Row label="Normalization" value={detailQuery.data.normalizationStatus} />
+                <Row label="Asset Type" value={detailQuery.data.assetType} />
+                <Row label="Normalization Status" value={detailQuery.data.normalizationStatus} />
+                <Row label="Poisoning Eligible" value={String(detailQuery.data.poisoningEligible)} />
+                <Row label="Source Owner" value={detailQuery.data.sourceOwner} mono />
+                <Row label="Destination Owner" value={detailQuery.data.destinationOwner} mono />
+                <Row label="From Token Account" value={detailQuery.data.fromTokenAccount} mono />
+                <Row label="To Token Account" value={detailQuery.data.toTokenAccount} mono />
+                <Row label="Token Mint" value={detailQuery.data.tokenMint} mono />
+                <Row label="Amount Raw" value={detailQuery.data.amountRaw} mono />
+                <Row label="Dust Status" value={detailQuery.data.dustStatus} />
+                <Row label="Is Dust" value={String(detailQuery.data.isDust)} />
+                <Row label="Is Zero Value" value={String(detailQuery.data.isZeroValue)} />
+                <Row label="Is Inbound" value={String(detailQuery.data.isInbound)} />
+                <Row label="Is New Counterparty" value={String(detailQuery.data.isNewCounterparty)} />
+                <Row label="Recency Days" value={String(detailQuery.data.recencyDays)} />
                 <Row label="Repeat Injections" value={`${detailQuery.data.repeatInjectionCount} events`} />
-                <Row label="Unknown Gate Reason" value={detailQuery.data.unknownGateReason || ""} />
+                <Row label="Lookalike Prefix Match" value={String(detailQuery.data.lookalikePrefixMatch)} />
+                <Row label="Lookalike Suffix Match" value={String(detailQuery.data.lookalikeSuffixMatch)} />
+                <Row label="Match Rule Version" value={detailQuery.data.matchRuleVersion} />
+                <Row label="Legit Last Seen At" value={formatDateTime(detailQuery.data.legitLastSeenAt)} />
+                <Row label="Baseline Complete" value={String(detailQuery.data.baselineComplete)} />
+                <Row label="Incomplete Window" value={String(detailQuery.data.incompleteWindow)} />
+                <Row label="Unknown Gate Reason" value={detailQuery.data.unknownGateReason} />
+                <Row label="Scan Start At" value={formatDateTime(detailQuery.data.scanStartAt)} />
+                <Row label="Scan End At" value={formatDateTime(detailQuery.data.scanEndAt)} />
+                <Row label="Baseline Start At" value={formatDateTime(detailQuery.data.baselineStartAt)} />
+                <Row label="Baseline End At" value={formatDateTime(detailQuery.data.baselineEndAt)} />
+                <Row label="Source Ref Wallet Sync Run ID" value={String(detailQuery.data.sourceReferences?.walletSyncRunId ?? "")} />
+                <Row label="Source Ref Run ID" value={String(detailQuery.data.sourceReferences?.runId ?? "")} />
+                <Row label="Source Ref Transaction ID" value={String(detailQuery.data.sourceReferences?.transactionId ?? "")} />
+                <Row label="Source Ref Wallet Transaction ID" value={String(detailQuery.data.sourceReferences?.walletTransactionId ?? "")} />
+                <Row label="Source Ref Counterparty ID" value={String(detailQuery.data.sourceReferences?.counterpartyId ?? "")} />
               </>
             ) : null}
             <div className="text-xs text-muted-foreground">This view shows probable candidate evidence only. Unknown-gate blocked events are excluded from emitted candidates by contract.</div>
@@ -167,6 +200,17 @@ export default function Candidates() {
   );
 }
 
-function Row({ label, value, danger = false }: { label: string; value: string; danger?: boolean }) {
-  return <div className="grid grid-cols-[180px_1fr]"><span className="text-muted-foreground">{label}:</span><span className={danger ? "text-destructive-foreground" : ""}>{value}</span></div>;
+function displayValue(value: string): string {
+  if (value === "") return "(empty)";
+  if (value === "unknown") return "unknown";
+  return value;
+}
+
+function Row({ label, value, danger = false, mono = false }: { label: string; value: string; danger?: boolean; mono?: boolean }) {
+  return (
+    <div className="grid grid-cols-[220px_1fr] gap-2">
+      <span className="text-muted-foreground">{label}:</span>
+      <span className={`${danger ? "text-destructive-foreground" : ""} ${mono ? "break-all" : ""}`}>{displayValue(value)}</span>
+    </div>
+  );
 }
