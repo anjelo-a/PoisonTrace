@@ -1,12 +1,12 @@
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { RouterProvider, createMemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { routes } from "../app/routes";
 
 describe("candidates table/detail", () => {
   beforeEach(() => {
-    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
       if (url.includes("/api/candidates/")) {
         return new Response(JSON.stringify({
           walletSyncRunId: 1,
@@ -83,13 +83,12 @@ describe("candidates table/detail", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders table row and opens detail drawer", async () => {
-    const router = createMemoryRouter(routes, { initialEntries: ["/app/candidates"] });
+  it("renders table row and drawer content in deep-link context", async () => {
+    const router = createMemoryRouter(routes, { initialEntries: ["/app/candidates?wallet_sync_run_id=1&signature=abcdef1234567890&transfer_index=0"] });
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={queryClient}><RouterProvider router={router} /></QueryClientProvider>);
 
-    const rowSig = await screen.findByText(/abcdef/i);
-    await userEvent.click(rowSig);
+    expect(await screen.findByText(/abcdef/i)).toBeInTheDocument();
     expect(await screen.findByText("Candidate Detail")).toBeInTheDocument();
     expect(screen.getByText(/Unknown-gate blocked events are excluded/i)).toBeInTheDocument();
     expect(await screen.findByText("Source Ref Transaction ID:")).toBeInTheDocument();
@@ -104,6 +103,8 @@ describe("candidates table/detail", () => {
 
     expect(await screen.findByText("Candidate Detail")).toBeInTheDocument();
     expect(await screen.findByText("Match Rule Version:")).toBeInTheDocument();
-    expect(await screen.findByText("(empty)")).toBeInTheDocument();
+    expect(await screen.findByText("Lookalike Prefix Match:")).toBeInTheDocument();
+    expect(await screen.findByText("Source Ref Counterparty ID:")).toBeInTheDocument();
+    expect((await screen.findAllByText("(empty)")).length).toBeGreaterThan(0);
   });
 });

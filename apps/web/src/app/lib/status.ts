@@ -2,8 +2,42 @@ import type { RunStatus, WalletSyncStatus } from "@poisontrace/contracts";
 
 type StatusTone = "default" | "secondary" | "outline" | "destructive";
 
-export function runStatusMeta(status: RunStatus): { label: string; tone: StatusTone } {
-  switch (status) {
+const knownRunStatuses = new Set<RunStatus>([
+  "running",
+  "succeeded",
+  "partially_succeeded",
+  "failed",
+  "timed_out",
+  "cancelled",
+]);
+
+const knownWalletStatuses = new Set<WalletSyncStatus>([
+  "queued",
+  "running",
+  "succeeded",
+  "partial",
+  "failed",
+  "rate_limited",
+  "timed_out",
+  "skipped_invalid",
+  "skipped_budget",
+]);
+
+export function parseRunStatus(status: string): RunStatus | "unknown" {
+  return knownRunStatuses.has(status as RunStatus) ? (status as RunStatus) : "unknown";
+}
+
+export function parseWalletSyncStatus(status: string): WalletSyncStatus | "unknown" {
+  return knownWalletStatuses.has(status as WalletSyncStatus) ? (status as WalletSyncStatus) : "unknown";
+}
+
+export function runStatusMeta(status: string): { label: string; tone: StatusTone } {
+  const parsed = parseRunStatus(status);
+  if (parsed === "unknown") {
+    return { label: "Unknown", tone: "destructive" };
+  }
+
+  switch (parsed) {
     case "running":
       return { label: "Running", tone: "secondary" };
     case "succeeded":
@@ -19,8 +53,13 @@ export function runStatusMeta(status: RunStatus): { label: string; tone: StatusT
   }
 }
 
-export function walletStatusMeta(status: WalletSyncStatus): { label: string; tone: StatusTone } {
-  switch (status) {
+export function walletStatusMeta(status: string): { label: string; tone: StatusTone } {
+  const parsed = parseWalletSyncStatus(status);
+  if (parsed === "unknown") {
+    return { label: "Unknown", tone: "destructive" };
+  }
+
+  switch (parsed) {
     case "queued":
       return { label: "Queued", tone: "secondary" };
     case "running":
@@ -42,6 +81,13 @@ export function walletStatusMeta(status: WalletSyncStatus): { label: string; ton
   }
 }
 
+const nonCompletedRunStatuses = new Set<RunStatus>(["running"]);
+
+export function isNonCompletedRunStatus(status: string): boolean {
+  const parsed = parseRunStatus(status);
+  return parsed !== "unknown" && nonCompletedRunStatuses.has(parsed);
+}
+
 const partialOrFailedRunStatuses = new Set<RunStatus>([
   "partially_succeeded",
   "failed",
@@ -49,7 +95,7 @@ const partialOrFailedRunStatuses = new Set<RunStatus>([
   "cancelled",
 ]);
 
-export function isPartialOrFailedRunStatus(status: RunStatus): boolean {
-  return partialOrFailedRunStatuses.has(status);
+export function isPartialOrFailedRunStatus(status: string): boolean {
+  const parsed = parseRunStatus(status);
+  return parsed !== "unknown" && partialOrFailedRunStatuses.has(parsed);
 }
-
