@@ -14,6 +14,7 @@ type Config struct {
 	DatabaseURL              string
 	HeliusAPIKey             string
 	HeliusBaseURL            string
+	APIBearerToken           string
 	MaxWalletsPerRun         int
 	MaxTXPagesPerWallet      int
 	MaxTXPerWallet           int
@@ -98,6 +99,7 @@ func LoadFromEnv() (Config, error) {
 		DatabaseURL:              os.Getenv("DATABASE_URL"),
 		HeliusAPIKey:             os.Getenv("HELIUS_API_KEY"),
 		HeliusBaseURL:            getEnv("HELIUS_BASE_URL", "https://api.helius.xyz/v0"),
+		APIBearerToken:           strings.TrimSpace(os.Getenv("API_BEARER_TOKEN")),
 		MaxWalletsPerRun:         maxWalletsPerRun,
 		MaxTXPagesPerWallet:      maxTXPagesPerWallet,
 		MaxTXPerWallet:           maxTXPerWallet,
