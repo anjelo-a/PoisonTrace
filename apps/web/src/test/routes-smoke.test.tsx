@@ -34,6 +34,12 @@ describe("route smoke", () => {
       if (url.includes("/api/reports/candidates")) {
         return new Response(JSON.stringify({ items: [{ walletSyncRunId: 1, runId: 42, focalWallet: "wallet", signature: "sig", transferIndex: 0, blockTime: "2026-05-02T00:00:00Z", suspiciousCounterparty: "sus", matchedLegitCounterparty: "legit" }], total: 26, page: 1, pageSize: 25 }), { status: 200 });
       }
+      if (url.includes("/api/exports/files")) {
+        return new Response(JSON.stringify({ runId: 42, files: [{ name: "report_manifest.json", sizeBytes: 1234, modifiedAt: "2026-05-02T00:00:00Z", downloadUrl: "/api/exports/download?run_id=42&file=report_manifest.json" }] }), { status: 200 });
+      }
+      if (url.includes("/api/exports/generate")) {
+        return new Response(JSON.stringify({ runId: 42, outDir: "artifacts/web_exports/run_42", schemaVersion: "phase5-v1", generatedAt: "2026-05-02T00:00:00Z", files: [] }), { status: 200 });
+      }
       if (url.includes("/api/settings")) {
         return new Response(JSON.stringify({ maxWalletsPerRun: 10, maxTXPagesPerWallet: 10, maxTXPerWallet: 1000, maxConcurrentWallets: 2, walletSyncTimeoutSeconds: 120, runTimeoutSeconds: 1200, maxHeliusRetries: 5, heliusRequestDelayMS: 250, baselineLookbackDays: 30, scanWindowDays: 7, lookalikeRecencyDays: 14, lookalikePrefixMin: 4, lookalikeSuffixMin: 4, lookalikeSingleSideMin: 6, minInjectionCount: 2 }), { status: 200 });
       }

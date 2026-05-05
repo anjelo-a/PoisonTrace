@@ -3,8 +3,10 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -190,5 +192,50 @@ func TestCandidateDetailNotFound(t *testing.T) {
 	s.Handler().ServeHTTP(res, req)
 	if res.Code != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", res.Code)
+	}
+}
+
+func TestExportGenerateNotConfigured(t *testing.T) {
+	s := NewServer(fakeRepo{}, config.Config{})
+	req := httptest.NewRequest(http.MethodGet, "/api/exports/generate?run_id=42", nil)
+	res := httptest.NewRecorder()
+	s.Handler().ServeHTTP(res, req)
+	if res.Code != http.StatusNotImplemented {
+		t.Fatalf("expected 501, got %d", res.Code)
+	}
+}
+
+func TestExportFilesListsGeneratedArtifacts(t *testing.T) {
+	s := NewServer(fakeRepo{}, config.Config{})
+	tmp := t.TempDir()
+	s.exportRoot = tmp
+	runDir := filepath.Join(tmp, "run_42")
+	if err := os.MkdirAll(runDir, 0o755); err != nil {
+		t.Fatalf("mkdir run dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(runDir, "report_manifest.json"), []byte("{}\n"), 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/exports/files?run_id=42", nil)
+	res := httptest.NewRecorder()
+	s.Handler().ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", res.Code)
+	}
+	var body struct {
+		RunID int64 `json:"runId"`
+		Files []struct {
+			Name string `json:"name"`
+		} `json:"files"`
+	}
+	if err := json.Unmarshal(res.Body.Bytes(), &body); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if body.RunID != 42 {
+		t.Fatalf("expected runId=42, got %d", body.RunID)
+	}
+	if len(body.Files) != 1 || body.Files[0].Name != "report_manifest.json" {
+		t.Fatalf("unexpected files payload: %+v", body.Files)
 	}
 }
