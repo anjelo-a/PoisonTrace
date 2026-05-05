@@ -1,6 +1,21 @@
-export type RunStatus = "running" | "completed" | "failed" | "partial";
+export type RunStatus =
+  | "running"
+  | "succeeded"
+  | "partially_succeeded"
+  | "failed"
+  | "timed_out"
+  | "cancelled";
 
-export type WalletSyncStatus = "running" | "completed" | "failed" | "partial";
+export type WalletSyncStatus =
+  | "queued"
+  | "running"
+  | "succeeded"
+  | "partial"
+  | "failed"
+  | "rate_limited"
+  | "timed_out"
+  | "skipped_invalid"
+  | "skipped_budget";
 
 export type NormalizationStatus =
   | "resolved"
