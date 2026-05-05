@@ -1,6 +1,9 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import type { WalletSyncRunListItem } from "@poisontrace/contracts";
+import { Badge } from "../../components/ui/badge";
 import { apiClient } from "../../lib/apiClient";
+import { walletStatusMeta } from "../../lib/status";
 import { useUrlPagination } from "../../lib/useUrlPagination";
 
 export default function WalletSync() {
@@ -27,7 +30,7 @@ export default function WalletSync() {
       {incompleteMissingReason > 0 ? <div className="mb-6 text-sm text-destructive-foreground">Data integrity warning: {incompleteMissingReason} incomplete wallet sync rows are missing unknown-gate reason.</div> : null}
 
       <div className="border border-border">
-        <table className="w-full"><thead className="bg-muted/30 border-b border-border"><tr><th className="px-6 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Wallet</th><th className="px-6 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Status</th><th className="px-6 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Baseline Complete</th><th className="px-6 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Incomplete Window</th><th className="px-6 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Unknown Gate Reason</th></tr></thead><tbody className="divide-y divide-border">{(sync.data?.items ?? []).map((row) => <tr key={row.walletSyncRunId}><td className="px-6 py-4 font-mono text-sm">{row.focalWallet}</td><td className="px-6 py-4 text-sm">{row.status}</td><td className="px-6 py-4 text-sm">{String(row.baselineComplete)}</td><td className="px-6 py-4 text-sm">{String(row.incompleteWindow)}</td><td className="px-6 py-4 text-sm text-destructive-foreground">{row.unknownGateReason || "-"}</td></tr>)}</tbody></table>
+        <table className="w-full"><thead className="bg-muted/30 border-b border-border"><tr><th className="px-6 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Wallet</th><th className="px-6 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Status</th><th className="px-6 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Baseline Complete</th><th className="px-6 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Incomplete Window</th><th className="px-6 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Unknown Gate Reason</th></tr></thead><tbody className="divide-y divide-border">{(sync.data?.items ?? []).map((row) => <tr key={row.walletSyncRunId}><td className="px-6 py-4 font-mono text-sm">{row.focalWallet}</td><td className="px-6 py-4 text-sm"><WalletStatusBadge status={row.status} /></td><td className="px-6 py-4 text-sm">{String(row.baselineComplete)}</td><td className="px-6 py-4 text-sm">{String(row.incompleteWindow)}</td><td className="px-6 py-4 text-sm text-destructive-foreground">{row.unknownGateReason || "-"}</td></tr>)}</tbody></table>
       </div>
 
       <div className="mt-4 flex gap-3"><button onClick={() => setPage(page - 1)} disabled={page <= 1} className="px-4 py-2 border border-border text-xs disabled:opacity-50">Previous</button><button onClick={() => setPage(page + 1)} disabled={Boolean(sync.data && page * pageSize >= sync.data.total)} className="px-4 py-2 border border-border text-xs disabled:opacity-50">Next</button></div>
@@ -37,4 +40,9 @@ export default function WalletSync() {
 
 function KV({ k, v }: { k: string; v: string }) {
   return <div className="flex justify-between py-3 border-b border-border"><span className="text-muted-foreground">{k}:</span><span>{v}</span></div>;
+}
+
+function WalletStatusBadge({ status }: { status: WalletSyncRunListItem["status"] }) {
+  const meta = walletStatusMeta(status);
+  return <Badge variant={meta.tone}>{meta.label}</Badge>;
 }
