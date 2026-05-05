@@ -6,6 +6,7 @@ import {
   Play,
   Wallet,
   Users,
+  FileBarChart2,
   Download,
   Settings
 } from "lucide-react";
@@ -20,6 +21,7 @@ export default function AppLayout() {
     { path: "/app/runs", label: "Runs", icon: Play },
     { path: "/app/wallet-sync", label: "Scan Configuration", icon: Wallet },
     { path: "/app/counterparties", label: "Counterparties", icon: Users },
+    { path: "/app/reports/wallets", label: "Wallet Reports", icon: FileBarChart2 },
     { path: "/app/exports", label: "Exports", icon: Download },
     { path: "/app/settings", label: "Settings", icon: Settings },
   ];
