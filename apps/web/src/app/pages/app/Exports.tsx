@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { apiClient } from "../../lib/apiClient";
 import { formatDateTime, shortAddress } from "../../lib/format";
@@ -14,18 +14,28 @@ export default function Exports() {
     enabled: runId > 0,
     placeholderData: (prev) => prev,
   });
+  const queryClient = useQueryClient();
+  const filesQuery = useQuery({
+    queryKey: ["export-files", runId],
+    queryFn: () => apiClient.getExportFiles(runId),
+    enabled: runId > 0,
+  });
+  const generateMutation = useMutation({
+    mutationFn: () => apiClient.generateExportDataset(runId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["export-files", runId] });
+    },
+  });
 
   return (
     <div className="p-8 max-w-7xl">
       <div className="mb-8">
         <h1 className="text-2xl mb-2 tracking-tight">Reports and Exports</h1>
-        <p className="text-muted-foreground text-sm">Browse run-scoped report rows via `/api/reports/*`. Dataset generation remains CLI-driven in this phase.</p>
+        <p className="text-muted-foreground text-sm">Browse run-scoped report rows and generate/download export artifacts.</p>
       </div>
 
       <div className="mb-6 border border-border bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
-        API-backed now: report browsing (`/api/reports/candidates`, `/api/reports/wallets`).
-        <br />
-        Not yet API-backed: dataset generation/write actions.
+        API-backed: report browsing (`/api/reports/candidates`, `/api/reports/wallets`) and export artifact generation/listing/download.
       </div>
 
       <div className="mb-6">
@@ -50,14 +60,21 @@ export default function Exports() {
           </Link>
           <button
             type="button"
-            disabled
-            className="px-3 py-2 border border-border text-xs opacity-60 cursor-not-allowed"
-            aria-label="Generate dataset (not yet API-backed)"
+            onClick={() => generateMutation.mutate()}
+            disabled={runId <= 0 || generateMutation.isPending}
+            className="px-3 py-2 border border-border text-xs disabled:opacity-50"
+            aria-label="Generate dataset"
           >
-            Generate Dataset (not yet API-backed)
+            {generateMutation.isPending ? "Generating..." : "Generate Dataset"}
           </button>
         </div>
       </div>
+      {generateMutation.isError ? <div className="mb-6 text-sm text-destructive-foreground">Failed to generate dataset: {(generateMutation.error as Error).message}</div> : null}
+      {generateMutation.data ? (
+        <div className="mb-6 text-sm text-muted-foreground">
+          Generated `{generateMutation.data.schemaVersion}` at {formatDateTime(generateMutation.data.generatedAt)} in <span className="font-mono">{generateMutation.data.outDir}</span>.
+        </div>
+      ) : null}
 
       {runId <= 0 ? <div className="text-sm text-muted-foreground">Enter a run ID to inspect candidate evidence rows.</div> : null}
       {isLoading ? <div className="text-sm text-muted-foreground">Loading report rows...</div> : null}
@@ -113,6 +130,39 @@ export default function Exports() {
           <div className="flex gap-2">
             <button onClick={() => setPage(page - 1)} disabled={page <= 1} className="px-3 py-2 border border-border text-xs disabled:opacity-50">Previous</button>
             <button onClick={() => setPage(page + 1)} disabled={Boolean(data && page * pageSize >= data.total)} className="px-3 py-2 border border-border text-xs disabled:opacity-50">Next</button>
+          </div>
+        </div>
+      ) : null}
+
+      {runId > 0 ? (
+        <div className="mt-10">
+          <h2 className="text-lg mb-4 tracking-tight">Generated Artifact Files</h2>
+          {filesQuery.isLoading ? <div className="text-sm text-muted-foreground">Loading files...</div> : null}
+          {filesQuery.isError ? <div className="text-sm text-destructive-foreground">Failed to load files: {(filesQuery.error as Error).message}</div> : null}
+          <div className="border border-border">
+            <table className="w-full">
+              <thead className="bg-muted/30 border-b border-border">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">File</th>
+                  <th className="px-4 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Size</th>
+                  <th className="px-4 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Modified</th>
+                  <th className="px-4 py-3 text-right text-xs font-mono uppercase tracking-widest text-muted-foreground">Download</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {(filesQuery.data?.files ?? []).map((file) => (
+                  <tr key={file.name}>
+                    <td className="px-4 py-3 text-sm font-mono">{file.name}</td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">{file.sizeBytes} bytes</td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">{formatDateTime(file.modifiedAt)}</td>
+                    <td className="px-4 py-3 text-right text-xs">
+                      <a href={file.downloadUrl} className="text-muted-foreground hover:text-foreground hover:underline">Download</a>
+                    </td>
+                  </tr>
+                ))}
+                {(filesQuery.data?.files?.length ?? 0) === 0 ? <tr><td className="px-4 py-4 text-sm text-muted-foreground" colSpan={4}>No generated files yet for this run.</td></tr> : null}
+              </tbody>
+            </table>
           </div>
         </div>
       ) : null}

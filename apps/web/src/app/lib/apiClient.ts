@@ -34,6 +34,33 @@ export type SettingsResponse = {
   minInjectionCount: number;
 };
 
+export type ExportGeneratedFile = {
+  name: string;
+  rowCount: number;
+  sha256: string;
+  downloadUrl: string;
+};
+
+export type ExportGenerateResponse = {
+  runId: number;
+  outDir: string;
+  schemaVersion: string;
+  generatedAt: string;
+  files: ExportGeneratedFile[];
+};
+
+export type ExportListedFile = {
+  name: string;
+  sizeBytes: number;
+  modifiedAt: string;
+  downloadUrl: string;
+};
+
+export type ExportFilesResponse = {
+  runId: number;
+  files: ExportListedFile[];
+};
+
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
 
 async function request<T>(path: string): Promise<T> {
@@ -57,5 +84,9 @@ export const apiClient = {
     request<PagedResponse<CandidateExplanation>>(`/api/reports/candidates?run_id=${runId}&page=${page}&page_size=${pageSize}`),
   getWalletReports: (runId: number, page = 1, pageSize = 50) =>
     request<PagedResponse<WalletInspectionSummary>>(`/api/reports/wallets?run_id=${runId}&page=${page}&page_size=${pageSize}`),
+  generateExportDataset: (runId: number) =>
+    request<ExportGenerateResponse>(`/api/exports/generate?run_id=${runId}`),
+  getExportFiles: (runId: number) =>
+    request<ExportFilesResponse>(`/api/exports/files?run_id=${runId}`),
   getSettings: () => request<SettingsResponse>("/api/settings"),
 };

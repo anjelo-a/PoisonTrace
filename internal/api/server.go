@@ -4,12 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"poisontrace/internal/config"
+	exportspkg "poisontrace/internal/exports"
 	"poisontrace/internal/storage"
 )
 
@@ -27,12 +32,22 @@ type ReadRepository interface {
 }
 
 type Server struct {
-	repo ReadRepository
-	cfg  config.Config
+	repo         ReadRepository
+	cfg          config.Config
+	exportSource exportspkg.DatasetSource
+	exportRoot   string
 }
 
 func NewServer(repo ReadRepository, cfg config.Config) *Server {
-	return &Server{repo: repo, cfg: cfg}
+	s := &Server{
+		repo:       repo,
+		cfg:        cfg,
+		exportRoot: filepath.Join("artifacts", "web_exports"),
+	}
+	if ds, ok := any(repo).(exportspkg.DatasetSource); ok {
+		s.exportSource = ds
+	}
+	return s
 }
 
 func (s *Server) Handler() http.Handler {
@@ -42,6 +57,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/candidates/", s.handleCandidateDetail)
 	mux.HandleFunc("/api/reports/candidates", s.handleCandidateReports)
 	mux.HandleFunc("/api/reports/wallets", s.handleWalletReports)
+	mux.HandleFunc("/api/exports/generate", s.handleExportGenerate)
+	mux.HandleFunc("/api/exports/files", s.handleExportFiles)
+	mux.HandleFunc("/api/exports/download", s.handleExportDownload)
 	mux.HandleFunc("/api/transactions", s.handleTransactions)
 	mux.HandleFunc("/api/runs", s.handleRuns)
 	mux.HandleFunc("/api/wallet-sync", s.handleWalletSync)
@@ -436,6 +454,139 @@ func (s *Server) handleWalletReports(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	writePaged(w, items, total, page, pageSize)
+}
+
+func (s *Server) handleExportGenerate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		methodNotAllowed(w)
+		return
+	}
+	if s.exportSource == nil {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "export generation is not configured"})
+		return
+	}
+	runID, ok := parseRunID(w, r)
+	if !ok {
+		return
+	}
+	outDir := filepath.Join(s.exportRoot, fmt.Sprintf("run_%d", runID))
+	filter := storage.ExportFilter{RunID: &runID}
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	res, err := exportspkg.ExportDataset(ctx, s.exportSource, exportspkg.ExportOptions{
+		OutDir: outDir,
+		Filter: filter,
+	})
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	type fileItem struct {
+		Name        string `json:"name"`
+		RowCount    int    `json:"rowCount"`
+		SHA256      string `json:"sha256"`
+		DownloadURL string `json:"downloadUrl"`
+	}
+	files := make([]fileItem, 0, len(res.Manifest.Files))
+	for _, f := range res.Manifest.Files {
+		files = append(files, fileItem{
+			Name:        f.Name,
+			RowCount:    f.RowCount,
+			SHA256:      f.SHA256,
+			DownloadURL: fmt.Sprintf("/api/exports/download?run_id=%d&file=%s", runID, f.Name),
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"runId":         runID,
+		"outDir":        outDir,
+		"schemaVersion": res.Manifest.SchemaVersion,
+		"generatedAt":   res.Manifest.GeneratedAt,
+		"files":         files,
+	})
+}
+
+func (s *Server) handleExportFiles(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		methodNotAllowed(w)
+		return
+	}
+	runID, ok := parseRunID(w, r)
+	if !ok {
+		return
+	}
+	outDir := filepath.Join(s.exportRoot, fmt.Sprintf("run_%d", runID))
+	entries, err := os.ReadDir(outDir)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			writeJSON(w, http.StatusOK, map[string]any{
+				"runId": runID,
+				"files": []any{},
+			})
+			return
+		}
+		writeError(w, err)
+		return
+	}
+	type fileItem struct {
+		Name        string `json:"name"`
+		SizeBytes   int64  `json:"sizeBytes"`
+		ModifiedAt  string `json:"modifiedAt"`
+		DownloadURL string `json:"downloadUrl"`
+	}
+	files := make([]fileItem, 0, len(entries))
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		info, infoErr := e.Info()
+		if infoErr != nil {
+			continue
+		}
+		files = append(files, fileItem{
+			Name:        name,
+			SizeBytes:   info.Size(),
+			ModifiedAt:  info.ModTime().UTC().Format(time.RFC3339),
+			DownloadURL: fmt.Sprintf("/api/exports/download?run_id=%d&file=%s", runID, name),
+		})
+	}
+	sort.Slice(files, func(i, j int) bool { return files[i].Name < files[j].Name })
+	writeJSON(w, http.StatusOK, map[string]any{
+		"runId": runID,
+		"files": files,
+	})
+}
+
+func (s *Server) handleExportDownload(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		methodNotAllowed(w)
+		return
+	}
+	runID, ok := parseRunID(w, r)
+	if !ok {
+		return
+	}
+	name := strings.TrimSpace(r.URL.Query().Get("file"))
+	if name == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "file is required"})
+		return
+	}
+	base := filepath.Base(name)
+	if base != name {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid file"})
+		return
+	}
+	path := filepath.Join(s.exportRoot, fmt.Sprintf("run_%d", runID), base)
+	if _, err := os.Stat(path); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "file not found"})
+			return
+		}
+		writeError(w, err)
+		return
+	}
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", base))
+	http.ServeFile(w, r, path)
 }
 
 func parseRunID(w http.ResponseWriter, r *http.Request) (int64, bool) {

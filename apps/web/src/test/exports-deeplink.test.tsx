@@ -26,6 +26,12 @@ describe("exports deep-link", () => {
           pageSize: 25,
         }), { status: 200 });
       }
+      if (url.includes("/api/exports/files")) {
+        return new Response(JSON.stringify({ runId: 77, files: [] }), { status: 200 });
+      }
+      if (url.includes("/api/exports/generate")) {
+        return new Response(JSON.stringify({ runId: 77, outDir: "artifacts/web_exports/run_77", schemaVersion: "phase5-v1", generatedAt: "2026-05-02T10:00:00Z", files: [] }), { status: 200 });
+      }
       return new Response(JSON.stringify({ items: [], total: 0, page: 1, pageSize: 25 }), { status: 200 });
     }) as unknown as typeof fetch);
   });
