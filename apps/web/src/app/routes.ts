@@ -9,6 +9,7 @@ import Runs from "./pages/app/Runs";
 import WalletSync from "./pages/app/WalletSync";
 import Counterparties from "./pages/app/Counterparties";
 import Exports from "./pages/app/Exports";
+import WalletReports from "./pages/app/WalletReports";
 import Settings from "./pages/app/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -31,6 +32,7 @@ export const routes = [
       { path: "runs", Component: Runs },
       { path: "wallet-sync", Component: WalletSync },
       { path: "counterparties", Component: Counterparties },
+      { path: "reports/wallets", Component: WalletReports },
       { path: "exports", Component: Exports },
       { path: "settings", Component: Settings },
     ],
