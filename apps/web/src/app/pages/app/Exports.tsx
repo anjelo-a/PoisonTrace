@@ -53,6 +53,7 @@ export default function Exports() {
                 <th className="px-4 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Block Time</th>
                 <th className="px-4 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Suspicious</th>
                 <th className="px-4 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Legit</th>
+                <th className="px-4 py-3 text-right text-xs font-mono uppercase tracking-widest text-muted-foreground">Detail</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -60,16 +61,27 @@ export default function Exports() {
                 <tr key={`${item.walletSyncRunId}-${item.signature}-${item.transferIndex}`} className="hover:bg-muted/30">
                   <td className="px-4 py-3 text-sm font-mono">{shortAddress(item.focalWallet, 6, 4)}</td>
                   <td className="px-4 py-3 text-sm font-mono">
-                    <Link className="hover:underline" to={`/app/candidates?wallet_sync_run_id=${item.walletSyncRunId}&signature=${encodeURIComponent(item.signature)}&transfer_index=${item.transferIndex}`}>
+                    <Link
+                      className="hover:underline"
+                      to={`/app/candidates?wallet_sync_run_id=${item.walletSyncRunId}&signature=${encodeURIComponent(item.signature)}&transfer_index=${item.transferIndex}`}
+                    >
                       {shortAddress(item.signature, 8, 8)}
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">{formatDateTime(item.blockTime)}</td>
                   <td className="px-4 py-3 text-sm font-mono">{shortAddress(item.suspiciousCounterparty, 6, 4)}</td>
                   <td className="px-4 py-3 text-sm font-mono text-destructive-foreground">{shortAddress(item.matchedLegitCounterparty, 6, 4)}</td>
+                  <td className="px-4 py-3 text-right text-xs">
+                    <Link
+                      className="text-muted-foreground hover:text-foreground hover:underline"
+                      to={`/app/candidates?wallet_sync_run_id=${item.walletSyncRunId}&signature=${encodeURIComponent(item.signature)}&transfer_index=${item.transferIndex}`}
+                    >
+                      Open Detail
+                    </Link>
+                  </td>
                 </tr>
               ))}
-              {(data?.items?.length ?? 0) === 0 ? <tr><td className="px-4 py-4 text-sm text-muted-foreground" colSpan={5}>No rows for selected run.</td></tr> : null}
+              {(data?.items?.length ?? 0) === 0 ? <tr><td className="px-4 py-4 text-sm text-muted-foreground" colSpan={6}>No rows for selected run.</td></tr> : null}
             </tbody>
           </table>
         </div>
