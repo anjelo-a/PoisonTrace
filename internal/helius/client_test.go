@@ -73,7 +73,7 @@ func TestNewHTTPClientAcceptsValidHTTPSBaseURL(t *testing.T) {
 	}
 }
 
-func TestFetchEnhancedPageUsesHeaderAuthNotQueryParam(t *testing.T) {
+func TestFetchEnhancedPageUsesQueryAndHeaderAuth(t *testing.T) {
 	t.Parallel()
 
 	const apiKey = "pt_test_secret_key"
@@ -82,8 +82,8 @@ func TestFetchEnhancedPageUsesHeaderAuthNotQueryParam(t *testing.T) {
 		t.Fatalf("new client: %v", err)
 	}
 	client.httpClient.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if got := req.URL.Query().Get("api-key"); got != "" {
-			t.Fatalf("expected api-key query param to be empty, got %q", got)
+		if got := req.URL.Query().Get("api-key"); got != apiKey {
+			t.Fatalf("expected api-key query param to be set")
 		}
 		if got := req.Header.Get("X-API-Key"); got != apiKey {
 			t.Fatalf("expected X-API-Key header to be set")

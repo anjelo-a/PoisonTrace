@@ -62,8 +62,9 @@ FROM wallet_sync_runs
 WHERE ingestion_run_id = ${run_id}
   AND baseline_complete = TRUE
   AND (
-    status IN ('partial', 'timeout', 'failed', 'canceled')
-    OR COALESCE(NULLIF(BTRIM(truncation_reason), ''), '') <> ''
+    status IN ('timeout', 'failed', 'canceled')
+    OR COALESCE(NULLIF(BTRIM(truncation_reason), ''), '') LIKE '%baseline_truncation:%'
+    OR COALESCE(NULLIF(BTRIM(unknown_gate_reason), ''), '') LIKE '%baseline_truncation:%'
   );
 "
 
