@@ -36,7 +36,7 @@ export_cmd "$a"
 echo "[repro] export B"
 export_cmd "$b"
 
-files=(ingestion_runs.jsonl wallet_sync_runs.jsonl poisoning_candidates.jsonl manifest.json)
+files=(ingestion_runs.jsonl wallet_sync_runs.jsonl poisoning_candidates.jsonl candidate_explanations.jsonl candidate_explanations.csv wallet_inspection_summary.csv report_manifest.json)
 report="$base/repro_check.txt"
 : > "$report"
 

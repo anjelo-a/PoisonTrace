@@ -293,7 +293,7 @@ func exportDatasetCmd(cfg config.Config, args []string) {
 	for _, file := range result.Manifest.Files {
 		fmt.Printf("exported %s rows=%d sha256=%s\n", file.Name, file.RowCount, file.SHA256)
 	}
-	fmt.Printf("manifest: %s/manifest.json\n", strings.TrimRight(*outDir, "/"))
+	fmt.Printf("manifest: %s/report_manifest.json\n", strings.TrimRight(*outDir, "/"))
 }
 
 func printUsage() {

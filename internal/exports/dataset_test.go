@@ -18,6 +18,8 @@ type stubSource struct {
 	ingestion []storage.IngestionRunExportRecord
 	wallets   []storage.WalletSyncRunExportRecord
 	cand      []storage.PoisoningCandidateExportRecord
+	expl      []storage.CandidateExplanationExportRecord
+	walletSum []storage.WalletInspectionSummaryExportRecord
 }
 
 func (s *stubSource) ListIngestionRunsForExport(context.Context, storage.ExportFilter) ([]storage.IngestionRunExportRecord, error) {
@@ -30,6 +32,12 @@ func (s *stubSource) ListWalletSyncRunsForExport(context.Context, storage.Export
 
 func (s *stubSource) ListPoisoningCandidatesForExport(context.Context, storage.ExportFilter) ([]storage.PoisoningCandidateExportRecord, error) {
 	return append([]storage.PoisoningCandidateExportRecord{}, s.cand...), nil
+}
+func (s *stubSource) ListCandidateExplanationsForExport(context.Context, storage.ExportFilter) ([]storage.CandidateExplanationExportRecord, error) {
+	return append([]storage.CandidateExplanationExportRecord{}, s.expl...), nil
+}
+func (s *stubSource) ListWalletInspectionSummaryForExport(context.Context, storage.ExportFilter) ([]storage.WalletInspectionSummaryExportRecord, error) {
+	return append([]storage.WalletInspectionSummaryExportRecord{}, s.walletSum...), nil
 }
 
 func TestExportDatasetDeterministicAcrossInputOrder(t *testing.T) {
@@ -63,7 +71,7 @@ func TestExportDatasetDeterministicAcrossInputOrder(t *testing.T) {
 		t.Fatalf("export 2: %v", err)
 	}
 
-	files := []string{"ingestion_runs.jsonl", "wallet_sync_runs.jsonl", "poisoning_candidates.jsonl", "manifest.json"}
+	files := []string{"ingestion_runs.jsonl", "wallet_sync_runs.jsonl", "poisoning_candidates.jsonl", "candidate_explanations.jsonl", "candidate_explanations.csv", "wallet_inspection_summary.csv", "report_manifest.json"}
 	for _, name := range files {
 		left, err := os.ReadFile(filepath.Join(out1, name))
 		if err != nil {
