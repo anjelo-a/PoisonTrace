@@ -489,3 +489,127 @@ items := make([]map[string]any, 0, len(rows))
 - No TypeScript decorators.
 - No TS `enum` keyword (string unions used instead).
 - No ORM layer; direct SQL is the persistence mechanism.
+
+## Go Deep-Dive (Requested)
+
+### Goroutines
+Definition: Lightweight concurrent functions managed by the Go runtime.
+
+Where:
+- `internal/pipeline/orchestrator.go` (parallel wallet execution)
+- `cmd/scanner/main.go` (background HTTP server start)
+
+Snippet:
+```go
+go func() {
+	defer wg.Done()
+	...
+	report, runErr := o.runWallet(walletCtx, addr, p)
+	outcomeCh <- walletOutcome{address: addr, report: report, err: runErr}
+}()
+```
+
+### Channels
+Definition: Typed conduits for communication/synchronization between goroutines.
+
+Where:
+- `internal/pipeline/orchestrator.go` (`sem`, `outcomeCh`)
+- `cmd/scanner/main.go` (`serverErr` channel)
+
+Snippet:
+```go
+sem := make(chan struct{}, o.cfg.MaxConcurrentWallets)
+outcomeCh := make(chan walletOutcome, len(walletList))
+```
+
+### Interfaces (implicit implementation)
+Definition: A type satisfies an interface by implementing its methods; no `implements` keyword.
+
+Where:
+- `internal/helius/client.go` (`Client` interface, `HTTPClient` method)
+- `internal/storage/repository.go` + `internal/storage/postgres_repository.go`
+
+Snippet:
+```go
+type Client interface {
+	FetchEnhancedPage(ctx context.Context, walletAddress string, before string) (EnhancedPage, error)
+}
+
+func (c *HTTPClient) FetchEnhancedPage(ctx context.Context, walletAddress string, before string) (EnhancedPage, error) {
+	...
+}
+```
+
+### Structs
+Definition: Composite data types grouping fields.
+
+Where:
+- `internal/config/config.go` (`Config`)
+- `internal/pipeline/orchestrator.go` (`Orchestrator`, `WalletRunReport`)
+
+Snippet:
+```go
+type Config struct {
+	DatabaseURL              string
+	HeliusAPIKey             string
+	...
+	MinInjectionCount        int
+}
+```
+
+### Pointers
+Definition: Variables holding memory addresses; used for optional fields, mutation, and method receivers.
+
+Where:
+- Optional values: `*time.Time`, `*int` in storage/contracts types
+- Receivers: `func (s *Server) ...`, `func (c *HTTPClient) ...`
+- Pointer dereference use in counterparty timestamp updates
+
+Snippet:
+```go
+if cp.FirstInboundAt == nil || event.OccurredAt.Before(*cp.FirstInboundAt) {
+	t := event.OccurredAt
+	cp.FirstInboundAt = &t
+}
+```
+
+### Error handling patterns
+Definition: Explicit error returns and propagation, often with wrapping/context.
+
+Where:
+- Widespread `%w` wrapping (`fmt.Errorf`)
+- Classification with `errors.Is` / `errors.As`
+
+Snippet:
+```go
+if err != nil {
+	return FetchWindowResult{}, fmt.Errorf("helius client is required")
+}
+...
+if errors.As(err, &statusErr) {
+	return statusErr.StatusCode == http.StatusTooManyRequests || statusErr.StatusCode >= 500
+}
+```
+
+### `defer`
+Definition: Schedules a function call to run when current function returns.
+
+Where:
+- DB/file/network cleanup and cancellation across codebase.
+
+Snippet:
+```go
+ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+defer cancel()
+...
+defer resp.Body.Close()
+```
+
+### `panic` / `recover`
+Definition: `panic` aborts normal flow; `recover` can intercept panic in deferred functions.
+
+Where in this codebase:
+- No production use of `panic` or `recover` found in scanner/API/pipeline paths.
+
+Interpretation:
+- Project follows explicit error-return style (fail-safe/idempotent pipeline goals), avoiding panic-driven control flow.
