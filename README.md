@@ -2,6 +2,13 @@
 
 Scanner-first Solana wallet poisoning injection detection pipeline.
 
+## For internship reviewers
+- Start here: [`REVIEWER.md`](REVIEWER.md)
+- What this shows:
+  - Backend engineering: bounded ingestion pipeline, strict normalization, fail-closed gates, deterministic persistence.
+  - Frontend engineering: React/TypeScript dashboard for run visibility, candidate review, and operational workflows.
+  - Engineering quality: idempotent reruns, fixture/corpus validation, and explicit handling of partial/unknown states.
+
 ## Phase 0–3 implementation status
 - Scanner CLI with bounded wallet execution, timeout handling, and wallet-level failure isolation.
 - Helius Enhanced Transaction ingestion for Solana baseline + scan windows.
