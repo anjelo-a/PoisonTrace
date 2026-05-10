@@ -3,9 +3,9 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"os"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -172,6 +172,47 @@ func TestWalletSyncAPI_UsesRunIDAndReasonAsIs(t *testing.T) {
 	}
 	if body.Items[0].UnknownGateReason != "baseline_truncated" {
 		t.Fatalf("expected preserved unknownGateReason, got %q", body.Items[0].UnknownGateReason)
+	}
+}
+
+func TestOpsWalletSyncAPI_MirrorsWalletSyncPayload(t *testing.T) {
+	now := time.Date(2026, 5, 2, 10, 0, 0, 0, time.UTC)
+	repo := fakeRepo{walletSync: []storage.WalletSyncListRecord{
+		{
+			WalletSyncRunID:     1,
+			IngestionRunID:      9,
+			FocalWallet:         "wallet",
+			Status:              "partial",
+			BaselineStartAt:     now,
+			BaselineEndAt:       now,
+			ScanStartAt:         now,
+			ScanEndAt:           now,
+			BaselineComplete:    false,
+			IncompleteWindow:    true,
+			UnknownGateReason:   "unknown_required_gates:zero_or_dust",
+			TransactionsFetched: 10,
+			TruncationReason:    "timeout",
+			UpdatedAt:           now,
+		},
+	}}
+
+	s := NewServer(repo, config.Config{})
+	req := httptest.NewRequest(http.MethodGet, "/api/ops/wallet-sync", nil)
+	res := httptest.NewRecorder()
+	s.Handler().ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", res.Code)
+	}
+	var body struct {
+		Items []struct {
+			RunID int64 `json:"runId"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(res.Body.Bytes(), &body); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if len(body.Items) != 1 || body.Items[0].RunID != 9 {
+		t.Fatalf("unexpected ops wallet sync payload: %+v", body.Items)
 	}
 }
 

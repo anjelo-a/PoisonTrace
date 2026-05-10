@@ -9,13 +9,15 @@ Scanner-first Solana wallet poisoning injection detection pipeline.
   - Frontend engineering: React/TypeScript dashboard for run visibility, candidate review, and operational workflows.
   - Engineering quality: idempotent reruns, fixture/corpus validation, and explicit handling of partial/unknown states.
 
-## Phase 0–3 implementation status
+## Phase 0–6 implementation status
 - Scanner CLI with bounded wallet execution, timeout handling, and wallet-level failure isolation.
 - Helius Enhanced Transaction ingestion for Solana baseline + scan windows.
 - Owner-level normalization for native SOL and SPL fungible transfers, with unresolved/unsupported gating.
 - Persisted poisoning-candidate materialization with strict fail-closed gate enforcement.
 - Deterministic/idempotent persistence with fixture replay tests and CI policy checks.
 - Phase 3 validation/tuning closeout with strict corpus checklist evidence in `docs/phase3_closeout.md`.
+- Phase 4 execution closeout with reproducible bounded-run evidence in `docs/phase4_closeout.md`.
+- Phase 6 operational hardening closeout in `docs/phase6_closeout.md`.
 
 ## Quick start
 1. Copy `.env.example` to `.env` and set real values.

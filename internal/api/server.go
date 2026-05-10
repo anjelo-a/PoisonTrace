@@ -93,6 +93,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/exports/files", s.handleExportFiles)
 	mux.HandleFunc("/api/exports/download", s.handleExportDownload)
 	mux.HandleFunc("/api/ops/runs", s.handleOpsRuns)
+	mux.HandleFunc("/api/ops/wallet-sync", s.handleOpsWalletSync)
 	mux.HandleFunc("/api/ops/failures", s.handleOpsFailures)
 	mux.HandleFunc("/api/transactions", s.handleTransactions)
 	mux.HandleFunc("/api/runs", s.handleRuns)
@@ -810,6 +811,10 @@ func (s *Server) handleOpsRuns(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	writePaged(w, items, total, page, pageSize)
+}
+
+func (s *Server) handleOpsWalletSync(w http.ResponseWriter, r *http.Request) {
+	s.handleWalletSync(w, r)
 }
 
 func (s *Server) handleOpsFailures(w http.ResponseWriter, r *http.Request) {

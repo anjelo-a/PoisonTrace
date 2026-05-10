@@ -17,7 +17,7 @@ import (
 	"poisontrace/internal/storage"
 )
 
-const schemaVersion = "phase5-v1"
+const schemaVersion = "phase6-v1"
 
 type DatasetSource interface {
 	ListIngestionRunsForExport(ctx context.Context, filter storage.ExportFilter) ([]storage.IngestionRunExportRecord, error)
@@ -107,6 +107,8 @@ func ExportDataset(ctx context.Context, source DatasetSource, opts ExportOptions
 		{name: "candidate_explanations.jsonl", rows: len(candidateExplanations)},
 		{name: "candidate_explanations.csv", rows: len(candidateExplanations)},
 		{name: "wallet_inspection_summary.csv", rows: len(walletSummaries)},
+		{name: "operational_health_runs.jsonl", rows: len(ingestionRuns)},
+		{name: "operational_health_wallet_sync.csv", rows: len(walletSyncRuns)},
 	}
 
 	artifacts[0].payload, err = encodeJSONL(ingestionRuns)
@@ -132,6 +134,14 @@ func ExportDataset(ctx context.Context, source DatasetSource, opts ExportOptions
 	artifacts[5].payload, err = encodeWalletInspectionSummaryCSV(walletSummaries)
 	if err != nil {
 		return ExportResult{}, fmt.Errorf("encode wallet inspection summary csv: %w", err)
+	}
+	artifacts[6].payload, err = encodeJSONL(buildOperationalHealthRuns(ingestionRuns))
+	if err != nil {
+		return ExportResult{}, fmt.Errorf("encode operational health runs: %w", err)
+	}
+	artifacts[7].payload, err = encodeOperationalHealthWalletSyncCSV(walletSyncRuns)
+	if err != nil {
+		return ExportResult{}, fmt.Errorf("encode operational health wallet sync csv: %w", err)
 	}
 
 	manifest := Manifest{
@@ -284,6 +294,117 @@ func encodeJSONL[T any](rows []T) ([]byte, error) {
 		buf = append(buf, '\n')
 	}
 	return buf, nil
+}
+
+type operationalHealthRunRow struct {
+	IngestionRunID       int64  `json:"ingestion_run_id"`
+	Status               string `json:"status"`
+	FailureClass         string `json:"failure_class"`
+	RetryExhaustedCount  int    `json:"retry_exhausted_count"`
+	WalletsRequested     int    `json:"wallets_requested"`
+	WalletsProcessed     int    `json:"wallets_processed"`
+	WalletsFailed        int    `json:"wallets_failed"`
+	WalletsSkipped       int    `json:"wallets_skipped"`
+	TruncationWalletRate string `json:"truncation_wallet_rate"`
+}
+
+func buildOperationalHealthRuns(rows []storage.IngestionRunExportRecord) []operationalHealthRunRow {
+	out := make([]operationalHealthRunRow, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, operationalHealthRunRow{
+			IngestionRunID:       row.ID,
+			Status:               row.Status,
+			FailureClass:         classifyRunFailure(row.Status),
+			RetryExhaustedCount:  row.RetryExhaustedCount,
+			WalletsRequested:     row.WalletsRequested,
+			WalletsProcessed:     row.WalletsProcessed,
+			WalletsFailed:        row.WalletsFailed,
+			WalletsSkipped:       row.WalletsSkipped,
+			TruncationWalletRate: row.TruncationWalletRate,
+		})
+	}
+	return out
+}
+
+func classifyRunFailure(status string) string {
+	switch status {
+	case "timed_out":
+		return "timeout"
+	case "cancelled":
+		return "canceled"
+	case "failed":
+		return "upstream_error"
+	case "partially_succeeded":
+		return "partial"
+	case "succeeded":
+		return "none"
+	default:
+		return "other"
+	}
+}
+
+func classifyWalletFailure(status, unknownGateReason, errorCode string) string {
+	switch {
+	case status == "timed_out":
+		return "timeout"
+	case status == "cancelled":
+		return "canceled"
+	case strings.Contains(unknownGateReason, "retry_exhausted"):
+		return "retry_exhausted"
+	case strings.HasPrefix(errorCode, "lock_"):
+		return "lock_conflict"
+	case strings.TrimSpace(errorCode) != "":
+		return "persistence_error"
+	case strings.Contains(unknownGateReason, "unknown_required_gates:"):
+		return "unknown_required_gate"
+	case status == "failed":
+		return "upstream_error"
+	case status == "partial":
+		return "partial"
+	case status == "succeeded":
+		return "none"
+	default:
+		return "other"
+	}
+}
+
+func encodeOperationalHealthWalletSyncCSV(rows []storage.WalletSyncRunExportRecord) ([]byte, error) {
+	var b bytes.Buffer
+	w := csv.NewWriter(&b)
+	header := []string{
+		"ingestion_run_id", "wallet_sync_run_id", "focal_wallet", "status", "failure_class", "baseline_complete",
+		"incomplete_window", "unknown_gate_reason", "truncation_reason", "error_code", "transactions_fetched",
+		"transactions_inserted", "transactions_linked", "transactions_failed_to_normalize",
+	}
+	if err := w.Write(header); err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		out := []string{
+			fmt.Sprintf("%d", row.IngestionRunID),
+			fmt.Sprintf("%d", row.WalletSyncRunID),
+			row.FocalWallet,
+			row.Status,
+			classifyWalletFailure(row.Status, row.UnknownGateReason, row.ErrorCode),
+			fmt.Sprintf("%t", row.BaselineComplete),
+			fmt.Sprintf("%t", row.IncompleteWindow),
+			row.UnknownGateReason,
+			row.TruncationReason,
+			row.ErrorCode,
+			fmt.Sprintf("%d", row.TransactionsFetched),
+			fmt.Sprintf("%d", row.TransactionsInserted),
+			fmt.Sprintf("%d", row.TransactionsLinked),
+			fmt.Sprintf("%d", row.TransactionsFailedNormalize),
+		}
+		if err := w.Write(out); err != nil {
+			return nil, err
+		}
+	}
+	w.Flush()
+	if err := w.Error(); err != nil {
+		return nil, err
+	}
+	return b.Bytes(), nil
 }
 
 func deriveGeneratedAt(runs []storage.IngestionRunExportRecord) string {
