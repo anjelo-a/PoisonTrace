@@ -67,20 +67,23 @@ type IngestionRunListRecord struct {
 }
 
 type WalletSyncListRecord struct {
-	WalletSyncRunID     int64
-	IngestionRunID      int64
-	FocalWallet         string
-	Status              string
-	BaselineStartAt     time.Time
-	BaselineEndAt       time.Time
-	ScanStartAt         time.Time
-	ScanEndAt           time.Time
-	BaselineComplete    bool
-	IncompleteWindow    bool
-	UnknownGateReason   string
-	TransactionsFetched int
-	TruncationReason    string
-	UpdatedAt           time.Time
+	WalletSyncRunID       int64
+	IngestionRunID        int64
+	FocalWallet           string
+	Status                string
+	BaselineStartAt       time.Time
+	BaselineEndAt         time.Time
+	ScanStartAt           time.Time
+	ScanEndAt             time.Time
+	BaselineComplete      bool
+	IncompleteWindow      bool
+	UnknownGateReason     string
+	TransactionsFetched   int
+	UnsupportedAssetCount int
+	UnknownGateBlockCount int
+	CandidateBlockCount   int
+	TruncationReason      string
+	UpdatedAt             time.Time
 }
 
 type CounterpartyListRecord struct {
@@ -433,6 +436,9 @@ SELECT wsr.id,
        wsr.incomplete_window,
        COALESCE(wsr.unknown_gate_reason, ''),
        wsr.transactions_fetched,
+       wsr.unsupported_asset_count,
+       wsr.unknown_gate_block_count,
+       wsr.candidate_block_count,
        COALESCE(wsr.truncation_reason, ''),
        COALESCE(wsr.completed_at, wsr.started_at)
 FROM wallet_sync_runs wsr
@@ -461,6 +467,9 @@ LIMIT $1 OFFSET $2`
 			&rec.IncompleteWindow,
 			&rec.UnknownGateReason,
 			&rec.TransactionsFetched,
+			&rec.UnsupportedAssetCount,
+			&rec.UnknownGateBlockCount,
+			&rec.CandidateBlockCount,
 			&rec.TruncationReason,
 			&rec.UpdatedAt,
 		); err != nil {

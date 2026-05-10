@@ -49,6 +49,8 @@ type CandidateMaterializationResult struct {
 	Candidates        []PoisoningCandidate
 	IncompleteWindow  bool
 	UnknownGateReason string
+	UnknownGateBlocks int
+	CandidateBlocks   int
 }
 
 func MaterializeCandidates(baseline []WalletTransferObservation, scan []WalletTransferObservation, p CandidateMaterializeParams) CandidateMaterializationResult {
@@ -89,8 +91,10 @@ func MaterializeCandidates(baseline []WalletTransferObservation, scan []WalletTr
 		if decision.IncompleteWindow {
 			res.IncompleteWindow = true
 			addUnknownGates(unknownGates, decision.UnknownGateReason)
+			res.UnknownGateBlocks++
 		}
 		if !decision.CanEmit {
+			res.CandidateBlocks++
 			continue
 		}
 

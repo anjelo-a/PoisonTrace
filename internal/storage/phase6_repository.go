@@ -38,16 +38,21 @@ type ExportJobRecord struct {
 }
 
 type OpsRunHealthRecord struct {
-	RunID                int64
-	Status               string
-	StartedAt            time.Time
-	CompletedAt          *time.Time
-	WalletsRequested     int
-	WalletsProcessed     int
-	WalletsFailed        int
-	WalletsSkipped       int
-	TruncationWalletRate string
-	RetryExhaustedCount  int
+	RunID                 int64
+	Status                string
+	StartedAt             time.Time
+	CompletedAt           *time.Time
+	WalletsRequested      int
+	WalletsProcessed      int
+	WalletsFailed         int
+	WalletsSkipped        int
+	TruncationWalletRate  string
+	RetryExhaustedCount   int
+	WalletTimeoutCount    int
+	WalletCapHitCount     int
+	UnsupportedAssetCount int
+	UnknownGateBlockCount int
+	CandidateBlockCount   int
 }
 
 type FailureClassCountRecord struct {
@@ -239,7 +244,7 @@ func (s *PostgresStore) ListOpsRunHealth(ctx context.Context, limit int, offset 
 		return nil, 0, fmt.Errorf("count ops runs: %w", err)
 	}
 	const q = `
-SELECT id, status, started_at, completed_at, wallets_requested, wallets_processed, wallets_failed, wallets_skipped, truncation_wallet_rate::TEXT, retry_exhausted_count
+SELECT id, status, started_at, completed_at, wallets_requested, wallets_processed, wallets_failed, wallets_skipped, truncation_wallet_rate::TEXT, retry_exhausted_count, wallet_timeout_count, wallet_cap_hit_count, unsupported_asset_count, unknown_gate_block_count, candidate_block_count
 FROM ingestion_runs
 ORDER BY id DESC
 LIMIT $1 OFFSET $2`
@@ -251,7 +256,7 @@ LIMIT $1 OFFSET $2`
 	out := make([]OpsRunHealthRecord, 0)
 	for rows.Next() {
 		var rec OpsRunHealthRecord
-		if err := rows.Scan(&rec.RunID, &rec.Status, &rec.StartedAt, &rec.CompletedAt, &rec.WalletsRequested, &rec.WalletsProcessed, &rec.WalletsFailed, &rec.WalletsSkipped, &rec.TruncationWalletRate, &rec.RetryExhaustedCount); err != nil {
+		if err := rows.Scan(&rec.RunID, &rec.Status, &rec.StartedAt, &rec.CompletedAt, &rec.WalletsRequested, &rec.WalletsProcessed, &rec.WalletsFailed, &rec.WalletsSkipped, &rec.TruncationWalletRate, &rec.RetryExhaustedCount, &rec.WalletTimeoutCount, &rec.WalletCapHitCount, &rec.UnsupportedAssetCount, &rec.UnknownGateBlockCount, &rec.CandidateBlockCount); err != nil {
 			return nil, 0, fmt.Errorf("scan ops run row: %w", err)
 		}
 		out = append(out, rec)

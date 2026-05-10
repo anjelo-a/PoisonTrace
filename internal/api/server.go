@@ -302,20 +302,23 @@ func (s *Server) handleWalletSync(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		items = append(items, map[string]any{
-			"walletSyncRunId":     rec.WalletSyncRunID,
-			"runId":               rec.IngestionRunID,
-			"focalWallet":         rec.FocalWallet,
-			"status":              rec.Status,
-			"baselineStartAt":     rec.BaselineStartAt.UTC().Format(time.RFC3339),
-			"baselineEndAt":       rec.BaselineEndAt.UTC().Format(time.RFC3339),
-			"scanStartAt":         rec.ScanStartAt.UTC().Format(time.RFC3339),
-			"scanEndAt":           rec.ScanEndAt.UTC().Format(time.RFC3339),
-			"baselineComplete":    rec.BaselineComplete,
-			"incompleteWindow":    rec.IncompleteWindow,
-			"unknownGateReason":   rec.UnknownGateReason,
-			"transactionsFetched": rec.TransactionsFetched,
-			"truncationReason":    rec.TruncationReason,
-			"updatedAt":           rec.UpdatedAt.UTC().Format(time.RFC3339),
+			"walletSyncRunId":       rec.WalletSyncRunID,
+			"runId":                 rec.IngestionRunID,
+			"focalWallet":           rec.FocalWallet,
+			"status":                rec.Status,
+			"baselineStartAt":       rec.BaselineStartAt.UTC().Format(time.RFC3339),
+			"baselineEndAt":         rec.BaselineEndAt.UTC().Format(time.RFC3339),
+			"scanStartAt":           rec.ScanStartAt.UTC().Format(time.RFC3339),
+			"scanEndAt":             rec.ScanEndAt.UTC().Format(time.RFC3339),
+			"baselineComplete":      rec.BaselineComplete,
+			"incompleteWindow":      rec.IncompleteWindow,
+			"unknownGateReason":     rec.UnknownGateReason,
+			"transactionsFetched":   rec.TransactionsFetched,
+			"unsupportedAssetCount": rec.UnsupportedAssetCount,
+			"unknownGateBlockCount": rec.UnknownGateBlockCount,
+			"candidateBlockCount":   rec.CandidateBlockCount,
+			"truncationReason":      rec.TruncationReason,
+			"updatedAt":             rec.UpdatedAt.UTC().Format(time.RFC3339),
 		})
 	}
 	writePaged(w, items, total, page, pageSize)
@@ -798,16 +801,21 @@ func (s *Server) handleOpsRuns(w http.ResponseWriter, r *http.Request) {
 			completed = rec.CompletedAt.UTC().Format(time.RFC3339)
 		}
 		items = append(items, map[string]any{
-			"runId":                rec.RunID,
-			"status":               rec.Status,
-			"startedAt":            rec.StartedAt.UTC().Format(time.RFC3339),
-			"completedAt":          completed,
-			"walletsRequested":     rec.WalletsRequested,
-			"walletsProcessed":     rec.WalletsProcessed,
-			"walletsFailed":        rec.WalletsFailed,
-			"walletsSkipped":       rec.WalletsSkipped,
-			"truncationWalletRate": rec.TruncationWalletRate,
-			"retryExhaustedCount":  rec.RetryExhaustedCount,
+			"runId":                 rec.RunID,
+			"status":                rec.Status,
+			"startedAt":             rec.StartedAt.UTC().Format(time.RFC3339),
+			"completedAt":           completed,
+			"walletsRequested":      rec.WalletsRequested,
+			"walletsProcessed":      rec.WalletsProcessed,
+			"walletsFailed":         rec.WalletsFailed,
+			"walletsSkipped":        rec.WalletsSkipped,
+			"truncationWalletRate":  rec.TruncationWalletRate,
+			"retryExhaustedCount":   rec.RetryExhaustedCount,
+			"walletTimeoutCount":    rec.WalletTimeoutCount,
+			"walletCapHitCount":     rec.WalletCapHitCount,
+			"unsupportedAssetCount": rec.UnsupportedAssetCount,
+			"unknownGateBlockCount": rec.UnknownGateBlockCount,
+			"candidateBlockCount":   rec.CandidateBlockCount,
 		})
 	}
 	writePaged(w, items, total, page, pageSize)
