@@ -171,11 +171,20 @@ func (o *Orchestrator) Run(ctx context.Context, p RunParams) error {
 		total.TransactionsLinked += outcome.report.Counters.TransactionsLinked
 		total.TransactionsFailedNormalize += outcome.report.Counters.TransactionsFailedNormalize
 		total.OwnerUnresolvedCount += outcome.report.Counters.OwnerUnresolvedCount
+		total.UnsupportedAssetCount += outcome.report.Counters.UnsupportedAssetCount
 		total.DecimalsUnresolvedCount += outcome.report.Counters.DecimalsUnresolvedCount
+		total.UnknownGateBlockCount += outcome.report.Counters.UnknownGateBlockCount
+		total.CandidateBlockCount += outcome.report.Counters.CandidateBlockCount
 		total.CounterpartiesCreated += outcome.report.Counters.CounterpartiesCreated
 		total.CounterpartiesUpdated += outcome.report.Counters.CounterpartiesUpdated
 		total.PoisoningCandidatesInserted += outcome.report.Counters.PoisoningCandidatesInserted
 		total.RetryExhaustedCount += outcome.report.Counters.RetryExhaustedCount
+		if outcome.report.WalletStatus == runs.WalletStatusTimedOut {
+			total.WalletTimeoutCount++
+		}
+		if strings.Contains(outcome.report.TruncationReason, "max_pages_cap") || strings.Contains(outcome.report.TruncationReason, "max_tx_cap") {
+			total.WalletCapHitCount++
+		}
 
 		switch {
 		case outcome.err == nil:

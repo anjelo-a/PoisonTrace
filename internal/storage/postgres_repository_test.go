@@ -56,11 +56,16 @@ func TestFinalizeIngestionRunReturnsNotFoundOnZeroRows(t *testing.T) {
 			counters.TransactionsLinked,
 			counters.TransactionsFailedNormalize,
 			counters.OwnerUnresolvedCount,
+			counters.UnsupportedAssetCount,
 			counters.DecimalsUnresolvedCount,
+			counters.UnknownGateBlockCount,
+			counters.CandidateBlockCount,
 			counters.CounterpartiesCreated,
 			counters.CounterpartiesUpdated,
 			counters.PoisoningCandidatesInserted,
 			counters.RetryExhaustedCount,
+			counters.WalletTimeoutCount,
+			counters.WalletCapHitCount,
 			nil,
 		).
 		WillReturnResult(sqlmock.NewResult(0, 0))
@@ -104,6 +109,9 @@ func TestUpdateWalletSyncProgressClearsUnknownGateReasonWhenComplete(t *testing.
 			progress.TransactionsFailedNormalize,
 			progress.CounterpartiesCreated,
 			progress.CounterpartiesUpdated,
+			progress.UnsupportedAssetCount,
+			progress.UnknownGateBlockCount,
+			progress.CandidateBlockCount,
 			progress.PoisoningCandidatesInserted,
 		).
 		WillReturnResult(sqlmock.NewResult(0, 1))

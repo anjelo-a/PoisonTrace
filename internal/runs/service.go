@@ -7,6 +7,8 @@ type Counters struct {
 	WalletsProcessed            int
 	WalletsFailed               int
 	WalletsSkipped              int
+	WalletTimeoutCount          int
+	WalletCapHitCount           int
 	TruncationWalletCount       int
 	TruncationWalletRate        float64
 	TransactionsFetched         int
@@ -14,7 +16,10 @@ type Counters struct {
 	TransactionsLinked          int
 	TransactionsFailedNormalize int
 	OwnerUnresolvedCount        int
+	UnsupportedAssetCount       int
 	DecimalsUnresolvedCount     int
+	UnknownGateBlockCount       int
+	CandidateBlockCount         int
 	CounterpartiesCreated       int
 	CounterpartiesUpdated       int
 	PoisoningCandidatesInserted int

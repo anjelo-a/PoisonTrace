@@ -152,7 +152,10 @@ func (r *WalletExecutionRunner) RunWallet(ctx context.Context, walletAddress str
 	report.Counters.TransactionsFetched = coreRes.TransactionsFetched
 	report.Counters.TransactionsFailedNormalize = coreRes.TransactionsFailedNormalize
 	report.Counters.OwnerUnresolvedCount = coreRes.OwnerUnresolvedCount
+	report.Counters.UnsupportedAssetCount = coreRes.UnsupportedAssetCount
 	report.Counters.DecimalsUnresolvedCount = coreRes.DecimalsUnresolvedCount
+	report.Counters.UnknownGateBlockCount = coreRes.UnknownGateBlockCount
+	report.Counters.CandidateBlockCount = coreRes.CandidateBlockCount
 	if coreRes.RetryExhausted {
 		report.Counters.RetryExhaustedCount = 1
 	}
@@ -252,6 +255,9 @@ func (r *WalletExecutionRunner) RunWallet(ctx context.Context, walletAddress str
 		TransactionsFailedNormalize: coreRes.TransactionsFailedNormalize,
 		CounterpartiesCreated:       report.Counters.CounterpartiesCreated,
 		CounterpartiesUpdated:       report.Counters.CounterpartiesUpdated,
+		UnsupportedAssetCount:       coreRes.UnsupportedAssetCount,
+		UnknownGateBlockCount:       coreRes.UnknownGateBlockCount,
+		CandidateBlockCount:         coreRes.CandidateBlockCount,
 		PoisoningCandidatesInserted: insertedCandidates,
 	}
 	if progress.TruncationReason != "" {
