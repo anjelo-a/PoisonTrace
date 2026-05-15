@@ -48,8 +48,8 @@ export default function Overview() {
             <div>Recency</div>
           </div>
           <div className="divide-y divide-border">
-            {candidates.map((candidate) => (
-              <Link key={`${candidate.signature}-${candidate.transferIndex}`} to="/app/candidates" className="grid grid-cols-[1fr_auto_auto_auto] gap-6 px-6 py-5 hover:bg-muted/30 transition-colors border-l-2 border-l-destructive-foreground">
+            {candidates.map((candidate, index) => (
+              <Link key={`${candidate.signature}-${candidate.transferIndex}-${index}`} to="/app/candidates" className="grid grid-cols-[1fr_auto_auto_auto] gap-6 px-6 py-5 hover:bg-muted/30 transition-colors border-l-2 border-l-destructive-foreground">
                 <div className="font-mono text-sm">{shortAddress(candidate.signature, 6, 6)} <span className="text-muted-foreground text-xs ml-2">{timeAgo(candidate.blockTime)}</span></div>
                 <div className="font-mono text-sm">{shortAddress(candidate.suspiciousCounterparty, 6, 4)}</div>
                 <div className="text-sm font-mono">{candidate.repeatInjectionCount}</div>
