@@ -103,7 +103,7 @@ export default function Candidates() {
             </thead>
             <tbody className="divide-y divide-border">
               {filtered.map((candidate) => (
-                <tr key={`${candidate.signature}-${candidate.transferIndex}`} onClick={() => {
+                <tr key={`${candidate.walletSyncRunId}-${candidate.signature}-${candidate.transferIndex}`} onClick={() => {
                   setSelected(candidate);
                   const next = new URLSearchParams(params);
                   next.set("wallet_sync_run_id", String(candidate.walletSyncRunId));

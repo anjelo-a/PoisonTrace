@@ -52,7 +52,7 @@ func main() {
 		}
 		exportDatasetCmd(cfg, os.Args[2:])
 	case "serve-api":
-		cfg, err := config.LoadFromEnv()
+		cfg, err := config.LoadReadOnlyAPIFromEnv()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "config error: %v\n", err)
 			os.Exit(1)

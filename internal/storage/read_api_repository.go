@@ -177,10 +177,14 @@ SELECT
   (SELECT COALESCE(COUNT(*), 0)
    FROM transactions t
    JOIN wallet_transactions wt ON wt.transaction_id = t.id
-   JOIN wallet_sync_runs wsr ON wsr.wallet_id = wt.wallet_id
-   WHERE wsr.scan_end_at >= $1
-     AND t.normalization_status = 'resolved'
-     AND t.poisoning_eligible = TRUE) AS passed_transactions,
+   WHERE t.normalization_status = 'resolved'
+     AND t.poisoning_eligible = TRUE
+     AND EXISTS (
+       SELECT 1
+       FROM wallet_sync_runs wsr
+       WHERE wsr.wallet_id = wt.wallet_id
+         AND wsr.scan_end_at >= $1
+     )) AS passed_transactions,
   (SELECT MAX(COALESCE(wsr.completed_at, wsr.started_at))
    FROM wallet_sync_runs wsr) AS last_scan_update_at`
 
