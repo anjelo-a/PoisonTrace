@@ -34,8 +34,8 @@ export default function Transactions() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {items.map((tx) => (
-              <tr key={`${tx.signature}-${tx.transferIndex}-${tx.relationType}`} className={`hover:bg-muted/30 transition-colors ${tx.dustStatus === "dust" ? "border-l-2 border-l-destructive-foreground" : ""}`}>
+            {items.map((tx, index) => (
+              <tr key={`${tx.signature}-${tx.transferIndex}-${tx.relationType}-${index}`} className={`hover:bg-muted/30 transition-colors ${tx.dustStatus === "dust" ? "border-l-2 border-l-destructive-foreground" : ""}`}>
                 <td className="px-8 py-5 font-mono text-sm">{shortAddress(tx.signature, 6, 6)}</td>
                 <td className="px-8 py-5 text-sm text-muted-foreground">{timeAgo(tx.blockTime)}</td>
                 <td className="px-8 py-5">{tx.normalizationStatus === "resolved" ? <div className="flex items-center gap-2"><CheckCircle className="w-4 h-4 text-muted-foreground" /><span className="text-sm">Resolved</span></div> : <div className="flex items-center gap-2"><XCircle className="w-4 h-4 text-muted-foreground" /><span className="text-sm text-destructive-foreground">{tx.normalizationStatus}</span></div>}</td>
