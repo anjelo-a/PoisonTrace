@@ -20,6 +20,9 @@ type WalletSyncProgress struct {
 	TransactionsFailedNormalize int
 	CounterpartiesCreated       int
 	CounterpartiesUpdated       int
+	UnsupportedAssetCount       int
+	UnknownGateBlockCount       int
+	CandidateBlockCount         int
 	PoisoningCandidatesInserted int
 }
 

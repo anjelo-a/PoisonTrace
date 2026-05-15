@@ -4,12 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"poisontrace/internal/api"
@@ -49,7 +52,7 @@ func main() {
 		}
 		exportDatasetCmd(cfg, os.Args[2:])
 	case "serve-api":
-		cfg, err := config.LoadFromEnv()
+		cfg, err := config.LoadReadOnlyAPIFromEnv()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "config error: %v\n", err)
 			os.Exit(1)
@@ -58,35 +61,6 @@ func main() {
 	default:
 		printUsage()
 		os.Exit(2)
-	}
-}
-
-func serveAPICmd(cfg config.Config, args []string) {
-	fs := flag.NewFlagSet("serve-api", flag.ExitOnError)
-	addr := fs.String("addr", ":8080", "HTTP bind address")
-	_ = fs.Parse(args)
-
-	db, err := sql.Open("postgres", cfg.DatabaseURL)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "database connection error: %v\n", err)
-		os.Exit(1)
-	}
-	defer db.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	store := storage.NewPostgresStore(db)
-	if err := store.Ping(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "database ping error: %v\n", err)
-		os.Exit(1)
-	}
-
-	srv := api.NewServer(store, cfg)
-	log.Printf("api server listening on %s", *addr)
-	if err := http.ListenAndServe(*addr, srv.Handler()); err != nil {
-		fmt.Fprintf(os.Stderr, "api server failed: %v\n", err)
-		os.Exit(1)
 	}
 }
 
@@ -319,7 +293,7 @@ func exportDatasetCmd(cfg config.Config, args []string) {
 	for _, file := range result.Manifest.Files {
 		fmt.Printf("exported %s rows=%d sha256=%s\n", file.Name, file.RowCount, file.SHA256)
 	}
-	fmt.Printf("manifest: %s/manifest.json\n", strings.TrimRight(*outDir, "/"))
+	fmt.Printf("manifest: %s/report_manifest.json\n", strings.TrimRight(*outDir, "/"))
 }
 
 func printUsage() {
@@ -329,5 +303,63 @@ Usage:
   scanner run --wallets <path> --scan-start <RFC3339> --scan-end <RFC3339> [--baseline-lookback-days N]
   scanner replay-fixture --fixture <case_id> [--fixtures-root data/fixtures] [--write-expected]
   scanner validate-corpus [--fixtures-root data/fixtures] [--report-out path] [--strict-miss-reason]
-  scanner export-dataset --out-dir <dir> [--run-id N | --started-at-from <RFC3339> --started-at-to <RFC3339>]`)
+  scanner export-dataset --out-dir <dir> [--run-id N | --started-at-from <RFC3339> --started-at-to <RFC3339>]
+  scanner serve-api [--addr :8080]`)
+}
+
+func serveAPICmd(cfg config.Config, args []string) {
+	fs := flag.NewFlagSet("serve-api", flag.ExitOnError)
+	addr := fs.String("addr", ":8080", "HTTP bind address")
+	_ = fs.Parse(args)
+
+	db, err := sql.Open("postgres", cfg.DatabaseURL)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "database connection error: %v\n", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	store := storage.NewPostgresStore(db)
+	if err := store.Ping(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "database ping error: %v\n", err)
+		os.Exit(1)
+	}
+
+	srv := api.NewServer(store, cfg)
+	log.Printf("api server listening on %s", *addr)
+
+	httpServer := &http.Server{
+		Addr:              *addr,
+		Handler:           srv.Handler(),
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- httpServer.ListenAndServe()
+	}()
+
+	sigCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	select {
+	case <-sigCtx.Done():
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer shutdownCancel()
+		if err := httpServer.Shutdown(shutdownCtx); err != nil {
+			fmt.Fprintf(os.Stderr, "api server shutdown failed: %v\n", err)
+			os.Exit(1)
+		}
+	case err := <-serverErr:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			fmt.Fprintf(os.Stderr, "api server failed: %v\n", err)
+			os.Exit(1)
+		}
+	}
 }
