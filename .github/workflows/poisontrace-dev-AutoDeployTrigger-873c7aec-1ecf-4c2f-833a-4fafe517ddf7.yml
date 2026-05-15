@@ -1,27 +1,24 @@
 name: Trigger auto deployment for poisontrace-dev
 
-# When this action will be executed
 on:
-  # Automatically trigger it when detected changes in repo
   push:
-    branches: 
-      [ main ]
+    branches:
+      - main
     paths:
-    - '**'
-    - '.github/workflows/poisontrace-dev-AutoDeployTrigger-873c7aec-1ecf-4c2f-833a-4fafe517ddf7.yml'
-
-  # Allow manual trigger 
-  workflow_dispatch:      
+      - "**"
+      - ".github/workflows/poisontrace-dev-AutoDeployTrigger-873c7aec-1ecf-4c2f-833a-4fafe517ddf7.yml"
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    permissions: 
-      id-token: write #This is required for requesting the OIDC JWT Token
-      contents: read #Required when GH token is used to authenticate with private repo
+    if: ${{ secrets.POISONTRACEDEV_AZURE_CLIENT_ID != '' && secrets.POISONTRACEDEV_AZURE_TENANT_ID != '' && secrets.POISONTRACEDEV_AZURE_SUBSCRIPTION_ID != '' && secrets.POISONTRACEDEV_REGISTRY_URL != '' && secrets.POISONTRACEDEV_REGISTRY_USERNAME != '' && secrets.POISONTRACEDEV_REGISTRY_PASSWORD != '' }}
+    permissions:
+      id-token: write
+      contents: read
 
     steps:
-      - name: Checkout to the branch
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Azure Login
@@ -41,5 +38,4 @@ jobs:
           registryPassword: ${{ secrets.POISONTRACEDEV_REGISTRY_PASSWORD }}
           containerAppName: poisontrace-dev
           resourceGroup: rg-poisontrace-p0p1-dev-sea
-
-
+          imageToBuild: ${{ secrets.POISONTRACEDEV_REGISTRY_URL }}/poisontrace-dev:${{ github.sha }}
