@@ -98,6 +98,37 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* Scam Primer */}
+      <section className="border-y border-border py-20 bg-muted/20">
+        <div className="max-w-5xl mx-auto px-8">
+          <h2 className="text-2xl mb-6 tracking-tight">New to Wallet Poisoning?</h2>
+          <p className="text-muted-foreground leading-relaxed max-w-3xl mb-10">
+            Wallet poisoning is a scam where attackers send tiny transfers from lookalike addresses so those addresses
+            appear in your recent history. The goal is simple: trick you into copying the scammer address later.
+          </p>
+          <div className="grid gap-6 md:grid-cols-3">
+            <div className="border border-border p-6 bg-background">
+              <h3 className="mb-3">How It Starts</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                A tiny or zero-value inbound transfer arrives from an unfamiliar address that visually resembles one you trust.
+              </p>
+            </div>
+            <div className="border border-border p-6 bg-background">
+              <h3 className="mb-3">How People Get Tricked</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Later, while rushing a real transfer, they copy from transaction history and paste the lookalike address.
+              </p>
+            </div>
+            <div className="border border-border p-6 bg-background">
+              <h3 className="mb-3">Why It Works</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Addresses are long and hard to compare quickly, so small character differences are easy to miss.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* How It Works */}
       <section className="border-y border-border py-20">
         <div className="max-w-5xl mx-auto px-8">
@@ -187,6 +218,31 @@ export default function Landing() {
             <div>
               <div className="text-3xl font-mono tracking-tight mb-2">99.4%</div>
               <div className="text-xs text-muted-foreground uppercase tracking-widest">Pass Rate</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Safety Checklist */}
+      <section className="py-20">
+        <div className="max-w-5xl mx-auto px-8">
+          <h2 className="text-2xl mb-6 tracking-tight">Quick Safety Checklist</h2>
+          <div className="border border-border divide-y divide-border">
+            <div className="p-6 text-sm">
+              <span className="font-mono text-muted-foreground mr-3">01</span>
+              Never trust addresses copied from recent history alone.
+            </div>
+            <div className="p-6 text-sm">
+              <span className="font-mono text-muted-foreground mr-3">02</span>
+              Verify full destination addresses against saved contacts or a trusted source.
+            </div>
+            <div className="p-6 text-sm">
+              <span className="font-mono text-muted-foreground mr-3">03</span>
+              Treat tiny inbound transfers from new counterparties as potential bait.
+            </div>
+            <div className="p-6 text-sm">
+              <span className="font-mono text-muted-foreground mr-3">04</span>
+              For large transfers, do a small test send first whenever possible.
             </div>
           </div>
         </div>

@@ -44,6 +44,33 @@ export default function Methodology() {
           </p>
         </div>
 
+        {/* Beginner Primer */}
+        <section className="mb-20">
+          <h2 className="text-xl mb-6 tracking-tight">Beginner Primer: What This Scam Is</h2>
+          <div className="border border-border divide-y divide-border">
+            <div className="p-6">
+              <h3 className="mb-2">Wallet Poisoning in Plain English</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Attackers send very small transfers from addresses that look similar to real addresses you've used before.
+                They want their address to show up in your wallet history so you accidentally copy it later.
+              </p>
+            </div>
+            <div className="p-6">
+              <h3 className="mb-2">What the Attacker Needs to Succeed</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                They need only one mistake: you copying the wrong address for a future outbound transfer.
+                The scam often has no warning pop-up because the wrong address can still be syntactically valid.
+              </p>
+            </div>
+            <div className="p-6">
+              <h3 className="mb-2">Why We Focus on "Probable" Signals</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                PoisonTrace detects suspicious patterns, not attacker intent. We show evidence so you can review and decide.
+              </p>
+            </div>
+          </div>
+        </section>
+
         <div className="space-y-20">
           {/* Overview */}
           <section>
