@@ -101,7 +101,7 @@ export default function Landing() {
       {/* Scam Primer */}
       <section className="border-y border-border py-20 bg-muted/20">
         <div className="max-w-5xl mx-auto px-8">
-          <h2 className="text-2xl mb-6 tracking-tight">New to Wallet Poisoning?</h2>
+          <h2 className="text-2xl mb-6 tracking-tight">Wallet Poisoning</h2>
           <p className="text-muted-foreground leading-relaxed max-w-3xl mb-10">
             Wallet poisoning is a copy-and-paste scam. Attackers send tiny transfers from lookalike addresses so those
             addresses appear in your recent activity. Later, they hope you copy the wrong address during a real transfer.
