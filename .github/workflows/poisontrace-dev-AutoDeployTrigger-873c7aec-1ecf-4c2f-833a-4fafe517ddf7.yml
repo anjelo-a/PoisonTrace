@@ -12,16 +12,33 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    if: ${{ secrets.POISONTRACEDEV_AZURE_CLIENT_ID != '' && secrets.POISONTRACEDEV_AZURE_TENANT_ID != '' && secrets.POISONTRACEDEV_AZURE_SUBSCRIPTION_ID != '' && secrets.POISONTRACEDEV_REGISTRY_URL != '' && secrets.POISONTRACEDEV_REGISTRY_USERNAME != '' && secrets.POISONTRACEDEV_REGISTRY_PASSWORD != '' }}
     permissions:
       id-token: write
       contents: read
 
     steps:
+      - name: Preflight required secrets
+        id: preflight
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.POISONTRACEDEV_AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.POISONTRACEDEV_AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.POISONTRACEDEV_AZURE_SUBSCRIPTION_ID }}
+          REGISTRY_URL: ${{ secrets.POISONTRACEDEV_REGISTRY_URL }}
+          REGISTRY_USERNAME: ${{ secrets.POISONTRACEDEV_REGISTRY_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.POISONTRACEDEV_REGISTRY_PASSWORD }}
+        run: |
+          if [ -n "$AZURE_CLIENT_ID" ] && [ -n "$AZURE_TENANT_ID" ] && [ -n "$AZURE_SUBSCRIPTION_ID" ] && [ -n "$REGISTRY_URL" ] && [ -n "$REGISTRY_USERNAME" ] && [ -n "$REGISTRY_PASSWORD" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Missing one or more required deployment secrets; skipping deploy."
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Azure Login
+        if: steps.preflight.outputs.ready == 'true'
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.POISONTRACEDEV_AZURE_CLIENT_ID }}
@@ -29,6 +46,7 @@ jobs:
           subscription-id: ${{ secrets.POISONTRACEDEV_AZURE_SUBSCRIPTION_ID }}
 
       - name: Build and push container image to registry
+        if: steps.preflight.outputs.ready == 'true'
         uses: azure/container-apps-deploy-action@v2
         with:
           appSourcePath: ${{ github.workspace }}
