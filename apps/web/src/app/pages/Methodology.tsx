@@ -71,6 +71,34 @@ export default function Methodology() {
           </div>
         </section>
 
+        {/* Project Boundaries */}
+        <section className="mb-20">
+          <h2 className="text-xl mb-6 tracking-tight">Project Boundaries and Outputs</h2>
+          <div className="border border-border divide-y divide-border">
+            <div className="p-6">
+              <h3 className="mb-2">Data Source and Scope</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Phase 0-1 focuses on Solana only, using Helius Enhanced Transactions as the ingestion source.
+                Runs are bounded by configured limits (time, pages, transaction counts, and concurrency) to keep behavior deterministic.
+              </p>
+            </div>
+            <div className="p-6">
+              <h3 className="mb-2">What a "Candidate" Means</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                A candidate means required gates passed for a probable poisoning pattern inside the current scan window.
+                It is an evidence-backed alert for review, not confirmation of attacker identity or victim attribution.
+              </p>
+            </div>
+            <div className="p-6">
+              <h3 className="mb-2">How We Handle Uncertainty</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                If a required gate is unknown, candidate emission is blocked, the run is marked incomplete for that window,
+                and the unknown-gate reason is persisted for auditability.
+              </p>
+            </div>
+          </div>
+        </section>
+
         <div className="space-y-20">
           {/* Overview */}
           <section>

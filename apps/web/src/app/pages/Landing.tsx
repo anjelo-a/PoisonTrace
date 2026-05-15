@@ -129,6 +129,45 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* Project Primer */}
+      <section className="py-20">
+        <div className="max-w-5xl mx-auto px-8">
+          <h2 className="text-2xl mb-6 tracking-tight">What PoisonTrace Actually Does</h2>
+          <p className="text-muted-foreground leading-relaxed max-w-3xl mb-10">
+            PoisonTrace is a scanner-first Solana analysis project. It does not connect to your wallet, ask for keys,
+            or execute transactions. It ingests bounded on-chain history, applies explicit detection gates, and returns
+            probable poisoning candidates with auditable evidence.
+          </p>
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="border border-border p-6">
+              <h3 className="mb-3">What We Analyze</h3>
+              <ul className="space-y-2 text-sm text-muted-foreground leading-relaxed list-none">
+                <li className="before:content-['—'] before:mr-3 before:text-muted-foreground">Solana transfers in a bounded scan window</li>
+                <li className="before:content-['—'] before:mr-3 before:text-muted-foreground">Lookalike counterparty patterns against baseline history</li>
+                <li className="before:content-['—'] before:mr-3 before:text-muted-foreground">Dust/zero-value inbound behavior and repeat injection events</li>
+                <li className="before:content-['—'] before:mr-3 before:text-muted-foreground">Unknown or incomplete data states that should block emission</li>
+              </ul>
+            </div>
+            <div className="border border-border p-6">
+              <h3 className="mb-3">What You Get</h3>
+              <ul className="space-y-2 text-sm text-muted-foreground leading-relaxed list-none">
+                <li className="before:content-['—'] before:mr-3 before:text-muted-foreground">A candidate list of probable poisoning events for review</li>
+                <li className="before:content-['—'] before:mr-3 before:text-muted-foreground">Gate-by-gate reasoning (pass/fail/unknown) per event</li>
+                <li className="before:content-['—'] before:mr-3 before:text-muted-foreground">Evidence artifacts you can export and audit later</li>
+                <li className="before:content-['—'] before:mr-3 before:text-muted-foreground">Fail-closed behavior when required information is uncertain</li>
+              </ul>
+            </div>
+          </div>
+          <div className="border border-border bg-muted/20 p-6 mt-6">
+            <h3 className="mb-2">What We Do Not Claim</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              A flagged candidate is not a confirmed scam verdict. PoisonTrace highlights suspicious patterns so humans
+              can investigate with context, not black-box risk scores.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* How It Works */}
       <section className="border-y border-border py-20">
         <div className="max-w-5xl mx-auto px-8">
