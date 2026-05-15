@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation } from "react-router-dom";
+import { Outlet, Link, useLocation } from "react-router";
 import {
   LayoutDashboard,
   Flag,
@@ -6,6 +6,7 @@ import {
   Play,
   Wallet,
   Users,
+  FileBarChart2,
   Download,
   Settings
 } from "lucide-react";
@@ -20,6 +21,7 @@ export default function AppLayout() {
     { path: "/app/runs", label: "Runs", icon: Play },
     { path: "/app/wallet-sync", label: "Scan Configuration", icon: Wallet },
     { path: "/app/counterparties", label: "Counterparties", icon: Users },
+    { path: "/app/reports/wallets", label: "Wallet Reports", icon: FileBarChart2 },
     { path: "/app/exports", label: "Exports", icon: Download },
     { path: "/app/settings", label: "Settings", icon: Settings },
   ];
@@ -76,7 +78,7 @@ export default function AppLayout() {
       </aside>
 
       {/* Mobile Bottom Nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t border-border bg-background grid grid-cols-4 gap-1 p-2">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t border-border bg-background grid grid-cols-6 gap-1 p-2">
         <Link
           to="/app"
           className={`flex flex-col items-center gap-1 p-2 text-xs transition-colors ${
@@ -114,6 +116,24 @@ export default function AppLayout() {
         >
           <Settings className="w-5 h-5" />
           Settings
+        </Link>
+        <Link
+          to="/app/counterparties"
+          className={`flex flex-col items-center gap-1 p-2 text-xs transition-colors ${
+            isActive("/app/counterparties") ? "text-foreground" : "text-muted-foreground"
+          }`}
+        >
+          <Users className="w-5 h-5" />
+          Cparty
+        </Link>
+        <Link
+          to="/app/exports"
+          className={`flex flex-col items-center gap-1 p-2 text-xs transition-colors ${
+            isActive("/app/exports") ? "text-foreground" : "text-muted-foreground"
+          }`}
+        >
+          <Download className="w-5 h-5" />
+          Exports
         </Link>
       </nav>
 

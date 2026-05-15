@@ -42,12 +42,17 @@ SET status = $2,
     transactions_linked = $12,
     transactions_failed_to_normalize = $13,
     owner_unresolved_count = $14,
-    decimals_unresolved_count = $15,
-    counterparties_created = $16,
-    counterparties_updated = $17,
-    poisoning_candidates_inserted = $18,
-    retry_exhausted_count = $19,
-    notes = $20
+    unsupported_asset_count = $15,
+    decimals_unresolved_count = $16,
+    unknown_gate_block_count = $17,
+    candidate_block_count = $18,
+    counterparties_created = $19,
+    counterparties_updated = $20,
+    poisoning_candidates_inserted = $21,
+    retry_exhausted_count = $22,
+    wallet_timeout_count = $23,
+    wallet_cap_hit_count = $24,
+    notes = $25
 WHERE id = $1`
 	res, err := s.DB.ExecContext(
 		ctx,
@@ -66,11 +71,16 @@ WHERE id = $1`
 		counters.TransactionsLinked,
 		counters.TransactionsFailedNormalize,
 		counters.OwnerUnresolvedCount,
+		counters.UnsupportedAssetCount,
 		counters.DecimalsUnresolvedCount,
+		counters.UnknownGateBlockCount,
+		counters.CandidateBlockCount,
 		counters.CounterpartiesCreated,
 		counters.CounterpartiesUpdated,
 		counters.PoisoningCandidatesInserted,
 		counters.RetryExhaustedCount,
+		counters.WalletTimeoutCount,
+		counters.WalletCapHitCount,
 		nullableText(notes),
 	)
 	if err != nil {
@@ -131,7 +141,10 @@ SET baseline_complete = $2,
     transactions_failed_to_normalize = $9,
     counterparties_created = $10,
     counterparties_updated = $11,
-    poisoning_candidates_inserted = $12
+    unsupported_asset_count = $12,
+    unknown_gate_block_count = $13,
+    candidate_block_count = $14,
+    poisoning_candidates_inserted = $15
 WHERE id = $1`
 
 	reason := nullableText(progress.UnknownGateReason)
@@ -157,6 +170,9 @@ WHERE id = $1`
 		progress.TransactionsFailedNormalize,
 		progress.CounterpartiesCreated,
 		progress.CounterpartiesUpdated,
+		progress.UnsupportedAssetCount,
+		progress.UnknownGateBlockCount,
+		progress.CandidateBlockCount,
 		progress.PoisoningCandidatesInserted,
 	)
 	if err != nil {

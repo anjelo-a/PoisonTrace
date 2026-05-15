@@ -45,7 +45,10 @@ type CoreSyncResult struct {
 	TransactionsFetched         int
 	TransactionsFailedNormalize int
 	OwnerUnresolvedCount        int
+	UnsupportedAssetCount       int
 	DecimalsUnresolvedCount     int
+	UnknownGateBlockCount       int
+	CandidateBlockCount         int
 	RetryExhausted              bool
 }
 
@@ -129,7 +132,10 @@ func RunWalletCoreSync(ctx context.Context, client helius.Client, p CoreSyncPara
 		TransactionsFetched:         baselineNormalized.FetchedTx + scanNormalized.FetchedTx,
 		TransactionsFailedNormalize: baselineNormalized.FailedNormalize + scanNormalized.FailedNormalize,
 		OwnerUnresolvedCount:        baselineNormalized.OwnerUnresolved + scanNormalized.OwnerUnresolved,
+		UnsupportedAssetCount:       baselineNormalized.UnsupportedAsset + scanNormalized.UnsupportedAsset,
 		DecimalsUnresolvedCount:     baselineNormalized.DecimalsUnresolved + scanNormalized.DecimalsUnresolved,
+		UnknownGateBlockCount:       materialized.UnknownGateBlocks,
+		CandidateBlockCount:         materialized.CandidateBlocks,
 		RetryExhausted:              baselineFetch.RetryExhausted || scanFetch.RetryExhausted,
 	}, nil
 }
@@ -140,6 +146,7 @@ type normalizeWindowResult struct {
 	FetchedTx          int
 	FailedNormalize    int
 	OwnerUnresolved    int
+	UnsupportedAsset   int
 	DecimalsUnresolved int
 }
 
@@ -164,6 +171,9 @@ func normalizeWindow(focalWallet string, txs []helius.EnhancedTransaction, class
 			}
 			if tr.NormalizationStatus == transactions.NormalizationUnresolvedOwner {
 				out.OwnerUnresolved++
+			}
+			if tr.NormalizationStatus == transactions.NormalizationUnsupportedAsset {
+				out.UnsupportedAsset++
 			}
 			if tr.AssetType == transactions.AssetTypeSPLFungible && tr.Decimals == nil {
 				out.DecimalsUnresolved++

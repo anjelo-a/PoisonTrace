@@ -1,6 +1,21 @@
-export type RunStatus = "running" | "completed" | "failed" | "partial";
+export type RunStatus =
+  | "running"
+  | "succeeded"
+  | "partially_succeeded"
+  | "failed"
+  | "timed_out"
+  | "cancelled";
 
-export type WalletSyncStatus = "running" | "completed" | "failed" | "partial";
+export type WalletSyncStatus =
+  | "queued"
+  | "running"
+  | "succeeded"
+  | "partial"
+  | "failed"
+  | "rate_limited"
+  | "timed_out"
+  | "skipped_invalid"
+  | "skipped_budget";
 
 export type NormalizationStatus =
   | "resolved"
@@ -46,6 +61,19 @@ export interface IngestionRunSummary {
   truncationReason: string | null;
 }
 
+export interface IngestionRunListItem {
+  runId: number;
+  status: RunStatus;
+  startedAt: string;
+  completedAt: string | null;
+  walletsProcessed: number;
+  walletsFailed: number;
+  walletsSkipped: number;
+  incompleteWindows: number;
+  truncationWalletRate: string;
+  unknownGatePresent: boolean;
+}
+
 export interface WalletSyncRunSummary {
   walletSyncRunId: number;
   runId: number;
@@ -60,6 +88,23 @@ export interface WalletSyncRunSummary {
   unknownGateReason: UnknownGateReason | null;
   truncationReason: string | null;
   poisoningCandidatesInserted: number;
+}
+
+export interface WalletSyncRunListItem {
+  walletSyncRunId: number;
+  runId: number;
+  focalWallet: string;
+  status: WalletSyncStatus;
+  baselineStartAt: string;
+  baselineEndAt: string;
+  scanStartAt: string;
+  scanEndAt: string;
+  baselineComplete: boolean;
+  incompleteWindow: boolean;
+  unknownGateReason: UnknownGateReason | null;
+  transactionsFetched: number;
+  truncationReason: string | null;
+  updatedAt: string;
 }
 
 export interface CandidateRecord {
@@ -79,6 +124,18 @@ export interface CandidateRecord {
   unknownGateReason: UnknownGateReason | null;
 }
 
+export interface CandidateListItem {
+  walletSyncRunId: number;
+  focalWallet: string;
+  signature: string;
+  transferIndex: number;
+  blockTime: string;
+  suspiciousCounterparty: string;
+  matchedLegitCounterparty: string;
+  repeatInjectionCount: number;
+  recencyDays: number;
+}
+
 export interface TransactionRecord {
   signature: string;
   transferIndex: number;
@@ -93,6 +150,20 @@ export interface TransactionRecord {
   toTokenAccount: string | null;
   amountRaw: string;
   isDust: boolean | null;
+  dustStatus?: string;
+}
+
+export interface TransactionListItem {
+  focalWallet: string;
+  signature: string;
+  transferIndex: number;
+  blockTime: string;
+  normalizationStatus: NormalizationStatus;
+  poisoningEligible: boolean;
+  relationType: RelationType;
+  dustStatus: string;
+  amountRaw: string;
+  assetType: "native_sol" | "spl_fungible" | "unsupported";
 }
 
 export interface CounterpartyRecord {
@@ -106,6 +177,85 @@ export interface CounterpartyRecord {
   outboundCount: number;
   isNewCounterparty: boolean | null;
   baselineComplete: boolean;
+  candidateLinks?: number;
+}
+
+export interface CounterpartyListItem {
+  focalWallet: string;
+  counterpartyAddress: string;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  inboundCount: number;
+  outboundCount: number;
+  lastOutboundAt: string | null;
+  candidateLinks: number;
+}
+
+export interface CandidateExplanation {
+  walletSyncRunId: number;
+  runId: number;
+  focalWallet: string;
+  signature: string;
+  transferIndex: number;
+  blockTime: string;
+  suspiciousCounterparty: string;
+  matchedLegitCounterparty: string;
+  relationType: RelationType;
+  assetType: "native_sol" | "spl_fungible" | "unsupported";
+  normalizationStatus: NormalizationStatus;
+  poisoningEligible: boolean;
+  sourceOwner: string;
+  destinationOwner: string;
+  fromTokenAccount: string;
+  toTokenAccount: string;
+  tokenMint: string;
+  amountRaw: string;
+  dustStatus: string;
+  isDust: boolean;
+  isZeroValue: boolean;
+  isInbound: boolean;
+  isNewCounterparty: boolean;
+  recencyDays: number;
+  repeatInjectionCount: number;
+  lookalikePrefixMatch: number;
+  lookalikeSuffixMatch: number;
+  matchRuleVersion: string;
+  legitLastSeenAt: string;
+  baselineComplete: boolean;
+  incompleteWindow: boolean;
+  unknownGateReason: UnknownGateReason | "";
+  scanStartAt: string;
+  scanEndAt: string;
+  baselineStartAt: string;
+  baselineEndAt: string;
+  sourceReferences: {
+    walletSyncRunId: number;
+    runId: number;
+    transactionId: number;
+    walletTransactionId: number;
+    counterpartyId: number;
+  };
+}
+
+export interface WalletInspectionSummary {
+  runId: number;
+  walletSyncRunId: number;
+  focalWallet: string;
+  candidateCount: number;
+  unknownGateBlockCount: number;
+  incompleteWindow: boolean;
+  unknownGateReason: UnknownGateReason | "";
+  truncationReason: string;
+  baselineComplete: boolean;
+  scanStartAt: string;
+  scanEndAt: string;
+  baselineStartAt: string;
+  baselineEndAt: string;
+  transactionsFetched: number;
+  sourceReferences: {
+    walletSyncRunId: number;
+    runId: number;
+  };
 }
 
 export interface ExportManifestFile {

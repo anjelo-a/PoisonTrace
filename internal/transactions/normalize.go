@@ -3,6 +3,7 @@ package transactions
 import (
 	"fmt"
 	"strings"
+	"unicode"
 
 	"poisontrace/internal/helius"
 )
@@ -60,6 +61,7 @@ func NormalizeEnhancedTx(tx helius.EnhancedTransaction) ([]NormalizedTransfer, e
 		reason := ""
 		eligible := true
 		assetType := AssetTypeSPLFungible
+		amountRaw, amountOK := sanitizeRawAmount(tt.TokenAmount.Amount)
 
 		if tt.TokenStandard != "Fungible" && tt.TokenStandard != "fungible" && tt.TokenStandard != "FUNGIBLE" {
 			status = NormalizationUnsupportedAsset
@@ -67,6 +69,11 @@ func NormalizeEnhancedTx(tx helius.EnhancedTransaction) ([]NormalizedTransfer, e
 			eligible = false
 			assetType = AssetTypeOther
 		} else {
+			if !amountOK {
+				status = NormalizationFailed
+				reason = "malformed_spl_amount"
+				eligible = false
+			}
 			// SPL poisoning logic requires owner-level endpoints. Ambiguous owner/token-account forms fail closed.
 			if src == "" || dst == "" {
 				status = NormalizationUnresolvedOwner
@@ -103,14 +110,14 @@ func NormalizeEnhancedTx(tx helius.EnhancedTransaction) ([]NormalizedTransfer, e
 		tr := NormalizedTransfer{
 			Signature:               tx.Signature,
 			TransferIndex:           idx,
-			TransferFingerprint:     BuildTransferFingerprint(tx.Signature, instructionRef, src, dst, tt.Mint, tt.TokenAmount.Amount, assetType),
+			TransferFingerprint:     BuildTransferFingerprint(tx.Signature, instructionRef, src, dst, tt.Mint, amountRaw, assetType),
 			Slot:                    tx.Slot,
 			BlockTime:               tx.BlockTimeUTC(),
 			SourceOwnerAddress:      src,
 			DestinationOwnerAddress: dst,
 			SourceTokenAccount:      tt.FromTokenAccount,
 			DestinationTokenAccount: tt.ToTokenAccount,
-			AmountRaw:               tt.TokenAmount.Amount,
+			AmountRaw:               amountRaw,
 			TokenMint:               tt.Mint,
 			AssetType:               assetType,
 			AssetKey:                tt.Mint,
@@ -126,4 +133,17 @@ func NormalizeEnhancedTx(tx helius.EnhancedTransaction) ([]NormalizedTransfer, e
 	}
 
 	return out, nil
+}
+
+func sanitizeRawAmount(v string) (string, bool) {
+	value := strings.TrimSpace(v)
+	if value == "" {
+		return "0", false
+	}
+	for _, r := range value {
+		if !unicode.IsDigit(r) {
+			return "0", false
+		}
+	}
+	return value, true
 }

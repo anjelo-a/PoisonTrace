@@ -18,6 +18,8 @@ type stubSource struct {
 	ingestion []storage.IngestionRunExportRecord
 	wallets   []storage.WalletSyncRunExportRecord
 	cand      []storage.PoisoningCandidateExportRecord
+	expl      []storage.CandidateExplanationExportRecord
+	walletSum []storage.WalletInspectionSummaryExportRecord
 }
 
 func (s *stubSource) ListIngestionRunsForExport(context.Context, storage.ExportFilter) ([]storage.IngestionRunExportRecord, error) {
@@ -30,6 +32,12 @@ func (s *stubSource) ListWalletSyncRunsForExport(context.Context, storage.Export
 
 func (s *stubSource) ListPoisoningCandidatesForExport(context.Context, storage.ExportFilter) ([]storage.PoisoningCandidateExportRecord, error) {
 	return append([]storage.PoisoningCandidateExportRecord{}, s.cand...), nil
+}
+func (s *stubSource) ListCandidateExplanationsForExport(context.Context, storage.ExportFilter) ([]storage.CandidateExplanationExportRecord, error) {
+	return append([]storage.CandidateExplanationExportRecord{}, s.expl...), nil
+}
+func (s *stubSource) ListWalletInspectionSummaryForExport(context.Context, storage.ExportFilter) ([]storage.WalletInspectionSummaryExportRecord, error) {
+	return append([]storage.WalletInspectionSummaryExportRecord{}, s.walletSum...), nil
 }
 
 func TestExportDatasetDeterministicAcrossInputOrder(t *testing.T) {
@@ -63,7 +71,17 @@ func TestExportDatasetDeterministicAcrossInputOrder(t *testing.T) {
 		t.Fatalf("export 2: %v", err)
 	}
 
-	files := []string{"ingestion_runs.jsonl", "wallet_sync_runs.jsonl", "poisoning_candidates.jsonl", "manifest.json"}
+	files := []string{
+		"ingestion_runs.jsonl",
+		"wallet_sync_runs.jsonl",
+		"poisoning_candidates.jsonl",
+		"candidate_explanations.jsonl",
+		"candidate_explanations.csv",
+		"wallet_inspection_summary.csv",
+		"operational_health_runs.jsonl",
+		"operational_health_wallet_sync.csv",
+		"report_manifest.json",
+	}
 	for _, name := range files {
 		left, err := os.ReadFile(filepath.Join(out1, name))
 		if err != nil {
@@ -139,5 +157,54 @@ func TestExportDatasetPreservesIncompleteWindowSignals(t *testing.T) {
 	}
 	if row.UnknownGateReason == "" || row.TruncationReason == "" {
 		t.Fatalf("expected unknown/truncation reason to be preserved, got %+v", row)
+	}
+}
+
+func TestExportDatasetOperationalHealthArtifacts(t *testing.T) {
+	runID := int64(500)
+	out := t.TempDir()
+	_, err := ExportDataset(context.Background(), &stubSource{
+		ingestion: []storage.IngestionRunExportRecord{{
+			ID:                   500,
+			Status:               "partially_succeeded",
+			StartedAt:            time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
+			RetryExhaustedCount:  2,
+			WalletsRequested:     3,
+			WalletsProcessed:     3,
+			WalletsFailed:        1,
+			WalletsSkipped:       0,
+			TruncationWalletRate: "0.33333333",
+		}},
+		wallets: []storage.WalletSyncRunExportRecord{{
+			WalletSyncRunID:             77,
+			IngestionRunID:              500,
+			FocalWallet:                 "WalletHealth",
+			Status:                      "partial",
+			IncompleteWindow:            true,
+			UnknownGateReason:           "unknown_required_gates:retry_exhausted",
+			TransactionsFetched:         10,
+			TransactionsInserted:        8,
+			TransactionsLinked:          8,
+			TransactionsFailedNormalize: 1,
+		}},
+	}, ExportOptions{OutDir: out, Filter: storage.ExportFilter{RunID: &runID}})
+	if err != nil {
+		t.Fatalf("export dataset: %v", err)
+	}
+
+	runsRaw, err := os.ReadFile(filepath.Join(out, "operational_health_runs.jsonl"))
+	if err != nil {
+		t.Fatalf("read operational_health_runs.jsonl: %v", err)
+	}
+	if !strings.Contains(string(runsRaw), "\"failure_class\":\"partial\"") {
+		t.Fatalf("expected run failure_class=partial in operational health jsonl, got: %s", string(runsRaw))
+	}
+
+	walletRaw, err := os.ReadFile(filepath.Join(out, "operational_health_wallet_sync.csv"))
+	if err != nil {
+		t.Fatalf("read operational_health_wallet_sync.csv: %v", err)
+	}
+	if !strings.Contains(string(walletRaw), "retry_exhausted") {
+		t.Fatalf("expected retry_exhausted classification in operational health wallet csv, got: %s", string(walletRaw))
 	}
 }

@@ -1,164 +1,84 @@
-import { Shield, Filter, Download } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Shield, Timer, Search, Database } from "lucide-react";
+import { apiClient } from "../../lib/apiClient";
 
 export default function Settings() {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => apiClient.getSettings(),
+  });
+
   return (
     <div className="p-8 max-w-5xl">
       <div className="mb-12">
         <h1 className="text-2xl mb-2 tracking-tight">Settings</h1>
-        <p className="text-muted-foreground text-sm">Configure detection rules, filters, and export preferences</p>
+        <p className="text-muted-foreground text-sm">Read-only backend configuration from `GET /api/settings`</p>
       </div>
 
-      {/* Detection Rules */}
+      {isLoading ? <div className="mb-8 text-sm text-muted-foreground">Loading backend settings...</div> : null}
+      {error ? <div className="mb-8 text-sm text-destructive-foreground">Failed to load settings: {(error as Error).message}</div> : null}
+
+      <div className="mb-8 border border-border bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
+        Settings are read-only in this phase. Write/edit actions are intentionally disabled because no settings write endpoint exists yet.
+      </div>
+
       <div className="border border-border mb-12">
         <div className="px-8 py-4 border-b border-border bg-muted/30 flex items-center gap-4">
           <Shield className="w-4 h-4 text-muted-foreground" />
-          <div className="text-sm uppercase tracking-widest font-mono text-muted-foreground">Detection Rules</div>
+          <div className="text-sm uppercase tracking-widest font-mono text-muted-foreground">Runtime Bounds</div>
         </div>
-        <div className="p-8 space-y-8">
-          <div>
-            <label className="block text-sm mb-3">
-              Flagging Threshold
-            </label>
-            <select className="w-full px-4 py-3 bg-transparent border border-border text-muted-foreground hover:border-foreground focus:outline-none focus:border-foreground transition-colors">
-              <option>1 failed gate (most sensitive)</option>
-              <option selected>2 failed gates (recommended)</option>
-              <option>3 failed gates (less sensitive)</option>
-              <option>4 failed gates (all gates must fail)</option>
-            </select>
-            <p className="text-xs text-muted-foreground mt-2 font-mono">
-              Minimum number of failed gates required to flag a pattern as probable poisoning signal
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm mb-3">
-              Methodology Version
-            </label>
-            <div className="flex items-center justify-between px-4 py-3 border border-border bg-muted/30">
-              <span className="text-sm text-muted-foreground font-mono">v1.0.0 (Current)</span>
-              <span className="text-xs text-muted-foreground font-mono">May 2026</span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-2 font-mono">
-              Detection rules are automatically updated to latest version
-            </p>
-          </div>
-
-          <div className="pt-6 border-t border-border">
-            <button className="px-6 py-3 bg-foreground text-background hover:bg-muted-foreground transition-colors">
-              Save Configuration
-            </button>
-          </div>
+        <div className="p-8 grid md:grid-cols-2 gap-6 text-sm font-mono">
+          <KV k="Max Wallets per Run" v={String(data?.maxWalletsPerRun ?? "-")} />
+          <KV k="Max TX Pages per Wallet" v={String(data?.maxTXPagesPerWallet ?? "-")} />
+          <KV k="Max TX per Wallet" v={String(data?.maxTXPerWallet ?? "-")} />
+          <KV k="Max Concurrent Wallets" v={String(data?.maxConcurrentWallets ?? "-")} />
+          <KV k="Max Helius Retries" v={String(data?.maxHeliusRetries ?? "-")} />
+          <KV k="Helius Request Delay MS" v={String(data?.heliusRequestDelayMS ?? "-")} />
         </div>
       </div>
 
-      {/* View Filters */}
       <div className="border border-border mb-12">
         <div className="px-8 py-4 border-b border-border bg-muted/30 flex items-center gap-4">
-          <Filter className="w-4 h-4 text-muted-foreground" />
-          <div className="text-sm uppercase tracking-widest font-mono text-muted-foreground">View Filters</div>
+          <Timer className="w-4 h-4 text-muted-foreground" />
+          <div className="text-sm uppercase tracking-widest font-mono text-muted-foreground">Timeouts and Windows</div>
         </div>
-        <div className="p-8 space-y-8">
-          <div>
-            <label className="block text-sm mb-3">
-              Default Time Range
-            </label>
-            <select className="w-full px-4 py-3 bg-transparent border border-border text-muted-foreground hover:border-foreground focus:outline-none focus:border-foreground transition-colors">
-              <option>Last 24h</option>
-              <option selected>Last 7d</option>
-              <option>Last 30d</option>
-              <option>All Time</option>
-            </select>
-            <p className="text-xs text-muted-foreground mt-2 font-mono">
-              Default time window for pattern review screens
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm mb-3">
-              Default Sort Order
-            </label>
-            <select className="w-full px-4 py-3 bg-transparent border border-border text-muted-foreground hover:border-foreground focus:outline-none focus:border-foreground transition-colors">
-              <option selected>Latest First</option>
-              <option>Oldest First</option>
-              <option>Severity (High to Low)</option>
-            </select>
-            <p className="text-xs text-muted-foreground mt-2 font-mono">
-              How flagged patterns are ordered in candidate list
-            </p>
-          </div>
-
-          <div className="flex items-start gap-4">
-            <input type="checkbox" id="show-passed" className="mt-1" />
-            <div>
-              <label htmlFor="show-passed" className="text-sm block mb-1">
-                Include passed transactions in exports
-              </label>
-              <p className="text-xs text-muted-foreground font-mono">
-                Export files will include transactions that passed all gates (not flagged)
-              </p>
-            </div>
-          </div>
-
-          <div className="pt-6 border-t border-border">
-            <button className="px-6 py-3 bg-foreground text-background hover:bg-muted-foreground transition-colors">
-              Save Preferences
-            </button>
-          </div>
+        <div className="p-8 grid md:grid-cols-2 gap-6 text-sm font-mono">
+          <KV k="Wallet Sync Timeout Seconds" v={String(data?.walletSyncTimeoutSeconds ?? "-")} />
+          <KV k="Run Timeout Seconds" v={String(data?.runTimeoutSeconds ?? "-")} />
+          <KV k="Baseline Lookback Days" v={String(data?.baselineLookbackDays ?? "-")} />
+          <KV k="Scan Window Days" v={String(data?.scanWindowDays ?? "-")} />
         </div>
       </div>
 
-      {/* Export Preferences */}
       <div className="border border-border">
         <div className="px-8 py-4 border-b border-border bg-muted/30 flex items-center gap-4">
-          <Download className="w-4 h-4 text-muted-foreground" />
-          <div className="text-sm uppercase tracking-widest font-mono text-muted-foreground">Export Preferences</div>
+          <Search className="w-4 h-4 text-muted-foreground" />
+          <div className="text-sm uppercase tracking-widest font-mono text-muted-foreground">Detection Gates</div>
         </div>
-        <div className="p-8 space-y-8">
-          <div>
-            <label className="block text-sm mb-3">
-              Default Export Format
-            </label>
-            <select className="w-full px-4 py-3 bg-transparent border border-border text-muted-foreground hover:border-foreground focus:outline-none focus:border-foreground transition-colors">
-              <option selected>PDF (Formatted Report)</option>
-              <option>CSV (Data Export)</option>
-              <option>JSON (Machine-Readable)</option>
-            </select>
-            <p className="text-xs text-muted-foreground mt-2 font-mono">
-              Preferred format for evidence artifact exports
-            </p>
-          </div>
+        <div className="p-8 grid md:grid-cols-2 gap-6 text-sm font-mono">
+          <KV k="Lookalike Recency Days" v={String(data?.lookalikeRecencyDays ?? "-")} />
+          <KV k="Lookalike Prefix Min" v={String(data?.lookalikePrefixMin ?? "-")} />
+          <KV k="Lookalike Suffix Min" v={String(data?.lookalikeSuffixMin ?? "-")} />
+          <KV k="Lookalike Single-Side Min" v={String(data?.lookalikeSingleSideMin ?? "-")} />
+          <KV k="Minimum Injection Count" v={String(data?.minInjectionCount ?? "-")} />
+        </div>
+      </div>
 
-          <div className="flex items-start gap-4">
-            <input type="checkbox" id="include-trace" className="mt-1" defaultChecked />
-            <div>
-              <label htmlFor="include-trace" className="text-sm block mb-1">
-                Include full gate trace logs
-              </label>
-              <p className="text-xs text-muted-foreground font-mono">
-                Exports include detailed gate evaluation logs for each transaction (increases file size)
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-4">
-            <input type="checkbox" id="include-metadata" className="mt-1" defaultChecked />
-            <div>
-              <label htmlFor="include-metadata" className="text-sm block mb-1">
-                Include detection metadata
-              </label>
-              <p className="text-xs text-muted-foreground font-mono">
-                Exports include methodology version, scan window bounds, and rule configuration
-              </p>
-            </div>
-          </div>
-
-          <div className="pt-6 border-t border-border">
-            <button className="px-6 py-3 bg-foreground text-background hover:bg-muted-foreground transition-colors">
-              Save Preferences
-            </button>
-          </div>
+      <div className="border border-border mt-12">
+        <div className="px-8 py-4 border-b border-border bg-muted/30 flex items-center gap-4">
+          <Database className="w-4 h-4 text-muted-foreground" />
+          <div className="text-sm uppercase tracking-widest font-mono text-muted-foreground">Mutability Status</div>
+        </div>
+        <div className="p-8 text-sm text-muted-foreground">
+          Backend config is currently API read-only.
+          <br />
+          Write endpoint status: <span className="font-mono">not yet API-backed</span>
         </div>
       </div>
     </div>
   );
+}
+
+function KV({ k, v }: { k: string; v: string }) {
+  return <div className="flex justify-between py-3 border-b border-border"><span className="text-muted-foreground">{k}:</span><span>{v}</span></div>;
 }

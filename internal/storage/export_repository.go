@@ -87,6 +87,60 @@ type PoisoningCandidateExportRecord struct {
 	MatchRuleVersion         string
 }
 
+type CandidateExplanationExportRecord struct {
+	IngestionRunID           int64
+	WalletSyncRunID          int64
+	FocalWallet              string
+	Signature                string
+	TransferIndex            int
+	BlockTime                time.Time
+	SuspiciousCounterparty   string
+	MatchedLegitCounterparty string
+	RelationType             string
+	AssetType                string
+	NormalizationStatus      string
+	PoisoningEligible        bool
+	SourceOwner              string
+	DestinationOwner         string
+	FromTokenAccount         string
+	ToTokenAccount           string
+	TokenMint                string
+	AmountRaw                string
+	DustStatus               string
+	IsDust                   bool
+	IsZeroValue              bool
+	IsInbound                bool
+	IsNewCounterparty        bool
+	RecencyDays              int
+	RepeatInjectionCount     int
+	BaselineStartAt          time.Time
+	BaselineEndAt            time.Time
+	ScanStartAt              time.Time
+	ScanEndAt                time.Time
+	BaselineComplete         bool
+	IncompleteWindow         bool
+	UnknownGateReason        string
+	MatchRuleVersion         string
+}
+
+type WalletInspectionSummaryExportRecord struct {
+	IngestionRunID          int64
+	WalletSyncRunID         int64
+	FocalWallet             string
+	CandidateCount          int
+	UnknownGateBlockCount   int
+	IncompleteWindow        bool
+	UnknownGateReason       string
+	TruncationReason        string
+	BaselineComplete        bool
+	BaselineStartAt         time.Time
+	BaselineEndAt           time.Time
+	ScanStartAt             time.Time
+	ScanEndAt               time.Time
+	TransactionsFetched     int
+	PoisoningCandidatesSeen int
+}
+
 func (s *PostgresStore) ListIngestionRunsForExport(ctx context.Context, filter ExportFilter) ([]IngestionRunExportRecord, error) {
 	where, args, err := buildExportFilterWhere(filter, "ir")
 	if err != nil {
@@ -308,6 +362,174 @@ JOIN ingestion_runs ir ON ir.id = wsr.ingestion_run_id`
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate poisoning candidate export rows: %w", err)
+	}
+	return out, nil
+}
+
+func (s *PostgresStore) ListCandidateExplanationsForExport(ctx context.Context, filter ExportFilter) ([]CandidateExplanationExportRecord, error) {
+	where, args, err := buildExportFilterWhere(filter, "ir")
+	if err != nil {
+		return nil, err
+	}
+	const baseQuery = `
+SELECT wsr.ingestion_run_id,
+       pc.wallet_sync_run_id,
+       w.address,
+       pc.signature,
+       pc.transfer_index,
+       pc.block_time,
+       pc.suspicious_counterparty,
+       pc.matched_legit_counterparty,
+       wt.relation_type,
+       t.asset_type,
+       t.normalization_status,
+       t.poisoning_eligible,
+       COALESCE(t.source_owner_address, ''),
+       COALESCE(t.destination_owner_address, ''),
+       COALESCE(t.source_token_account, ''),
+       COALESCE(t.destination_token_account, ''),
+       COALESCE(t.token_mint, ''),
+       t.amount_raw::TEXT,
+       t.dust_status,
+       pc.is_dust,
+       pc.is_zero_value,
+       pc.is_inbound,
+       pc.is_new_counterparty,
+       pc.recency_days,
+       pc.repeat_injection_count,
+       wsr.baseline_start_at,
+       wsr.baseline_end_at,
+       wsr.scan_start_at,
+       wsr.scan_end_at,
+       wsr.baseline_complete,
+       pc.incomplete_window,
+       COALESCE(pc.unknown_gate_reason, ''),
+       pc.match_rule_version
+FROM poisoning_candidates pc
+JOIN wallet_sync_runs wsr ON wsr.id = pc.wallet_sync_run_id
+JOIN wallets w ON w.id = pc.focal_wallet_id
+JOIN transactions t ON t.signature = pc.signature AND t.transfer_index = pc.transfer_index
+JOIN wallet_transactions wt ON wt.transaction_id = t.id AND wt.wallet_id = wsr.wallet_id
+JOIN ingestion_runs ir ON ir.id = wsr.ingestion_run_id`
+	query := baseQuery + where + " ORDER BY w.address ASC, pc.block_time ASC, pc.signature ASC, pc.transfer_index ASC"
+	rows, err := s.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list candidate explanations for export: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]CandidateExplanationExportRecord, 0)
+	for rows.Next() {
+		var rec CandidateExplanationExportRecord
+		if err := rows.Scan(
+			&rec.IngestionRunID,
+			&rec.WalletSyncRunID,
+			&rec.FocalWallet,
+			&rec.Signature,
+			&rec.TransferIndex,
+			&rec.BlockTime,
+			&rec.SuspiciousCounterparty,
+			&rec.MatchedLegitCounterparty,
+			&rec.RelationType,
+			&rec.AssetType,
+			&rec.NormalizationStatus,
+			&rec.PoisoningEligible,
+			&rec.SourceOwner,
+			&rec.DestinationOwner,
+			&rec.FromTokenAccount,
+			&rec.ToTokenAccount,
+			&rec.TokenMint,
+			&rec.AmountRaw,
+			&rec.DustStatus,
+			&rec.IsDust,
+			&rec.IsZeroValue,
+			&rec.IsInbound,
+			&rec.IsNewCounterparty,
+			&rec.RecencyDays,
+			&rec.RepeatInjectionCount,
+			&rec.BaselineStartAt,
+			&rec.BaselineEndAt,
+			&rec.ScanStartAt,
+			&rec.ScanEndAt,
+			&rec.BaselineComplete,
+			&rec.IncompleteWindow,
+			&rec.UnknownGateReason,
+			&rec.MatchRuleVersion,
+		); err != nil {
+			return nil, fmt.Errorf("scan candidate explanation export row: %w", err)
+		}
+		out = append(out, rec)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate candidate explanation export rows: %w", err)
+	}
+	return out, nil
+}
+
+func (s *PostgresStore) ListWalletInspectionSummaryForExport(ctx context.Context, filter ExportFilter) ([]WalletInspectionSummaryExportRecord, error) {
+	where, args, err := buildExportFilterWhere(filter, "ir")
+	if err != nil {
+		return nil, err
+	}
+	const baseQuery = `
+SELECT wsr.ingestion_run_id,
+       wsr.id,
+       w.address,
+       (
+         SELECT COUNT(*)
+         FROM poisoning_candidates pc
+         WHERE pc.wallet_sync_run_id = wsr.id
+       ) AS candidate_count,
+       CASE
+         WHEN wsr.incomplete_window = TRUE AND COALESCE(NULLIF(BTRIM(wsr.unknown_gate_reason), ''), '') <> '' THEN 1
+         ELSE 0
+       END AS unknown_gate_block_count,
+       wsr.incomplete_window,
+       COALESCE(wsr.unknown_gate_reason, ''),
+       COALESCE(wsr.truncation_reason, ''),
+       wsr.baseline_complete,
+       wsr.baseline_start_at,
+       wsr.baseline_end_at,
+       wsr.scan_start_at,
+       wsr.scan_end_at,
+       wsr.transactions_fetched,
+       wsr.poisoning_candidates_inserted
+FROM wallet_sync_runs wsr
+JOIN wallets w ON w.id = wsr.wallet_id
+JOIN ingestion_runs ir ON ir.id = wsr.ingestion_run_id`
+	query := baseQuery + where + " ORDER BY w.address ASC, wsr.scan_end_at ASC, wsr.id ASC"
+	rows, err := s.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list wallet inspection summary for export: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]WalletInspectionSummaryExportRecord, 0)
+	for rows.Next() {
+		var rec WalletInspectionSummaryExportRecord
+		if err := rows.Scan(
+			&rec.IngestionRunID,
+			&rec.WalletSyncRunID,
+			&rec.FocalWallet,
+			&rec.CandidateCount,
+			&rec.UnknownGateBlockCount,
+			&rec.IncompleteWindow,
+			&rec.UnknownGateReason,
+			&rec.TruncationReason,
+			&rec.BaselineComplete,
+			&rec.BaselineStartAt,
+			&rec.BaselineEndAt,
+			&rec.ScanStartAt,
+			&rec.ScanEndAt,
+			&rec.TransactionsFetched,
+			&rec.PoisoningCandidatesSeen,
+		); err != nil {
+			return nil, fmt.Errorf("scan wallet inspection summary export row: %w", err)
+		}
+		out = append(out, rec)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate wallet inspection summary export rows: %w", err)
 	}
 	return out, nil
 }

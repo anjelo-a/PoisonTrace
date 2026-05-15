@@ -1,74 +1,66 @@
-import { AlertTriangle } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { getCounterparties, type CounterpartyRow } from "../../lib/api";
-import { shortAddress, timeAgo } from "../../lib/format";
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "../../lib/apiClient";
+import { formatDateTime, shortAddress } from "../../lib/format";
+import { useUrlPagination } from "../../lib/useUrlPagination";
 
 export default function Counterparties() {
-  const [counterparties, setCounterparties] = useState<CounterpartyRow[]>([]);
-  const [error, setError] = useState("");
+  const { page, pageSize, setPage } = useUrlPagination(1, 25);
 
-  useEffect(() => {
-    void getCounterparties(1, 100).then((res) => setCounterparties(res.items)).catch((err: unknown) => {
-      setError(err instanceof Error ? err.message : "Failed to load counterparties");
-    });
-  }, []);
-
-  const stats = useMemo(() => {
-    const total = counterparties.length;
-    const inboundOnly = counterparties.filter((cp) => cp.outboundCount === 0).length;
-    const withLinks = counterparties.filter((cp) => cp.candidateLinks > 0).length;
-    const new24h = counterparties.filter((cp) => Date.now() - new Date(cp.firstSeenAt).getTime() <= 24 * 60 * 60 * 1000).length;
-    return { total, inboundOnly, withLinks, new24h };
-  }, [counterparties]);
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["counterparties", page, pageSize],
+    queryFn: () => apiClient.getCounterparties(page, pageSize),
+    placeholderData: (prev) => prev,
+  });
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="p-8 border-b border-border">
+    <div className="p-8">
+      <div className="mb-8">
         <h1 className="text-2xl mb-2 tracking-tight">Counterparties</h1>
-        <p className="text-muted-foreground text-sm">Address interaction history with deterministic metadata</p>
-      </div>
-      {error ? <div className="px-8 py-4 text-sm text-destructive-foreground">{error}</div> : null}
-
-      <div className="px-8 py-6 border-b border-border grid grid-cols-4 gap-12">
-        <Stat label="Total Counterparties" value={String(stats.total)} />
-        <Stat label="Inbound Only" value={String(stats.inboundOnly)} />
-        <Stat label="With Candidate Links" value={String(stats.withLinks)} />
-        <Stat label="New (24h)" value={String(stats.new24h)} />
+        <p className="text-muted-foreground text-sm">Wallet-level counterparty relationships sourced from normalized transfer history</p>
       </div>
 
-      <div className="flex-1 overflow-auto">
+      {isLoading ? <div className="text-sm text-muted-foreground">Loading counterparties...</div> : null}
+      {error ? <div className="text-sm text-destructive-foreground">Failed to load counterparties: {(error as Error).message}</div> : null}
+
+      <div className="border border-border overflow-auto">
         <table className="w-full">
-          <thead className="bg-muted/30 border-b border-border sticky top-0">
+          <thead className="bg-muted/30 border-b border-border">
             <tr>
-              <th className="px-8 py-4 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Address</th>
-              <th className="px-8 py-4 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">First Seen</th>
-              <th className="px-8 py-4 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Last Seen</th>
-              <th className="px-8 py-4 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Inbound</th>
-              <th className="px-8 py-4 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Outbound</th>
-              <th className="px-8 py-4 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Last Outbound</th>
-              <th className="px-8 py-4 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Candidate Links</th>
+              <th className="px-4 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Focal Wallet</th>
+              <th className="px-4 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Counterparty</th>
+              <th className="px-4 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">First Seen</th>
+              <th className="px-4 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Last Seen</th>
+              <th className="px-4 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Inbound</th>
+              <th className="px-4 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Outbound</th>
+              <th className="px-4 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Last Outbound</th>
+              <th className="px-4 py-3 text-left text-xs font-mono uppercase tracking-widest text-muted-foreground">Candidate Links</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {counterparties.map((cp) => (
-              <tr key={`${cp.focalWallet}-${cp.counterpartyAddress}`} className={`hover:bg-muted/30 transition-colors ${cp.candidateLinks > 0 ? "border-l-2 border-l-destructive-foreground" : ""}`}>
-                <td className="px-8 py-5 font-mono text-sm">{shortAddress(cp.counterpartyAddress, 6, 4)}</td>
-                <td className="px-8 py-5 text-sm text-muted-foreground">{timeAgo(cp.firstSeenAt)}</td>
-                <td className="px-8 py-5 text-sm text-muted-foreground">{timeAgo(cp.lastSeenAt)}</td>
-                <td className="px-8 py-5 text-sm font-mono">{cp.inboundCount}</td>
-                <td className="px-8 py-5 text-sm font-mono text-muted-foreground">{cp.outboundCount}</td>
-                <td className="px-8 py-5 text-sm text-muted-foreground">{cp.lastOutboundAt ? timeAgo(cp.lastOutboundAt) : "—"}</td>
-                <td className="px-8 py-5">{cp.candidateLinks > 0 ? <div className="flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-muted-foreground" /><span className="text-sm">{cp.candidateLinks}</span></div> : <span className="text-sm text-muted-foreground">0</span>}</td>
+            {(data?.items ?? []).map((item) => (
+              <tr key={`${item.focalWallet}-${item.counterpartyAddress}`}>
+                <td className="px-4 py-3 text-sm font-mono">{shortAddress(item.focalWallet, 8, 6)}</td>
+                <td className="px-4 py-3 text-sm font-mono">{shortAddress(item.counterpartyAddress, 8, 6)}</td>
+                <td className="px-4 py-3 text-sm text-muted-foreground">{formatDateTime(item.firstSeenAt)}</td>
+                <td className="px-4 py-3 text-sm text-muted-foreground">{formatDateTime(item.lastSeenAt)}</td>
+                <td className="px-4 py-3 text-sm font-mono">{item.inboundCount}</td>
+                <td className="px-4 py-3 text-sm font-mono">{item.outboundCount}</td>
+                <td className="px-4 py-3 text-sm text-muted-foreground">{item.lastOutboundAt ? formatDateTime(item.lastOutboundAt) : "-"}</td>
+                <td className="px-4 py-3 text-sm font-mono">{item.candidateLinks}</td>
               </tr>
             ))}
-            {counterparties.length === 0 ? <tr><td className="px-8 py-5 text-sm text-muted-foreground" colSpan={7}>No counterparties found.</td></tr> : null}
+            {(data?.items?.length ?? 0) === 0 ? <tr><td className="px-4 py-4 text-sm text-muted-foreground" colSpan={8}>No counterparties found.</td></tr> : null}
           </tbody>
         </table>
       </div>
+
+      <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
+        <div className="font-mono">Showing page {page} • {data?.total ?? 0} total</div>
+        <div className="flex gap-2">
+          <button onClick={() => setPage(page - 1)} disabled={page <= 1} className="px-3 py-2 border border-border text-xs disabled:opacity-50">Previous</button>
+          <button onClick={() => setPage(page + 1)} disabled={Boolean(data && page * pageSize >= data.total)} className="px-3 py-2 border border-border text-xs disabled:opacity-50">Next</button>
+        </div>
+      </div>
     </div>
   );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return <div><div className="text-xs uppercase tracking-widest text-muted-foreground font-mono mb-2">{label}</div><div className="text-2xl font-mono tracking-tight">{value}</div></div>;
 }

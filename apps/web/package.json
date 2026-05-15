@@ -6,9 +6,13 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
-    "typecheck": "tsc --project tsconfig.json --noEmit"
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
+    "@poisontrace/contracts": "0.1.0",
+    "@tanstack/react-query": "^5.79.2",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
     "@mui/icons-material": "7.3.5",
@@ -68,13 +72,18 @@
     "vaul": "1.1.2"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@tailwindcss/vite": "4.1.12",
     "@types/react": "18.3.23",
     "@types/react-dom": "18.3.7",
     "@vitejs/plugin-react": "4.7.0",
     "tailwindcss": "4.1.12",
     "typescript": "^5.8.3",
-    "vite": "6.3.5"
+    "vite": "6.3.5",
+    "vitest": "^2.1.8",
+    "jsdom": "^25.0.1"
   },
   "pnpm": {
     "overrides": {
