@@ -51,21 +51,21 @@ export default function Methodology() {
             <div className="p-6">
               <h3 className="mb-2">Wallet Poisoning in Plain English</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Attackers send very small transfers from addresses that look similar to real addresses you've used before.
-                They want their address to show up in your wallet history so you accidentally copy it later.
+                Attackers send very small transfers from addresses designed to look like real addresses you've used before.
+                Their goal is to place that lookalike in your wallet history so it can be copied by mistake later.
               </p>
             </div>
             <div className="p-6">
               <h3 className="mb-2">What the Attacker Needs to Succeed</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                They need only one mistake: you copying the wrong address for a future outbound transfer.
-                The scam often has no warning pop-up because the wrong address can still be syntactically valid.
+                They need one mistake: you sending funds to the wrong address in a future outbound transfer.
+                The address can still be technically valid, so wallets may not show a clear warning.
               </p>
             </div>
             <div className="p-6">
               <h3 className="mb-2">Why We Focus on "Probable" Signals</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                PoisonTrace detects suspicious patterns, not attacker intent. We show evidence so you can review and decide.
+                PoisonTrace detects suspicious patterns, not intent or identity. We surface the evidence so you can review and decide.
               </p>
             </div>
           </div>

@@ -103,26 +103,26 @@ export default function Landing() {
         <div className="max-w-5xl mx-auto px-8">
           <h2 className="text-2xl mb-6 tracking-tight">New to Wallet Poisoning?</h2>
           <p className="text-muted-foreground leading-relaxed max-w-3xl mb-10">
-            Wallet poisoning is a scam where attackers send tiny transfers from lookalike addresses so those addresses
-            appear in your recent history. The goal is simple: trick you into copying the scammer address later.
+            Wallet poisoning is a copy-and-paste scam. Attackers send tiny transfers from lookalike addresses so those
+            addresses appear in your recent activity. Later, they hope you copy the wrong address during a real transfer.
           </p>
           <div className="grid gap-6 md:grid-cols-3">
             <div className="border border-border p-6 bg-background">
               <h3 className="mb-3">How It Starts</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                A tiny or zero-value inbound transfer arrives from an unfamiliar address that visually resembles one you trust.
+                You receive a tiny or zero-value transfer from an unfamiliar address that looks similar to one you already trust.
               </p>
             </div>
             <div className="border border-border p-6 bg-background">
               <h3 className="mb-3">How People Get Tricked</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Later, while rushing a real transfer, they copy from transaction history and paste the lookalike address.
+                During a later transfer, someone copies an address from history and accidentally pastes the lookalike.
               </p>
             </div>
             <div className="border border-border p-6 bg-background">
               <h3 className="mb-3">Why It Works</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Addresses are long and hard to compare quickly, so small character differences are easy to miss.
+                Wallet addresses are long and visually dense, so minor character differences are easy to miss at a glance.
               </p>
             </div>
           </div>
@@ -230,11 +230,11 @@ export default function Landing() {
           <div className="border border-border divide-y divide-border">
             <div className="p-6 text-sm">
               <span className="font-mono text-muted-foreground mr-3">01</span>
-              Never trust addresses copied from recent history alone.
+              Do not trust an address only because it appears in recent history.
             </div>
             <div className="p-6 text-sm">
               <span className="font-mono text-muted-foreground mr-3">02</span>
-              Verify full destination addresses against saved contacts or a trusted source.
+              Verify the full destination address against a saved contact or another trusted source.
             </div>
             <div className="p-6 text-sm">
               <span className="font-mono text-muted-foreground mr-3">03</span>
@@ -242,7 +242,7 @@ export default function Landing() {
             </div>
             <div className="p-6 text-sm">
               <span className="font-mono text-muted-foreground mr-3">04</span>
-              For large transfers, do a small test send first whenever possible.
+              For high-value transfers, send a small test amount first whenever possible.
             </div>
           </div>
         </div>
