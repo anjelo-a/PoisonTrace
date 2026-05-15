@@ -20,6 +20,7 @@ jobs:
       - name: Preflight required secrets
         id: preflight
         env:
+          GIT_REF: ${{ github.ref }}
           AZURE_CLIENT_ID: ${{ secrets.POISONTRACEDEV_AZURE_CLIENT_ID }}
           AZURE_TENANT_ID: ${{ secrets.POISONTRACEDEV_AZURE_TENANT_ID }}
           AZURE_SUBSCRIPTION_ID: ${{ secrets.POISONTRACEDEV_AZURE_SUBSCRIPTION_ID }}
@@ -27,7 +28,10 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.POISONTRACEDEV_REGISTRY_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.POISONTRACEDEV_REGISTRY_PASSWORD }}
         run: |
-          if [ -n "$AZURE_CLIENT_ID" ] && [ -n "$AZURE_TENANT_ID" ] && [ -n "$AZURE_SUBSCRIPTION_ID" ] && [ -n "$REGISTRY_URL" ] && [ -n "$REGISTRY_USERNAME" ] && [ -n "$REGISTRY_PASSWORD" ]; then
+          if [ "$GIT_REF" != "refs/heads/main" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping deploy because ref is $GIT_REF (deploy is restricted to main)."
+          elif [ -n "$AZURE_CLIENT_ID" ] && [ -n "$AZURE_TENANT_ID" ] && [ -n "$AZURE_SUBSCRIPTION_ID" ] && [ -n "$REGISTRY_URL" ] && [ -n "$REGISTRY_USERNAME" ] && [ -n "$REGISTRY_PASSWORD" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
