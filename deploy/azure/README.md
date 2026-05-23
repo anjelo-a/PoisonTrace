@@ -8,6 +8,20 @@ Azure is only used for deployment proof/demo in Phase 0–1.
 - Azure Database for PostgreSQL
 - Azure Key Vault for secrets
 
+## API deployment checklist (web console backend)
+- Container command must run API mode:
+  - `scanner serve-api --addr :8080`
+- Container Apps ingress target port must be `8080`.
+- Smoke checks (must return quickly):
+  - `GET /healthz` -> `200 {"status":"ok"}`
+  - `GET /api/overview` -> `200` (or a fast `4xx/5xx`, but never hang)
+
+### Docker default
+The Docker image in `deploy/docker/Dockerfile` defaults to:
+- `CMD ["serve-api", "--addr", ":8080"]`
+
+If you need scanner batch mode for a job, override container command at deploy time.
+
 ## Required env vars
 Use `.env.example` as baseline and configure all required bounds.
 
