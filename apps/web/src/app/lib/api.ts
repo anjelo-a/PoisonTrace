@@ -121,14 +121,31 @@ export type SettingsResponse = {
   minInjectionCount: number;
 };
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? "";
+const RAW_API_BASE = import.meta.env.VITE_API_BASE ?? import.meta.env.VITE_API_BASE_URL ?? "";
+const API_BASE = RAW_API_BASE.replace(/\/+$/, "");
+const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
+const REQUEST_TIMEOUT_MS_ENV = Number(import.meta.env.VITE_API_TIMEOUT_MS);
+const REQUEST_TIMEOUT_MS = Number.isFinite(REQUEST_TIMEOUT_MS_ENV) && REQUEST_TIMEOUT_MS_ENV > 0
+  ? REQUEST_TIMEOUT_MS_ENV
+  : DEFAULT_REQUEST_TIMEOUT_MS;
 
 async function request<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`);
-  if (!response.ok) {
-    throw new Error(`request failed: ${response.status}`);
+  const controller = new AbortController();
+  const timeoutId = globalThis.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${API_BASE}${path}`, { signal: controller.signal });
+    if (!response.ok) {
+      throw new Error(`request failed: ${response.status}`);
+    }
+    return response.json() as Promise<T>;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error(`request timed out after ${REQUEST_TIMEOUT_MS}ms`);
+    }
+    throw error;
+  } finally {
+    globalThis.clearTimeout(timeoutId);
   }
-  return response.json() as Promise<T>;
 }
 
 export function getOverview() {
