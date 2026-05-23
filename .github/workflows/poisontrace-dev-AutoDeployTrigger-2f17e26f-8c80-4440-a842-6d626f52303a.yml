@@ -45,3 +45,23 @@ jobs:
           imageToDeploy: poisontracedevacr.azurecr.io/poisontrace-dev:${{ github.sha }}
           targetPort: 8080
           environmentVariables: DATABASE_URL=${{ secrets.POISONTRACEDEV_DATABASE_URL }} PGPASSWORD=${{ secrets.POISONTRACEDEV_DB_PASSWORD }}
+
+      - name: Verify deployment health
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP_HEALTH_URL="https://poisontrace-dev.livelymeadow-b0f616bc.southeastasia.azurecontainerapps.io/healthz"
+          for attempt in $(seq 1 24); do
+            if curl -fsS --max-time 8 "$APP_HEALTH_URL" > /dev/null; then
+              echo "Health check passed on attempt $attempt."
+              exit 0
+            fi
+            echo "Health check attempt $attempt failed, retrying..."
+            sleep 5
+          done
+
+          echo "Health check did not pass. Dumping revision and log details."
+          az containerapp revision list -n poisontrace-dev -g rg-poisontrace-p0p1-dev-sea -o table || true
+          az containerapp logs show -n poisontrace-dev -g rg-poisontrace-p0p1-dev-sea --type system --tail 200 || true
+          az containerapp logs show -n poisontrace-dev -g rg-poisontrace-p0p1-dev-sea --tail 200 || true
+          exit 1
