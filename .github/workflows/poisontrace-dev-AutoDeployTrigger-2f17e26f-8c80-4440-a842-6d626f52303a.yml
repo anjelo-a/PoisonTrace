@@ -44,3 +44,6 @@ jobs:
           imageToBuild: poisontracedevacr.azurecr.io/poisontrace-dev:${{ github.sha }}
           imageToDeploy: poisontracedevacr.azurecr.io/poisontrace-dev:${{ github.sha }}
           targetPort: 8080
+          environmentVariables: |
+            DATABASE_URL=${{ secrets.POISONTRACEDEV_DATABASE_URL }}
+            PGPASSWORD=${{ secrets.POISONTRACEDEV_DB_PASSWORD }}
