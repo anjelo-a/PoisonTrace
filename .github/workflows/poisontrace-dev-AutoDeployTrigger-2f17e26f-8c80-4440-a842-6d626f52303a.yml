@@ -31,6 +31,21 @@ jobs:
           tenant-id: ${{ secrets.POISONTRACEDEV_AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.POISONTRACEDEV_AZURE_SUBSCRIPTION_ID }}
 
+      - name: Normalize deployment env vars
+        id: deploy_env
+        shell: bash
+        run: |
+          set -euo pipefail
+          database_url='${{ secrets.POISONTRACEDEV_DATABASE_URL }}'
+          database_url="${database_url//$'\r'/}"
+          database_url="${database_url//$'\n'/}"
+          if [ -z "$database_url" ]; then
+            echo "POISONTRACEDEV_DATABASE_URL is empty after normalization" >&2
+            exit 1
+          fi
+          echo "::add-mask::$database_url"
+          echo "database_url=$database_url" >> "$GITHUB_OUTPUT"
+
       - name: Build and push container image to registry
         uses: azure/container-apps-deploy-action@v2
         with:
@@ -44,7 +59,7 @@ jobs:
           imageToBuild: poisontracedevacr.azurecr.io/poisontrace-dev:${{ github.sha }}
           imageToDeploy: poisontracedevacr.azurecr.io/poisontrace-dev:${{ github.sha }}
           targetPort: 8080
-          environmentVariables: DATABASE_URL=${{ secrets.POISONTRACEDEV_DATABASE_URL }}
+          environmentVariables: DATABASE_URL=${{ steps.deploy_env.outputs.database_url }}
 
       - name: Verify deployment health
         shell: bash
