@@ -1,433 +1,379 @@
 import { Link } from "react-router";
+import "./Landing.css";
+
+const proofItems = ["Rule-based only", "Fail-closed by default", "No black-box scoring"];
+
+const poisoningSequence = [
+  {
+    title: "How It Starts",
+    text: "You receive a tiny or zero-value transfer from an unfamiliar address that looks similar to one you already trust.",
+  },
+  {
+    title: "How People Get Tricked",
+    text: "During a later transfer, someone copies an address from history and accidentally pastes the lookalike.",
+  },
+  {
+    title: "Why It Works",
+    text: "Wallet addresses are long and visually dense, so minor character differences are easy to miss at a glance.",
+  },
+];
+
+const technicalRows = [
+  ["1", "Read bounded history", "Ingest a wallet scan window and the baseline needed to compare counterparties."],
+  ["2", "Apply explicit gates", "Check lookalike similarity, dust behavior, recency, repeats, and baseline completeness."],
+  ["3", "Block uncertainty", "If a required gate is unknown, candidate emission stops and the reason is preserved."],
+];
+
+const steps = [
+  {
+    title: "Ingest Transaction Windows",
+    text: "PoisonTrace ingests bounded windows of Solana transaction data from public chain sources. No wallet connection required—scans are performed on observable on-chain activity.",
+    evidence: "Evidence: Transaction dataset metadata showing block range, timestamp bounds, and record count",
+  },
+  {
+    title: "Apply Poisoning Rules",
+    text: "Each transaction is evaluated against explicit poisoning detection rules: lookalike address patterns, dust amount thresholds, rapid-fire timing, first-time counterparty signals.",
+    evidence: "Evidence: Per-transaction gate log showing pass/fail/unknown status for each rule",
+  },
+  {
+    title: "Surface Probable Signals",
+    text: "When multiple gates fail, the transaction is flagged as a probable poisoning signal. You see which rules failed, observed values vs expected thresholds, and gate-by-gate reasoning.",
+    evidence: "Evidence: Flagged transaction report with observed/expected values and failure trace",
+  },
+  {
+    title: "Export Evidence Artifacts",
+    text: "Download forensic reports containing full detection logs, timestamps, and gate traces. Use these artifacts for your own analysis or share with investigators if needed.",
+    evidence: "Evidence: PDF/CSV/JSON exports with complete audit trail and detection metadata",
+  },
+];
+
+const summaryStats = [
+  ["7", "Candidates Emitted"],
+  ["1,236", "Passed Gates"],
+  ["3", "Unknown-Gate Blocked"],
+  ["99.4%", "Pass Rate"],
+];
+
+const checklist = [
+  "Do not trust an address only because it appears in recent history.",
+  "Verify the full destination address against a saved contact or another trusted source.",
+  "Treat tiny inbound transfers from new counterparties as potential bait.",
+  "For high-value transfers, send a small test amount first whenever possible.",
+];
+
+const explanationRows = [
+  ["Gate: Lookalike Similarity", "3 char diff (expected >10)", "FAIL"],
+  ["Gate: Min Repeat Injections", "3 events (threshold <2)", "FAIL"],
+  ["Gate: Recency Window", "18h ago (<24h active)", "PASS"],
+  ["Gate: Baseline Required", "Counterparty history unavailable", "UNKNOWN"],
+];
+
+const ruleItems = [
+  {
+    label: "VERIFIABLE",
+    title: "Transparent Reasoning",
+    text: "Every detection includes gate-by-gate outcomes, observed values, expected thresholds, and linked evidence.",
+    verify: "Verify: Open any flagged transaction and inspect the gate trace and observed-vs-expected values.",
+  },
+  {
+    label: "NO ML",
+    title: "Rule-Based Detection",
+    text: "Signals come from explicit rules and thresholds, not predictive black-box scoring.",
+    verify: "Verify: Review rule names, thresholds, and pass/fail outcomes in the detection log.",
+  },
+  {
+    label: "FAIL-CLOSED",
+    title: "Fail-Closed Behavior",
+    text: "If required data is unknown, candidate emission is blocked and the reason is logged.",
+    verify: "Verify: Check unknown_gate_reason and incomplete_window markers in blocked outcomes.",
+  },
+];
 
 export default function Landing() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border bg-background">
-        <div className="max-w-7xl mx-auto px-8 py-6 flex items-center justify-between">
-          <div className="font-mono tracking-tight">PoisonTrace</div>
-          <nav className="flex items-center gap-12">
-            <Link to="/methodology" className="text-muted-foreground hover:text-foreground transition-colors text-sm">
+    <div className="landing-shell min-h-screen">
+      <header className="landing-header">
+        <div className="landing-container flex items-center justify-between gap-6 py-5">
+          <Link to="/" className="font-mono text-sm tracking-tight text-white">
+            PoisonTrace
+          </Link>
+          <nav className="flex items-center gap-5 text-[11px] sm:gap-8">
+            <Link to="/methodology" className="landing-nav-link">
               Methodology
             </Link>
-            <Link to="/app/candidates" className="text-foreground text-sm hover:underline underline-offset-4">
+            <Link to="/app/candidates" className="landing-nav-link">
               Review Patterns
             </Link>
           </nav>
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="max-w-7xl mx-auto px-8 pt-24 pb-16">
-        <div className="grid gap-14 items-start lg:grid-cols-[minmax(0,1fr)_minmax(0,620px)]">
-          <div>
-            <div className="mb-6 text-xs uppercase tracking-widest text-muted-foreground font-mono">
-              Solana Poisoning Detection
-            </div>
-            <h1 className="text-5xl mb-6 leading-tight tracking-tight">
-              Scams Show Patterns.<br />
-              PoisonTrace Surfaces Them.
-            </h1>
-            <p className="text-lg text-muted-foreground mb-8 max-w-2xl leading-relaxed">
-              PoisonTrace scans bounded Solana transaction windows for probable poisoning signals—lookalike addresses,
-              dust attacks, repeat injections. Rule-based detection. Transparent reasoning. Fail-closed by default.
-            </p>
+      <main>
+        <section className="landing-hero landing-section">
+          <div className="landing-container landing-hero-grid">
+            <div className="landing-hero-copy">
+              <div className="landing-kicker">Solana Poisoning Detection</div>
+              <h1 className="landing-display">
+                Scams Show Patterns.<br />
+                PoisonTrace Surfaces Them.
+              </h1>
+              <p className="landing-lede">
+                Rule-based Solana scans for lookalike addresses, dust attacks, and repeat injections.
+              </p>
 
-            {/* Live metric - understated */}
-            <div className="mb-12 pb-8 border-b border-border/50">
-              <div className="flex items-baseline gap-3">
-                <div className="text-3xl font-mono tracking-tight">847</div>
-                <div className="text-sm text-muted-foreground">probable poisoning signals detected this week</div>
+              <div className="landing-metric">
+                <div className="landing-metric-value">847</div>
+                <div className="landing-metric-line">probable poisoning signals detected this week</div>
+                <div className="landing-metric-line">based on current scan windows and configured rules</div>
               </div>
-              <div className="text-xs text-muted-foreground font-mono mt-2">
-                Based on current scan window and configured rules.
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Link to="/app/candidates" className="landing-button landing-button-primary">
+                  Review Poisoning Patterns
+                </Link>
+                <Link to="/methodology" className="landing-button landing-button-secondary">
+                  View Methodology
+                </Link>
+              </div>
+
+              <p className="landing-hero-note">
+                PoisonTrace flags patterns for review. You make the final decision.
+              </p>
+
+              <div className="landing-proof-strip">
+                {proofItems.map((item) => (
+                  <div key={item} className="flex items-center gap-2">
+                    <span className="landing-dot" />
+                    <span>{item}</span>
+                  </div>
+                ))}
               </div>
             </div>
 
-            {/* CTAs */}
-            <div className="flex gap-6 mb-8">
-              <Link
-                to="/app/candidates"
-                className="px-8 py-3 bg-foreground text-background hover:bg-muted-foreground transition-colors"
-              >
-                Review Poisoning Patterns
+            <figure className="landing-stitch-hero" aria-hidden="true">
+              <img src="/stitch/generated/hero-prism.png" alt="" loading="eager" />
+            </figure>
+          </div>
+        </section>
+
+        <section className="landing-section landing-band">
+          <div className="landing-container landing-split">
+            <div>
+              <div className="landing-kicker">Threat Pattern</div>
+              <h2 className="landing-heading">Wallet Poisoning</h2>
+              <p className="landing-copy">
+                Wallet poisoning is a copy-and-paste scam. Attackers send tiny transfers from lookalike addresses so those
+                addresses appear in your recent activity. Later, they hope you copy the wrong address during a real transfer.
+              </p>
+            </div>
+            <div className="landing-thread-list">
+              {poisoningSequence.map((item, index) => (
+                <article key={item.title} className="landing-thread-item">
+                  <div className="landing-thread-index">{String(index + 1).padStart(2, "0")}</div>
+                  <div>
+                    <h3>{item.title}</h3>
+                    <p>{item.text}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="landing-section">
+          <div className="landing-container landing-feature-split landing-visual-led">
+            <figure className="landing-stitch-optics" aria-hidden="true">
+              <img src="/stitch/generated/forensic-optics.png" alt="" loading="lazy" />
+            </figure>
+            <div className="landing-feature-copy">
+              <div className="landing-kicker">Technical Core</div>
+              <h2 className="landing-heading">What PoisonTrace Actually Does</h2>
+              <p className="landing-copy">
+                PoisonTrace is a scanner-first Solana analysis tool. It does not connect to wallets or execute
+                transactions. It turns on-chain history into reviewable, auditable poisoning candidates.
+              </p>
+              <div className="landing-process-list">
+                {technicalRows.map(([index, title, text]) => (
+                  <div key={title} className="landing-process-row">
+                    <span>{index}</span>
+                    <div>
+                      <h3>{title}</h3>
+                      <p>{text}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Link to="/methodology" className="landing-text-link">
+                View the full methodology
               </Link>
-              <Link
-                to="/methodology"
-                className="px-8 py-3 border border-border hover:border-foreground transition-colors"
-              >
-                View Methodology
-              </Link>
             </div>
+          </div>
+        </section>
 
-            {/* Trust disclaimer */}
-            <p className="text-sm text-muted-foreground mb-10 leading-relaxed max-w-lg">
-              PoisonTrace flags patterns for review. You make the final decision.
+        <section className="landing-section landing-band">
+          <div className="landing-container">
+            <div className="landing-section-head">
+              <div>
+                <div className="landing-kicker">Pipeline</div>
+              <h2 className="landing-heading">How It Works</h2>
+            </div>
+            </div>
+            <div className="landing-timeline">
+              {steps.map((step, index) => (
+                <article key={step.title} className="landing-step">
+                  <div className="landing-step-index">{String(index + 1).padStart(2, "0")}</div>
+                  <div>
+                    <h3>{step.title}</h3>
+                    <p>{step.text}</p>
+                    <div className="landing-evidence">{step.evidence}</div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="landing-section">
+          <div className="landing-container landing-feature-split landing-visual-led">
+            <figure className="landing-stitch-ledger-detail" aria-hidden="true">
+              <img src="/stitch/generated/evidence-ledger.png" alt="" loading="lazy" />
+            </figure>
+            <div className="landing-feature-copy">
+              <div className="landing-chapter-head landing-chapter-head-stacked">
+                <div className="landing-kicker">Evidence Ledger</div>
+                <h2 className="landing-heading">A Readout You Can Audit</h2>
+              <span className="landing-status">resolved</span>
+            </div>
+            <p className="landing-section-intro">
+              Each scan returns a bounded ledger of outcomes: what passed, what was blocked, and what still needs
+              evidence. The numbers summarize the run without asking you to trust a black-box score.
             </p>
-
-            {/* Proof strip - understated */}
-            <div className="flex gap-8 text-xs text-muted-foreground font-mono">
-              <div className="flex items-center gap-2">
-                <div className="w-1 h-1 bg-muted-foreground" />
-                <span>Rule-based only</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-1 h-1 bg-muted-foreground" />
-                <span>Fail-closed by default</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-1 h-1 bg-muted-foreground" />
-                <span>No black-box scoring</span>
+              <div className="landing-stat-stack">
+                {summaryStats.map(([value, label]) => (
+                  <div key={label} className="landing-stat-item">
+                    <div className="font-mono text-3xl tracking-tight text-white">{value}</div>
+                    <div className="mt-3 text-[11px] uppercase tracking-[0.18em] text-white/48">{label}</div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
+        </section>
 
-          <div className="block">
-            <div className="rounded-sm border border-border/70 bg-muted/10 p-3">
-              <img
-                src="/landing-screenshot.jpeg"
-                alt="PoisonTrace transactions table preview"
-                width={1240}
-                height={930}
-                className="w-full rounded-sm border border-border/50 object-cover"
-                loading="eager"
-              />
+        <section className="landing-section landing-band">
+          <div className="landing-container">
+            <div className="landing-chapter-head">
+              <div>
+                <div className="landing-kicker">Candidate Evidence</div>
+                <h2 className="landing-heading">Sample Explanation Snapshot</h2>
+              </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Scam Primer */}
-      <section className="border-y border-border py-20 bg-muted/20">
-        <div className="max-w-5xl mx-auto px-8">
-          <h2 className="text-2xl mb-6 tracking-tight">Wallet Poisoning</h2>
-          <p className="text-muted-foreground leading-relaxed max-w-3xl mb-10">
-            Wallet poisoning is a copy-and-paste scam. Attackers send tiny transfers from lookalike addresses so those
-            addresses appear in your recent activity. Later, they hope you copy the wrong address during a real transfer.
-          </p>
-          <div className="grid gap-6 md:grid-cols-3">
-            <div className="border border-border p-6 bg-background">
-              <h3 className="mb-3">How It Starts</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                You receive a tiny or zero-value transfer from an unfamiliar address that looks similar to one you already trust.
-              </p>
-            </div>
-            <div className="border border-border p-6 bg-background">
-              <h3 className="mb-3">How People Get Tricked</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                During a later transfer, someone copies an address from history and accidentally pastes the lookalike.
-              </p>
-            </div>
-            <div className="border border-border p-6 bg-background">
-              <h3 className="mb-3">Why It Works</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Wallet addresses are long and visually dense, so minor character differences are easy to miss at a glance.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Project Primer */}
-      <section className="py-20">
-        <div className="max-w-5xl mx-auto px-8">
-          <h2 className="text-2xl mb-6 tracking-tight">What PoisonTrace Actually Does</h2>
-          <p className="text-muted-foreground leading-relaxed max-w-3xl mb-10">
-            PoisonTrace is a scanner-first Solana analysis project. It does not connect to your wallet, ask for keys,
-            or execute transactions. It ingests bounded on-chain history, applies explicit detection gates, and returns
-            probable poisoning candidates with auditable evidence.
-          </p>
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="border border-border p-6">
-              <h3 className="mb-3">What We Analyze</h3>
-              <ul className="space-y-2 text-sm text-muted-foreground leading-relaxed list-none">
-                <li className="before:content-['—'] before:mr-3 before:text-muted-foreground">Solana transfers in a bounded scan window</li>
-                <li className="before:content-['—'] before:mr-3 before:text-muted-foreground">Lookalike counterparty patterns against baseline history</li>
-                <li className="before:content-['—'] before:mr-3 before:text-muted-foreground">Dust/zero-value inbound behavior and repeat injection events</li>
-                <li className="before:content-['—'] before:mr-3 before:text-muted-foreground">Unknown or incomplete data states that should block emission</li>
-              </ul>
-            </div>
-            <div className="border border-border p-6">
-              <h3 className="mb-3">What You Get</h3>
-              <ul className="space-y-2 text-sm text-muted-foreground leading-relaxed list-none">
-                <li className="before:content-['—'] before:mr-3 before:text-muted-foreground">A candidate list of probable poisoning events for review</li>
-                <li className="before:content-['—'] before:mr-3 before:text-muted-foreground">Gate-by-gate reasoning (pass/fail/unknown) per event</li>
-                <li className="before:content-['—'] before:mr-3 before:text-muted-foreground">Evidence artifacts you can export and audit later</li>
-                <li className="before:content-['—'] before:mr-3 before:text-muted-foreground">Fail-closed behavior when required information is uncertain</li>
-              </ul>
-            </div>
-          </div>
-          <div className="border border-border bg-muted/20 p-6 mt-6">
-            <h3 className="mb-2">What We Do Not Claim</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              A flagged candidate is not a confirmed scam verdict. PoisonTrace highlights suspicious patterns so humans
-              can investigate with context, not black-box risk scores.
+            <p className="landing-section-intro font-mono text-sm text-white/50">
+              Illustrative example, not production thresholds.
             </p>
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section className="border-y border-border py-20">
-        <div className="max-w-5xl mx-auto px-8">
-          <h2 className="text-2xl mb-12 tracking-tight">How It Works</h2>
-          <div className="relative">
-            {/* Timeline connector line */}
-            <div className="absolute left-[30px] top-0 bottom-0 w-px bg-border"></div>
-
-            <div className="space-y-0">
-              {/* Step 1 */}
-              <div className="relative pl-20 pb-12">
-                <div className="absolute left-[22px] top-2 w-4 h-4 border-2 border-foreground bg-background"></div>
-                <div className="text-xs font-mono text-muted-foreground mb-2">01</div>
-                <h3 className="mb-3">Ingest Transaction Windows</h3>
-                <p className="text-muted-foreground leading-relaxed mb-3">
-                  PoisonTrace ingests bounded windows of Solana transaction data from public chain sources.
-                  No wallet connection required—scans are performed on observable on-chain activity.
-                </p>
-                <p className="text-xs text-muted-foreground font-mono">
-                  Evidence: Transaction dataset metadata showing block range, timestamp bounds, and record count
-                </p>
-              </div>
-
-              {/* Step 2 */}
-              <div className="relative pl-20 pb-12">
-                <div className="absolute left-[22px] top-2 w-4 h-4 border-2 border-foreground bg-background"></div>
-                <div className="text-xs font-mono text-muted-foreground mb-2">02</div>
-                <h3 className="mb-3">Apply Poisoning Rules</h3>
-                <p className="text-muted-foreground leading-relaxed mb-3">
-                  Each transaction is evaluated against explicit poisoning detection rules: lookalike address patterns,
-                  dust amount thresholds, rapid-fire timing, first-time counterparty signals.
-                </p>
-                <p className="text-xs text-muted-foreground font-mono">
-                  Evidence: Per-transaction gate log showing pass/fail/unknown status for each rule
-                </p>
-              </div>
-
-              {/* Step 3 */}
-              <div className="relative pl-20 pb-12">
-                <div className="absolute left-[22px] top-2 w-4 h-4 border-2 border-foreground bg-background"></div>
-                <div className="text-xs font-mono text-muted-foreground mb-2">03</div>
-                <h3 className="mb-3">Surface Probable Signals</h3>
-                <p className="text-muted-foreground leading-relaxed mb-3">
-                  When multiple gates fail, the transaction is flagged as a probable poisoning signal.
-                  You see which rules failed, observed values vs expected thresholds, and gate-by-gate reasoning.
-                </p>
-                <p className="text-xs text-muted-foreground font-mono">
-                  Evidence: Flagged transaction report with observed/expected values and failure trace
-                </p>
-              </div>
-
-              {/* Step 4 */}
-              <div className="relative pl-20">
-                <div className="absolute left-[22px] top-2 w-4 h-4 border-2 border-foreground bg-background"></div>
-                <div className="text-xs font-mono text-muted-foreground mb-2">04</div>
-                <h3 className="mb-3">Export Evidence Artifacts</h3>
-                <p className="text-muted-foreground leading-relaxed mb-3">
-                  Download forensic reports containing full detection logs, timestamps, and gate traces.
-                  Use these artifacts for your own analysis or share with investigators if needed.
-                </p>
-                <p className="text-xs text-muted-foreground font-mono">
-                  Evidence: PDF/CSV/JSON exports with complete audit trail and detection metadata
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Scan Window Summary */}
-      <section className="py-16">
-        <div className="max-w-5xl mx-auto px-8">
-          <h2 className="text-lg mb-8 tracking-tight">Scan Window Summary (24h)</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-12">
-            <div>
-              <div className="text-3xl font-mono tracking-tight mb-2">7</div>
-              <div className="text-xs text-muted-foreground uppercase tracking-widest">Candidates Emitted</div>
-            </div>
-            <div>
-              <div className="text-3xl font-mono tracking-tight mb-2">1,236</div>
-              <div className="text-xs text-muted-foreground uppercase tracking-widest">Passed Gates</div>
-            </div>
-            <div>
-              <div className="text-3xl font-mono tracking-tight mb-2">3</div>
-              <div className="text-xs text-muted-foreground uppercase tracking-widest">Unknown-Gate Blocked</div>
-            </div>
-            <div>
-              <div className="text-3xl font-mono tracking-tight mb-2">99.4%</div>
-              <div className="text-xs text-muted-foreground uppercase tracking-widest">Pass Rate</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Safety Checklist */}
-      <section className="py-20">
-        <div className="max-w-5xl mx-auto px-8">
-          <h2 className="text-2xl mb-6 tracking-tight">Quick Safety Checklist</h2>
-          <div className="border border-border divide-y divide-border">
-            <div className="p-6 text-sm">
-              <span className="font-mono text-muted-foreground mr-3">01</span>
-              Do not trust an address only because it appears in recent history.
-            </div>
-            <div className="p-6 text-sm">
-              <span className="font-mono text-muted-foreground mr-3">02</span>
-              Verify the full destination address against a saved contact or another trusted source.
-            </div>
-            <div className="p-6 text-sm">
-              <span className="font-mono text-muted-foreground mr-3">03</span>
-              Treat tiny inbound transfers from new counterparties as potential bait.
-            </div>
-            <div className="p-6 text-sm">
-              <span className="font-mono text-muted-foreground mr-3">04</span>
-              For high-value transfers, send a small test amount first whenever possible.
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Sample Explanation Snapshot */}
-      <section className="py-20">
-        <div className="max-w-5xl mx-auto px-8">
-          <h2 className="text-2xl mb-6 tracking-tight">Sample Explanation Snapshot</h2>
-          <p className="text-sm text-muted-foreground mb-8 font-mono">
-            Illustrative example, not production thresholds.
-          </p>
-          <div className="border border-border">
-            <div className="border-b border-border p-6 bg-muted/30">
-              <div className="text-xs font-mono text-muted-foreground mb-1">Transaction Signature</div>
-              <div className="font-mono text-sm">5KqR...d8Hs</div>
-            </div>
-            <div className="divide-y divide-border">
-              <div className="p-6">
-                <div className="grid grid-cols-[200px_1fr_100px] gap-4 text-sm font-mono mb-2">
-                  <div className="text-muted-foreground">Gate: Lookalike Similarity</div>
-                  <div>3 char diff (expected &gt;10)</div>
-                  <div className="text-destructive-foreground">FAIL</div>
+            <div className="landing-explanation">
+              <div className="landing-explanation-head">
+                <div className="mb-1 font-mono text-[11px] uppercase tracking-[0.18em] text-white/42">
+                  Transaction Signature
                 </div>
+                <div className="font-mono text-sm text-white">5KqR...d8Hs</div>
               </div>
-              <div className="p-6">
-                <div className="grid grid-cols-[200px_1fr_100px] gap-4 text-sm font-mono mb-2">
-                  <div className="text-muted-foreground">Gate: Min Repeat Injections</div>
-                  <div>3 events (threshold &lt;2)</div>
-                  <div className="text-destructive-foreground">FAIL</div>
+              {explanationRows.map(([gate, value, status]) => (
+                <div key={gate} className="landing-explanation-row">
+                  <span>{gate}</span>
+                  <span>{value}</span>
+                  <span className={status === "FAIL" ? "text-red-200" : "text-white/54"}>{status}</span>
                 </div>
+              ))}
+              <div className="landing-explanation-result">
+                2 gates failed, 1 unknown → Candidate emission blocked pending data availability
               </div>
-              <div className="p-6">
-                <div className="grid grid-cols-[200px_1fr_100px] gap-4 text-sm font-mono mb-2">
-                  <div className="text-muted-foreground">Gate: Recency Window</div>
-                  <div>18h ago (&lt;24h active)</div>
-                  <div className="text-muted-foreground">PASS</div>
-                </div>
-              </div>
-              <div className="p-6 bg-muted/30">
-                <div className="grid grid-cols-[200px_1fr_100px] gap-4 text-sm font-mono mb-2">
-                  <div className="text-muted-foreground">Gate: Baseline Required</div>
-                  <div>Counterparty history unavailable</div>
-                  <div className="text-muted-foreground">UNKNOWN</div>
-                </div>
-              </div>
-            </div>
-            <div className="border-t border-border p-6 bg-muted/30 text-sm font-mono">
-              2 gates failed, 1 unknown → Candidate emission blocked pending data availability
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Trust Section - asymmetric spacing (shorter gap before) */}
-      <section className="py-16">
-        <div className="max-w-5xl mx-auto px-8">
-          <h2 className="text-2xl mb-12 tracking-tight">Built on Explicit Rules</h2>
-          <div className="space-y-0">
-            {/* Item 1 */}
-            <div className="grid grid-cols-[60px_1fr] gap-6 items-start py-8 border-b border-border">
-              <div className="text-sm font-mono text-muted-foreground pt-1">01</div>
+        <section className="landing-section">
+          <div className="landing-container">
+            <div className="landing-chapter-head">
               <div>
-                <div className="flex items-center gap-3 mb-3">
-                  <h3>Transparent Reasoning</h3>
-                  <span className="text-xs font-mono text-muted-foreground border border-border px-2 py-1">VERIFIABLE</span>
-                </div>
-                <p className="text-muted-foreground leading-relaxed mb-3">
-                  Every detection includes gate-by-gate outcomes, observed values, expected thresholds, and linked evidence.
-                </p>
-                <p className="text-xs text-muted-foreground font-mono">
-                  Verify: Open any flagged transaction and inspect the gate trace and observed-vs-expected values.
-                </p>
+                <div className="landing-kicker">Operational Guardrails</div>
+                <h2 className="landing-heading">Quick Safety Checklist</h2>
               </div>
             </div>
-
-            {/* Item 2 */}
-            <div className="grid grid-cols-[60px_1fr] gap-6 items-start py-8 border-b border-border">
-              <div className="text-sm font-mono text-muted-foreground pt-1">02</div>
-              <div>
-                <div className="flex items-center gap-3 mb-3">
-                  <h3>Rule-Based Detection</h3>
-                  <span className="text-xs font-mono text-muted-foreground border border-border px-2 py-1">NO ML</span>
+            <p className="landing-section-intro">
+              Human review stays separate from scanner output. Use this short checklist before trusting any address copied
+              from recent history.
+            </p>
+            <div className="landing-checklist">
+              {checklist.map((item, index) => (
+                <div key={item} className="landing-check-row">
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  <p>{item}</p>
                 </div>
-                <p className="text-muted-foreground leading-relaxed mb-3">
-                  Signals come from explicit rules and thresholds, not predictive black-box scoring.
-                </p>
-                <p className="text-xs text-muted-foreground font-mono">
-                  Verify: Review rule names, thresholds, and pass/fail outcomes in the detection log.
-                </p>
-              </div>
-            </div>
-
-            {/* Item 3 */}
-            <div className="grid grid-cols-[60px_1fr] gap-6 items-start py-8">
-              <div className="text-sm font-mono text-muted-foreground pt-1">03</div>
-              <div>
-                <div className="flex items-center gap-3 mb-3">
-                  <h3>Fail-Closed Behavior</h3>
-                  <span className="text-xs font-mono text-muted-foreground border border-border px-2 py-1">FAIL-CLOSED</span>
-                </div>
-                <p className="text-muted-foreground leading-relaxed mb-3">
-                  If required data is unknown, candidate emission is blocked and the reason is logged.
-                </p>
-                <p className="text-xs text-muted-foreground font-mono">
-                  Verify: Check unknown_gate_reason and incomplete_window markers in blocked outcomes.
-                </p>
-              </div>
+              ))}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Footer - tighter spacing */}
-      <footer className="border-t border-border py-12">
-        <div className="max-w-5xl mx-auto px-8">
-          <div className="grid grid-cols-3 gap-16 mb-12">
-            <div>
-              <h4 className="mb-4 text-sm">Product</h4>
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <div className="hover:text-foreground transition-colors cursor-pointer">Documentation</div>
-                <div className="hover:text-foreground transition-colors cursor-pointer">Methodology</div>
-                <div className="hover:text-foreground transition-colors cursor-pointer">API Access</div>
+        <section className="landing-section landing-band">
+          <div className="landing-container landing-feature-split landing-visual-led-copy-first">
+            <div className="landing-feature-copy">
+              <div className="landing-chapter-head landing-chapter-head-stacked">
+                <div className="landing-kicker">Signal Truth</div>
+                <h2 className="landing-heading">Built on Explicit Rules</h2>
+              </div>
+            <p className="landing-section-intro">
+              These are the scanner principles behind the evidence flow. They explain how PoisonTrace limits ambiguity
+              before anything becomes a probable candidate.
+            </p>
+              <div className="landing-rule-list">
+                {ruleItems.map((item, index) => (
+                  <article key={item.title} className="landing-rule-item">
+                    <div className="landing-step-index">{String(index + 1).padStart(2, "0")}</div>
+                    <div>
+                      <div className="mb-3 flex flex-wrap items-center gap-3">
+                        <h3>{item.title}</h3>
+                        <span>{item.label}</span>
+                      </div>
+                      <p>{item.text}</p>
+                      <div className="landing-evidence">{item.verify}</div>
+                    </div>
+                  </article>
+                ))}
               </div>
             </div>
-            <div>
-              <h4 className="mb-4 text-sm">Legal</h4>
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <div className="hover:text-foreground transition-colors cursor-pointer">Privacy Policy</div>
-                <div className="hover:text-foreground transition-colors cursor-pointer">Terms of Service</div>
-                <div className="hover:text-foreground transition-colors cursor-pointer">Data Handling</div>
-              </div>
-            </div>
-            <div>
-              <h4 className="mb-4 text-sm">Support</h4>
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <div className="hover:text-foreground transition-colors cursor-pointer">Help Center</div>
-                <div className="hover:text-foreground transition-colors cursor-pointer">Report Issue</div>
-              </div>
-            </div>
+            <figure className="landing-stitch-crystal" aria-hidden="true">
+              <img src="/stitch/generated/methodology-diamond.png" alt="" loading="lazy" />
+            </figure>
           </div>
-          <div className="text-xs text-muted-foreground font-mono border-t border-border pt-6">
-            © 2026 PoisonTrace
+        </section>
+      </main>
+
+      <footer className="landing-footer">
+        <div className="landing-container">
+          <div className="grid gap-10 sm:grid-cols-3">
+            <FooterColumn title="Product" items={["Documentation", "Methodology", "API Access"]} />
+            <FooterColumn title="Legal" items={["Privacy Policy", "Terms of Service", "Data Handling"]} />
+            <FooterColumn title="Support" items={["Help Center", "Report Issue"]} />
           </div>
+          <div className="mt-10 border-t border-white/10 pt-6 font-mono text-xs text-white/42">© 2026 PoisonTrace</div>
         </div>
       </footer>
+    </div>
+  );
+}
+
+function FooterColumn({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div>
+      <h4 className="mb-4 text-sm text-white">{title}</h4>
+      <div className="space-y-2 text-sm text-white/48">
+        {items.map((item) => (
+          <div key={item} className="transition-colors hover:text-white">
+            {item}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

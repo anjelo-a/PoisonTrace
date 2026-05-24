@@ -1,0 +1,983 @@
+.landing-shell {
+  --landing-bg: #070a0e;
+  --landing-line: rgba(226, 232, 240, 0.14);
+  --landing-line-strong: rgba(226, 232, 240, 0.28);
+  --landing-muted: rgba(255, 255, 255, 0.6);
+  --landing-dim: rgba(255, 255, 255, 0.42);
+  --landing-cyan: #a5f3fc;
+  --landing-green: #a7f3d0;
+  background:
+    radial-gradient(circle at 14% 10%, rgba(87, 194, 190, 0.12), transparent 32rem),
+    radial-gradient(circle at 78% 18%, rgba(184, 202, 255, 0.1), transparent 26rem),
+    linear-gradient(180deg, #080b10 0%, #06080c 50%, #05070a 100%);
+  color: white;
+  overflow-x: hidden;
+}
+
+.landing-container {
+  width: min(calc(100% - 2rem), 76.25rem);
+  margin-inline: auto;
+}
+
+.landing-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(5, 8, 12, 0.78);
+  backdrop-filter: blur(1.125rem);
+}
+
+.landing-nav-link {
+  color: rgba(255, 255, 255, 0.58);
+  transition: color 160ms ease;
+}
+
+.landing-nav-link:hover {
+  color: white;
+}
+
+.landing-section {
+  position: relative;
+  padding-block: clamp(4.5rem, 8vw, 7.75rem);
+  overflow: clip;
+}
+
+.landing-band {
+  border-block: 1px solid rgba(255, 255, 255, 0.09);
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+    rgba(255, 255, 255, 0.018);
+  background-size: 4.5rem 4.5rem;
+}
+
+.landing-hero {
+  min-height: calc(100svh - 4.0625rem);
+  padding-block: clamp(3.5rem, 6svh, 5rem);
+  display: flex;
+  align-items: center;
+}
+
+.landing-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(117deg, transparent 0 46%, rgba(255, 255, 255, 0.18) 46.2%, transparent 46.55%),
+    radial-gradient(circle at 75% 44%, rgba(165, 243, 252, 0.18), transparent 18rem),
+    radial-gradient(circle at 88% 62%, rgba(86, 122, 255, 0.14), transparent 22rem),
+    radial-gradient(circle at 86% 48%, rgba(167, 243, 208, 0.1), transparent 16rem);
+  opacity: 0.8;
+  pointer-events: none;
+}
+
+.landing-hero-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(22rem, 1.08fr);
+  gap: clamp(2.25rem, 5vw, 5.5rem);
+  align-items: center;
+  min-width: 0;
+}
+
+.landing-hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(1rem, 2.1svh, 1.45rem);
+  max-width: 40rem;
+  min-width: 0;
+}
+
+.landing-kicker {
+  font-family: "JetBrains Mono", "Fira Code", "Courier New", monospace;
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--landing-dim);
+}
+
+.landing-display {
+  max-width: 45rem;
+  font-size: clamp(3.25rem, min(4.8vw, 8.4svh), 5.25rem);
+  line-height: 0.95;
+  letter-spacing: 0;
+  color: white;
+  text-wrap: balance;
+  overflow-wrap: break-word;
+}
+
+.landing-heading {
+  margin-top: 0.875rem;
+  margin-bottom: 1.5rem;
+  max-width: 45rem;
+  font-size: clamp(2.25rem, 4vw, 3.5rem);
+  line-height: 1;
+  letter-spacing: 0;
+  color: white;
+  text-wrap: balance;
+}
+
+.landing-lede,
+.landing-copy {
+  max-width: 41.25rem;
+  color: rgba(255, 255, 255, 0.68);
+  line-height: 1.72;
+  overflow-wrap: break-word;
+}
+
+.landing-lede {
+  font-size: clamp(1rem, 1.4vw, 1.1875rem);
+}
+
+.landing-metric {
+  display: grid;
+  gap: 0.45rem;
+  max-width: 37.5rem;
+  padding-block: clamp(0.9rem, 2svh, 1.2rem);
+  border-block: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.landing-metric-value {
+  font-family: "JetBrains Mono", "Fira Code", "Courier New", monospace;
+  font-size: clamp(2rem, 3.4vw, 3rem);
+  line-height: 1;
+  letter-spacing: 0;
+  color: white;
+}
+
+.landing-metric-line {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.landing-metric-line:last-child {
+  font-family: "JetBrains Mono", "Fira Code", "Courier New", monospace;
+  font-size: 0.6875rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.landing-hero-note {
+  max-width: 32rem;
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.landing-button {
+  display: inline-flex;
+  min-height: 2.875rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--landing-line-strong);
+  padding: 0 1.375rem;
+  font-size: 0.875rem;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.landing-button:hover {
+  transform: translateY(-1px);
+}
+
+.landing-button-primary {
+  border-color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.94);
+  color: #070a0e;
+}
+
+.landing-button-primary:hover {
+  background: white;
+}
+
+.landing-button-secondary {
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.landing-button-secondary:hover {
+  border-color: rgba(255, 255, 255, 0.55);
+  color: white;
+}
+
+.landing-proof-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.875rem;
+  font-family: "JetBrains Mono", "Fira Code", "Courier New", monospace;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.landing-dot {
+  width: 0.3125rem;
+  height: 0.3125rem;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.landing-stitch-hero,
+.landing-stitch-ledger-detail,
+.landing-stitch-crystal,
+.landing-pipeline-art,
+.landing-stitch-optics {
+  min-width: 0;
+  margin: 0;
+}
+
+.landing-stitch-hero {
+  position: relative;
+  height: clamp(21rem, 48svh, 34rem);
+  overflow: hidden;
+}
+
+.landing-stitch-hero::before {
+  content: "";
+  position: absolute;
+  inset: 12% 0 2% 18%;
+  background:
+    radial-gradient(ellipse 52% 42% at 68% 58%, rgba(165, 243, 252, 0.18), transparent 68%),
+    radial-gradient(ellipse 44% 36% at 90% 52%, rgba(92, 132, 255, 0.14), transparent 72%),
+    radial-gradient(ellipse 38% 30% at 86% 56%, rgba(167, 243, 208, 0.1), transparent 72%);
+  filter: blur(1.75rem);
+  opacity: 0.72;
+  -webkit-mask-image: radial-gradient(ellipse 78% 64% at 70% 58%, black 0 52%, transparent 86%);
+  mask-image: radial-gradient(ellipse 78% 64% at 70% 58%, black 0 52%, transparent 86%);
+}
+
+.landing-stitch-hero img {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  opacity: 0.84;
+  mix-blend-mode: screen;
+  filter: saturate(1.04) contrast(1.08) brightness(0.98);
+  -webkit-mask-image: radial-gradient(ellipse 62% 48% at 68% 54%, black 0 48%, rgba(0, 0, 0, 0.62) 66%, transparent 100%);
+  mask-image: radial-gradient(ellipse 62% 48% at 68% 54%, black 0 48%, rgba(0, 0, 0, 0.62) 66%, transparent 100%);
+}
+
+.landing-pipeline-art {
+  position: relative;
+  width: min(42vw, 34rem);
+  flex: 0 0 auto;
+  opacity: 0.9;
+  mix-blend-mode: screen;
+}
+
+.landing-pipeline-art::before,
+.landing-stitch-optics::before,
+.landing-stitch-ledger-detail::before,
+.landing-stitch-crystal::before {
+  content: "";
+  position: absolute;
+  inset: 8% 6%;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 46% 46%, rgba(165, 243, 252, 0.16), transparent 38%),
+    radial-gradient(circle at 58% 54%, rgba(167, 243, 208, 0.08), transparent 42%);
+  filter: blur(2rem);
+  opacity: 0.85;
+}
+
+.landing-pipeline-art img {
+  position: relative;
+  width: 100%;
+  height: auto;
+  display: block;
+  filter: saturate(0.96) contrast(1.12) brightness(1.06);
+  -webkit-mask-image: radial-gradient(ellipse 74% 76% at center, black 0 70%, transparent 100%);
+  mask-image: radial-gradient(ellipse 74% 76% at center, black 0 70%, transparent 100%);
+}
+
+.landing-stitch-optics {
+  position: relative;
+  overflow: visible;
+  opacity: 0.98;
+  mix-blend-mode: screen;
+}
+
+.landing-stitch-optics::after,
+.landing-stitch-ledger-detail::after,
+.landing-stitch-crystal::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(165, 243, 252, 0.09), transparent 22rem),
+    linear-gradient(180deg, transparent 0%, rgba(5, 7, 10, 0.14) 100%);
+}
+
+.landing-stitch-optics img {
+  position: relative;
+  width: 100%;
+  height: auto;
+  display: block;
+  filter: saturate(0.98) contrast(1.14) brightness(1.06);
+  -webkit-mask-image: radial-gradient(ellipse 76% 70% at 48% 50%, black 0 58%, rgba(0, 0, 0, 0.74) 72%, transparent 100%);
+  mask-image: radial-gradient(ellipse 76% 70% at 48% 50%, black 0 58%, rgba(0, 0, 0, 0.74) 72%, transparent 100%);
+}
+
+.landing-stitch-ledger-detail {
+  position: relative;
+  overflow: visible;
+  opacity: 0.98;
+  mix-blend-mode: screen;
+}
+
+.landing-stitch-ledger-detail img {
+  position: relative;
+  width: 100%;
+  height: auto;
+  display: block;
+  filter: saturate(0.96) contrast(1.12) brightness(1.06);
+  -webkit-mask-image: radial-gradient(ellipse 78% 68% at 48% 52%, black 0 58%, rgba(0, 0, 0, 0.76) 72%, transparent 100%);
+  mask-image: radial-gradient(ellipse 78% 68% at 48% 52%, black 0 58%, rgba(0, 0, 0, 0.76) 72%, transparent 100%);
+}
+
+.landing-stitch-crystal {
+  position: relative;
+  opacity: 0.98;
+  mix-blend-mode: screen;
+}
+
+.landing-stitch-crystal img {
+  position: relative;
+  width: 100%;
+  height: auto;
+  display: block;
+  filter: saturate(0.98) contrast(1.14) brightness(1.06);
+  -webkit-mask-image: radial-gradient(ellipse 78% 68% at 50% 50%, black 0 58%, rgba(0, 0, 0, 0.74) 72%, transparent 100%);
+  mask-image: radial-gradient(ellipse 78% 68% at 50% 50%, black 0 58%, rgba(0, 0, 0, 0.74) 72%, transparent 100%);
+}
+
+.landing-explanation,
+.landing-ledger-flow,
+.landing-forensic-flow,
+.landing-inline-note {
+  min-width: 0;
+}
+
+.landing-feature-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: clamp(2.5rem, 6vw, 5.5rem);
+  align-items: center;
+}
+
+.landing-feature-split-reverse {
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+}
+
+.landing-visual-led {
+  grid-template-columns: minmax(30rem, 1.44fr) minmax(17rem, 0.56fr);
+  gap: clamp(1.75rem, 4.4vw, 4.25rem);
+  align-items: center;
+}
+
+.landing-visual-led-copy-first {
+  grid-template-columns: minmax(16rem, 0.54fr) minmax(32rem, 1.46fr);
+  gap: clamp(1.75rem, 4.4vw, 4.25rem);
+  align-items: center;
+}
+
+.landing-visual-led .landing-feature-copy,
+.landing-visual-led-copy-first .landing-feature-copy {
+  max-width: 29rem;
+}
+
+.landing-visual-led .landing-stitch-optics,
+.landing-visual-led .landing-stitch-ledger-detail,
+.landing-visual-led-copy-first .landing-stitch-crystal {
+  mix-blend-mode: lighten;
+}
+
+.landing-visual-led .landing-heading,
+.landing-visual-led-copy-first .landing-heading {
+  margin-bottom: 1rem;
+  font-size: clamp(1.7rem, 2.35vw, 2.45rem);
+  line-height: 1.04;
+}
+
+.landing-visual-led .landing-copy,
+.landing-visual-led .landing-section-intro,
+.landing-visual-led-copy-first .landing-copy,
+.landing-visual-led-copy-first .landing-section-intro {
+  max-width: 28rem;
+  font-size: 0.875rem;
+  line-height: 1.58;
+  color: rgba(255, 255, 255, 0.52);
+}
+
+.landing-visual-led .landing-stitch-optics::after,
+.landing-visual-led .landing-stitch-ledger-detail::after,
+.landing-visual-led-copy-first .landing-stitch-crystal::after {
+  display: none;
+}
+
+.landing-visual-led .landing-stitch-optics::before,
+.landing-visual-led .landing-stitch-ledger-detail::before,
+.landing-visual-led-copy-first .landing-stitch-crystal::before {
+  display: none;
+}
+
+.landing-visual-led .landing-process-list,
+.landing-visual-led .landing-stat-stack,
+.landing-visual-led-copy-first .landing-rule-list {
+  margin-top: 1.25rem;
+}
+
+.landing-visual-led .landing-process-row {
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+  gap: 0.95rem;
+  padding-block: 0.95rem;
+}
+
+.landing-visual-led .landing-process-row p,
+.landing-visual-led-copy-first .landing-rule-item p {
+  font-size: 0.8125rem;
+  line-height: 1.52;
+}
+
+.landing-visual-led-copy-first .landing-rule-item {
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+  gap: 1rem;
+  padding-block: 1.05rem;
+}
+
+.landing-visual-led-copy-first .landing-step-index {
+  margin-bottom: 0;
+}
+
+.landing-visual-led-copy-first .landing-rule-item h3 {
+  margin-bottom: 0;
+  font-size: 0.95rem;
+}
+
+.landing-visual-led-copy-first .landing-evidence {
+  margin-top: 0.75rem;
+  font-size: 0.625rem;
+  line-height: 1.48;
+}
+
+.landing-feature-copy {
+  min-width: 0;
+}
+
+.landing-process-list {
+  margin-top: 2rem;
+  border-top: 1px solid var(--landing-line);
+}
+
+.landing-process-row {
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1fr);
+  gap: 1.25rem;
+  padding-block: 1.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.landing-process-row span {
+  font-family: "JetBrains Mono", "Fira Code", "Courier New", monospace;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.landing-process-row h3 {
+  margin-bottom: 0.45rem;
+  color: white;
+}
+
+.landing-process-row p {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+
+.landing-text-link {
+  display: inline-flex;
+  margin-top: 1.5rem;
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.82);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.32);
+}
+
+.landing-text-link:hover {
+  color: white;
+  border-bottom-color: rgba(255, 255, 255, 0.72);
+}
+
+.landing-split,
+.landing-two-column {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: clamp(2.125rem, 6vw, 5.375rem);
+  align-items: start;
+}
+
+.landing-two-column-reverse {
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+}
+
+.landing-thread-list {
+  display: grid;
+  border-top: 1px solid var(--landing-line);
+}
+
+.landing-thread-item {
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 1fr);
+  gap: 1.375rem;
+  padding-block: 1.5rem;
+  border-bottom: 1px solid var(--landing-line);
+}
+
+.landing-thread-index {
+  font-family: "JetBrains Mono", "Fira Code", "Courier New", monospace;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.landing-thread-item h3,
+.landing-forensic-list h3,
+.landing-step h3,
+.landing-rule-item h3,
+.landing-inline-note h3 {
+  margin-bottom: 0.75rem;
+  color: white;
+}
+
+.landing-thread-item p,
+.landing-forensic-list li,
+.landing-step p,
+.landing-rule-item p,
+.landing-inline-note p {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.875rem;
+  line-height: 1.68;
+}
+
+.landing-forensic-flow,
+.landing-ledger-flow {
+  min-width: 0;
+}
+
+.landing-flow-title {
+  margin-bottom: 1.125rem;
+  font-family: "JetBrains Mono", "Fira Code", "Courier New", monospace;
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.landing-meta-lines {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.landing-meta-lines span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 0.8125rem 0;
+  font-family: "JetBrains Mono", "Fira Code", "Courier New", monospace;
+  font-size: 0.6875rem;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.landing-rule-strip {
+  min-width: 0;
+  margin-top: 1.5rem;
+  border-left: 2px solid rgba(167, 243, 208, 0.36);
+  padding-left: 1.125rem;
+}
+
+.landing-forensic-list {
+  min-width: 0;
+  border-top: 1px solid var(--landing-line);
+  padding-top: 1.125rem;
+}
+
+.landing-forensic-list ul {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.landing-forensic-list li::before {
+  content: "-";
+  margin-right: 0.5rem;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.landing-inline-note {
+  margin-top: 1.875rem;
+  border-left: 2px solid rgba(255, 255, 255, 0.22);
+  padding-left: 1.25rem;
+}
+
+.landing-section-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1.75rem;
+  margin-bottom: 2.625rem;
+}
+
+.landing-chapter-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1.75rem;
+  margin-bottom: 1.125rem;
+}
+
+.landing-chapter-head-stacked {
+  display: grid;
+  align-items: start;
+  justify-content: start;
+  gap: 0;
+}
+
+.landing-section-intro {
+  max-width: 47.5rem;
+  margin-bottom: 2rem;
+  color: rgba(255, 255, 255, 0.62);
+  line-height: 1.72;
+}
+
+.landing-status {
+  margin-bottom: 2.125rem;
+  font-family: "JetBrains Mono", "Fira Code", "Courier New", monospace;
+  font-size: 0.6875rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #a7f3d0;
+}
+
+.landing-timeline {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid var(--landing-line);
+  border-bottom: 1px solid var(--landing-line);
+}
+
+.landing-step {
+  position: relative;
+  min-height: 18.75rem;
+  padding: 1.625rem 1.625rem 1.625rem 0;
+}
+
+.landing-step + .landing-step {
+  border-left: 0;
+  padding-left: 1.625rem;
+}
+
+.landing-step-index {
+  margin-bottom: 3rem;
+  font-family: "JetBrains Mono", "Fira Code", "Courier New", monospace;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.landing-evidence {
+  margin-top: 1.125rem;
+  font-family: "JetBrains Mono", "Fira Code", "Courier New", monospace;
+  font-size: 0.6875rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.landing-stat-stack {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.landing-stat-item {
+  min-width: 0;
+  padding: 1.25rem 1.25rem 1.25rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.landing-explanation {
+  max-width: 57.5rem;
+  overflow: visible;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.landing-explanation-head {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  padding-block: 1.125rem;
+}
+
+.landing-explanation-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) auto;
+  gap: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-block: 1.125rem;
+  font-family: "JetBrains Mono", "Fira Code", "Courier New", monospace;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.landing-explanation-result {
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  padding-block: 1.125rem;
+  font-family: "JetBrains Mono", "Fira Code", "Courier New", monospace;
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.landing-explanation-row span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.landing-checklist {
+  max-width: 57.5rem;
+  border-top: 1px solid var(--landing-line);
+}
+
+.landing-check-row {
+  display: grid;
+  grid-template-columns: 3.625rem 1fr;
+  gap: 1.25rem;
+  padding-block: 1.375rem;
+}
+
+.landing-check-row + .landing-check-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.landing-check-row span {
+  font-family: "JetBrains Mono", "Fira Code", "Courier New", monospace;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.landing-check-row p {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.landing-rule-list {
+  max-width: 61.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.landing-rule-item {
+  display: grid;
+  grid-template-columns: 3.75rem 1fr;
+  gap: 1.5rem;
+  padding-block: 1.625rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.landing-rule-item span {
+  font-family: "JetBrains Mono", "Fira Code", "Courier New", monospace;
+  font-size: 0.625rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.landing-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-block: 3.5rem;
+  background: #05070a;
+}
+
+@media (max-width: 73.75rem) {
+  .landing-hero-grid,
+  .landing-split,
+  .landing-two-column,
+  .landing-two-column-reverse,
+  .landing-feature-split,
+  .landing-feature-split-reverse {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-hero {
+    min-height: auto;
+  }
+
+  .landing-stitch-hero {
+    height: clamp(18rem, 44svh, 28rem);
+    order: -1;
+  }
+
+  .landing-stitch-hero img {
+    object-position: center;
+  }
+
+  .landing-pipeline-art {
+    width: min(100%, 42rem);
+  }
+
+  .landing-stitch-optics,
+  .landing-stitch-ledger-detail,
+  .landing-stitch-crystal {
+    max-width: 54rem;
+  }
+
+  .landing-thread-list,
+  .landing-timeline {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-step + .landing-step {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-left: 0;
+  }
+}
+
+@media (max-width: 45rem) {
+  .landing-container {
+    width: min(calc(100% - 1.5rem), 76.25rem);
+  }
+
+  .landing-header .landing-container {
+    align-items: flex-start;
+  }
+
+  .landing-header nav {
+    gap: 0.875rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 52%;
+    line-height: 1.4;
+  }
+
+  .landing-section {
+    padding-block: clamp(3.75rem, 12vw, 5.25rem);
+  }
+
+  .landing-metric,
+  .landing-explanation-row,
+  .landing-rule-item {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-stat-stack {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .landing-section-head {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .landing-chapter-head {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .landing-status {
+    margin-bottom: 0;
+  }
+
+  .landing-meta-lines {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-stitch-hero {
+    height: clamp(15rem, 54vw, 22rem);
+  }
+
+  .landing-display,
+  .landing-lede,
+  .landing-copy,
+  .landing-metric,
+  .landing-proof-strip {
+    max-width: 100%;
+  }
+
+  .landing-lede,
+  .landing-copy {
+    overflow-wrap: anywhere;
+    width: min(100%, 21rem);
+  }
+
+  .landing-thread-item {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 30rem) {
+  .landing-section {
+    padding-block: 4rem;
+  }
+
+  .landing-display {
+    font-size: clamp(2.35rem, 10.8vw, 3rem);
+    line-height: 1.04;
+    text-wrap: wrap;
+  }
+
+  .landing-heading {
+    font-size: clamp(2rem, 11vw, 2.75rem);
+  }
+
+  .landing-stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-stat-stack {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-check-row {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .landing-lede,
+  .landing-copy {
+    font-size: 0.9375rem;
+    line-height: 1.6;
+  }
+
+  .landing-button {
+    width: 100%;
+    padding-inline: 0.875rem;
+  }
+
+  .landing-proof-strip {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-height: 47.5rem) and (min-width: 61.3125rem) {
+  .landing-hero {
+    padding-block: 2.5rem;
+  }
+
+  .landing-hero-copy {
+    gap: 0.9rem;
+  }
+
+  .landing-display {
+    font-size: clamp(3rem, 4.2vw, 4.75rem);
+  }
+
+  .landing-lede {
+    font-size: 1rem;
+    line-height: 1.58;
+  }
+
+  .landing-stitch-hero {
+    height: clamp(18rem, 42svh, 27rem);
+  }
+
+  .landing-metric {
+    padding-block: 0.8rem;
+  }
+}
