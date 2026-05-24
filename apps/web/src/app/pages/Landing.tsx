@@ -153,7 +153,7 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="landing-section landing-band">
+        <section className="landing-section landing-band landing-threat-section">
           <div className="landing-container landing-split">
             <div>
               <div className="landing-kicker">Threat Pattern</div>
@@ -177,7 +177,7 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="landing-section">
+        <section className="landing-section landing-core-section">
           <div className="landing-container landing-feature-split landing-visual-led">
             <figure className="landing-stitch-optics" aria-hidden="true">
               <img src="/stitch/generated/forensic-optics.png" alt="" loading="lazy" />
@@ -207,7 +207,7 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="landing-section landing-band">
+        <section className="landing-section landing-band landing-pipeline-section">
           <div className="landing-container">
             <div className="landing-section-head">
               <div>
@@ -230,7 +230,7 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="landing-section">
+        <section className="landing-section landing-ledger-section">
           <div className="landing-container landing-feature-split landing-visual-led">
             <figure className="landing-stitch-ledger-detail" aria-hidden="true">
               <img src="/stitch/generated/evidence-ledger.png" alt="" loading="lazy" />
@@ -257,7 +257,7 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="landing-section landing-band">
+        <section className="landing-section landing-band landing-snapshot-section">
           <div className="landing-container">
             <div className="landing-chapter-head">
               <div>
@@ -289,7 +289,7 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="landing-section">
+        <section className="landing-section landing-checklist-section">
           <div className="landing-container">
             <div className="landing-chapter-head">
               <div>
