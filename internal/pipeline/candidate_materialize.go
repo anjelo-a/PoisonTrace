@@ -280,8 +280,8 @@ func gateAddressInequality(suspicious, matched string, lookalikeGate GateState) 
 }
 
 func gateMinInjectionCount(stats inboundCounterpartyStats, min int) GateState {
-	if min < 2 {
-		min = 2
+	if min < 1 {
+		min = 1
 	}
 	if stats.KnownQualifying >= min {
 		return GatePass

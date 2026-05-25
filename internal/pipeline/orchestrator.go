@@ -25,6 +25,7 @@ type Orchestrator struct {
 type RunParams struct {
 	WalletFile            string
 	SkipWalletFile        string
+	WalletAddresses       []string
 	ScanStart             time.Time
 	ScanEnd               time.Time
 	BaselineLookbackDays  int
@@ -100,9 +101,19 @@ func (o *Orchestrator) Run(ctx context.Context, p RunParams) error {
 	runCtx, cancelRun := context.WithTimeout(ctx, time.Duration(o.cfg.RunTimeoutSeconds)*time.Second)
 	defer cancelRun()
 
-	walletList, err := wallets.LoadAddressesExcludingFile(p.WalletFile, p.SkipWalletFile, o.cfg.MaxWalletsPerRun)
-	if err != nil {
-		return err
+	var walletList []string
+	if len(p.WalletAddresses) > 0 {
+		loaded, totalUnique := wallets.NormalizeAddresses(p.WalletAddresses, o.cfg.MaxWalletsPerRun)
+		if totalUnique > len(loaded) {
+			return fmt.Errorf("wallet address count %d exceeds MAX_WALLETS_PER_RUN=%d", totalUnique, o.cfg.MaxWalletsPerRun)
+		}
+		walletList = loaded
+	} else {
+		var err error
+		walletList, err = wallets.LoadAddressesExcludingFile(p.WalletFile, p.SkipWalletFile, o.cfg.MaxWalletsPerRun)
+		if err != nil {
+			return err
+		}
 	}
 	sort.Strings(walletList)
 	if len(walletList) == 0 {
@@ -114,7 +125,7 @@ func (o *Orchestrator) Run(ctx context.Context, p RunParams) error {
 	}
 
 	total := runs.Counters{WalletsRequested: len(walletList)}
-	if o.runRepo != nil {
+	if o.runRepo != nil && p.IngestionRunID == 0 {
 		runID, createErr := o.runRepo.CreateIngestionRun(runCtx, time.Now().UTC())
 		if createErr != nil {
 			return fmt.Errorf("create ingestion run: %w", createErr)

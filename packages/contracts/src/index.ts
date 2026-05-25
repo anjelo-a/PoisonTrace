@@ -74,6 +74,23 @@ export interface IngestionRunListItem {
   unknownGatePresent: boolean;
 }
 
+export interface ManualRunStartRequest {
+  addresses: string;
+  walletAddresses?: string[];
+  scanStart?: string;
+  scanEnd?: string;
+  baselineLookbackDays?: number;
+}
+
+export interface ManualRunStartResponse {
+  runId: number;
+  walletCount: number;
+  scanStart: string;
+  scanEnd: string;
+  baselineLookbackDays: number;
+  status: "running";
+}
+
 export interface WalletSyncRunSummary {
   walletSyncRunId: number;
   runId: number;

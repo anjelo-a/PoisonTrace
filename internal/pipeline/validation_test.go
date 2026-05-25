@@ -23,7 +23,7 @@ func TestValidateCoreSyncParamsAcceptsPhase1MinimumBoundaries(t *testing.T) {
 		LookalikePrefixMin:     4,
 		LookalikeSuffixMin:     4,
 		LookalikeSingleSideMin: 6,
-		MinInjectionCount:      2,
+		MinInjectionCount:      1,
 	})
 	if err != nil {
 		t.Fatalf("expected valid boundary params, got %v", err)

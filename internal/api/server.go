@@ -49,6 +49,24 @@ type OpsStore interface {
 	ListFailureClassCounts(ctx context.Context) ([]storage.FailureClassCountRecord, error)
 }
 
+type RunStartRequest struct {
+	WalletAddresses      []string
+	ScanStart            time.Time
+	ScanEnd              time.Time
+	BaselineLookbackDays int
+	RequestedBy          string
+}
+
+type RunStartResult struct {
+	RunID                int64
+	WalletCount          int
+	ScanStart            time.Time
+	ScanEnd              time.Time
+	BaselineLookbackDays int
+}
+
+type RunStarter func(ctx context.Context, req RunStartRequest) (RunStartResult, error)
+
 type Server struct {
 	repo         ReadRepository
 	cfg          config.Config
@@ -57,6 +75,7 @@ type Server struct {
 	settings     SettingsStore
 	exportJobs   ExportJobStore
 	ops          OpsStore
+	runStarter   RunStarter
 }
 
 func NewServer(repo ReadRepository, cfg config.Config) *Server {
@@ -77,6 +96,11 @@ func NewServer(repo ReadRepository, cfg config.Config) *Server {
 	if ops, ok := any(repo).(OpsStore); ok {
 		s.ops = ops
 	}
+	return s
+}
+
+func (s *Server) WithRunStarter(starter RunStarter) *Server {
+	s.runStarter = starter
 	return s
 }
 
@@ -244,6 +268,10 @@ func (s *Server) handleTransactions(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleRuns(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost {
+		s.handleRunStart(w, r)
+		return
+	}
 	if r.Method != http.MethodGet {
 		methodNotAllowed(w)
 		return
@@ -278,6 +306,100 @@ func (s *Server) handleRuns(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	writePaged(w, items, total, page, pageSize)
+}
+
+func (s *Server) handleRunStart(w http.ResponseWriter, r *http.Request) {
+	if s.runStarter == nil {
+		writeJSON(w, http.StatusNotImplemented, map[string]string{"error": "manual run start is not configured"})
+		return
+	}
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid body"})
+		return
+	}
+	type payload struct {
+		Addresses            string   `json:"addresses"`
+		WalletAddresses      []string `json:"walletAddresses"`
+		ScanStart            string   `json:"scanStart"`
+		ScanEnd              string   `json:"scanEnd"`
+		BaselineLookbackDays *int     `json:"baselineLookbackDays"`
+	}
+	var in payload
+	if err := json.Unmarshal(body, &in); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid json"})
+		return
+	}
+
+	addresses := parseAddressInput(in.Addresses, in.WalletAddresses)
+	cfg, err := s.effectiveConfig(r.Context())
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	if len(addresses) == 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "at least one wallet address is required"})
+		return
+	}
+	if len(addresses) > cfg.MaxWalletsPerRun {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": fmt.Sprintf("wallet address count %d exceeds MAX_WALLETS_PER_RUN=%d", len(addresses), cfg.MaxWalletsPerRun)})
+		return
+	}
+
+	now := time.Now().UTC()
+	scanEnd := now
+	if strings.TrimSpace(in.ScanEnd) != "" {
+		scanEnd, err = time.Parse(time.RFC3339, strings.TrimSpace(in.ScanEnd))
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid scanEnd; expected RFC3339"})
+			return
+		}
+		scanEnd = scanEnd.UTC()
+	}
+	scanStart := scanEnd.Add(-time.Duration(cfg.ScanWindowDays) * 24 * time.Hour)
+	if strings.TrimSpace(in.ScanStart) != "" {
+		scanStart, err = time.Parse(time.RFC3339, strings.TrimSpace(in.ScanStart))
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid scanStart; expected RFC3339"})
+			return
+		}
+		scanStart = scanStart.UTC()
+	}
+	if !scanStart.Before(scanEnd) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "scanStart must be before scanEnd"})
+		return
+	}
+
+	baselineLookbackDays := cfg.BaselineLookbackDays
+	if in.BaselineLookbackDays != nil {
+		baselineLookbackDays = *in.BaselineLookbackDays
+	}
+	if time.Duration(baselineLookbackDays)*24*time.Hour <= scanEnd.Sub(scanStart) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "baselineLookbackDays must be greater than the scan window days"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	result, err := s.runStarter(ctx, RunStartRequest{
+		WalletAddresses:      addresses,
+		ScanStart:            scanStart,
+		ScanEnd:              scanEnd,
+		BaselineLookbackDays: baselineLookbackDays,
+		RequestedBy:          "web manual address run",
+	})
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusAccepted, map[string]any{
+		"runId":                result.RunID,
+		"walletCount":          result.WalletCount,
+		"scanStart":            result.ScanStart.UTC().Format(time.RFC3339),
+		"scanEnd":              result.ScanEnd.UTC().Format(time.RFC3339),
+		"baselineLookbackDays": result.BaselineLookbackDays,
+		"status":               "running",
+	})
 }
 
 func (s *Server) handleWalletSync(w http.ResponseWriter, r *http.Request) {
@@ -371,27 +493,27 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSettingsGet(w http.ResponseWriter, r *http.Request) {
-	override, _, err := s.loadSettingsOverride(r.Context())
+	cfg, err := s.effectiveConfig(r.Context())
 	if err != nil {
 		writeError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"maxWalletsPerRun":         withOverrideInt(s.cfg.MaxWalletsPerRun, override.MaxWalletsPerRun),
-		"maxTXPagesPerWallet":      withOverrideInt(s.cfg.MaxTXPagesPerWallet, override.MaxTXPagesPerWallet),
-		"maxTXPerWallet":           withOverrideInt(s.cfg.MaxTXPerWallet, override.MaxTXPerWallet),
-		"maxConcurrentWallets":     withOverrideInt(s.cfg.MaxConcurrentWallets, override.MaxConcurrentWallets),
-		"walletSyncTimeoutSeconds": withOverrideInt(s.cfg.WalletSyncTimeoutSeconds, override.WalletSyncTimeoutSeconds),
-		"runTimeoutSeconds":        withOverrideInt(s.cfg.RunTimeoutSeconds, override.RunTimeoutSeconds),
-		"maxHeliusRetries":         withOverrideInt(s.cfg.MaxHeliusRetries, override.MaxHeliusRetries),
-		"heliusRequestDelayMS":     withOverrideInt(s.cfg.HeliusRequestDelayMS, override.HeliusRequestDelayMS),
-		"baselineLookbackDays":     withOverrideInt(s.cfg.BaselineLookbackDays, override.BaselineLookbackDays),
-		"scanWindowDays":           withOverrideInt(s.cfg.ScanWindowDays, override.ScanWindowDays),
-		"lookalikeRecencyDays":     withOverrideInt(s.cfg.LookalikeRecencyDays, override.LookalikeRecencyDays),
-		"lookalikePrefixMin":       withOverrideInt(s.cfg.LookalikePrefixMin, override.LookalikePrefixMin),
-		"lookalikeSuffixMin":       withOverrideInt(s.cfg.LookalikeSuffixMin, override.LookalikeSuffixMin),
-		"lookalikeSingleSideMin":   withOverrideInt(s.cfg.LookalikeSingleSideMin, override.LookalikeSingleSideMin),
-		"minInjectionCount":        withOverrideInt(s.cfg.MinInjectionCount, override.MinInjectionCount),
+		"maxWalletsPerRun":         cfg.MaxWalletsPerRun,
+		"maxTXPagesPerWallet":      cfg.MaxTXPagesPerWallet,
+		"maxTXPerWallet":           cfg.MaxTXPerWallet,
+		"maxConcurrentWallets":     cfg.MaxConcurrentWallets,
+		"walletSyncTimeoutSeconds": cfg.WalletSyncTimeoutSeconds,
+		"runTimeoutSeconds":        cfg.RunTimeoutSeconds,
+		"maxHeliusRetries":         cfg.MaxHeliusRetries,
+		"heliusRequestDelayMS":     cfg.HeliusRequestDelayMS,
+		"baselineLookbackDays":     cfg.BaselineLookbackDays,
+		"scanWindowDays":           cfg.ScanWindowDays,
+		"lookalikeRecencyDays":     cfg.LookalikeRecencyDays,
+		"lookalikePrefixMin":       cfg.LookalikePrefixMin,
+		"lookalikeSuffixMin":       cfg.LookalikeSuffixMin,
+		"lookalikeSingleSideMin":   cfg.LookalikeSingleSideMin,
+		"minInjectionCount":        cfg.MinInjectionCount,
 	})
 }
 
@@ -443,6 +565,11 @@ func (s *Server) handleSettingsWrite(w http.ResponseWriter, r *http.Request) {
 		LookalikeSuffixMin:       in.LookalikeSuffixMin,
 		LookalikeSingleSideMin:   in.LookalikeSingleSideMin,
 		MinInjectionCount:        in.MinInjectionCount,
+	}
+	cfg := applyConfigOverride(s.cfg, rec)
+	if err := cfg.ValidateReadOnlyAPI(); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
@@ -871,11 +998,88 @@ func (s *Server) loadSettingsOverride(ctx context.Context) (storage.ConfigOverri
 	return s.settings.GetConfigOverride(c)
 }
 
-func withOverrideInt(base int, override *int) int {
-	if override == nil {
-		return base
+func (s *Server) effectiveConfig(ctx context.Context) (config.Config, error) {
+	override, _, err := s.loadSettingsOverride(ctx)
+	if err != nil {
+		return config.Config{}, err
 	}
-	return *override
+	cfg := applyConfigOverride(s.cfg, override)
+	if err := cfg.ValidateReadOnlyAPI(); err != nil {
+		return config.Config{}, err
+	}
+	return cfg, nil
+}
+
+func applyConfigOverride(cfg config.Config, override storage.ConfigOverrideRecord) config.Config {
+	if override.MaxWalletsPerRun != nil {
+		cfg.MaxWalletsPerRun = *override.MaxWalletsPerRun
+	}
+	if override.MaxTXPagesPerWallet != nil {
+		cfg.MaxTXPagesPerWallet = *override.MaxTXPagesPerWallet
+	}
+	if override.MaxTXPerWallet != nil {
+		cfg.MaxTXPerWallet = *override.MaxTXPerWallet
+	}
+	if override.MaxConcurrentWallets != nil {
+		cfg.MaxConcurrentWallets = *override.MaxConcurrentWallets
+	}
+	if override.WalletSyncTimeoutSeconds != nil {
+		cfg.WalletSyncTimeoutSeconds = *override.WalletSyncTimeoutSeconds
+	}
+	if override.RunTimeoutSeconds != nil {
+		cfg.RunTimeoutSeconds = *override.RunTimeoutSeconds
+	}
+	if override.MaxHeliusRetries != nil {
+		cfg.MaxHeliusRetries = *override.MaxHeliusRetries
+	}
+	if override.HeliusRequestDelayMS != nil {
+		cfg.HeliusRequestDelayMS = *override.HeliusRequestDelayMS
+	}
+	if override.BaselineLookbackDays != nil {
+		cfg.BaselineLookbackDays = *override.BaselineLookbackDays
+	}
+	if override.ScanWindowDays != nil {
+		cfg.ScanWindowDays = *override.ScanWindowDays
+	}
+	if override.LookalikeRecencyDays != nil {
+		cfg.LookalikeRecencyDays = *override.LookalikeRecencyDays
+	}
+	if override.LookalikePrefixMin != nil {
+		cfg.LookalikePrefixMin = *override.LookalikePrefixMin
+	}
+	if override.LookalikeSuffixMin != nil {
+		cfg.LookalikeSuffixMin = *override.LookalikeSuffixMin
+	}
+	if override.LookalikeSingleSideMin != nil {
+		cfg.LookalikeSingleSideMin = *override.LookalikeSingleSideMin
+	}
+	if override.MinInjectionCount != nil {
+		cfg.MinInjectionCount = *override.MinInjectionCount
+	}
+	return cfg
+}
+
+func parseAddressInput(raw string, listed []string) []string {
+	parts := make([]string, 0, len(listed))
+	parts = append(parts, listed...)
+	fields := strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == ';' || r == '\n' || r == '\r' || r == '\t' || r == ' '
+	})
+	parts = append(parts, fields...)
+	out := make([]string, 0, len(parts))
+	seen := make(map[string]struct{})
+	for _, part := range parts {
+		addr := strings.TrimSpace(part)
+		if addr == "" || strings.HasPrefix(addr, "#") {
+			continue
+		}
+		if _, ok := seen[addr]; ok {
+			continue
+		}
+		seen[addr] = struct{}{}
+		out = append(out, addr)
+	}
+	return out
 }
 
 func candidateExplanationPayload(rec storage.CandidateExplanationRecord) map[string]any {
