@@ -148,16 +148,7 @@ export default function Landing() {
             </div>
 
             <figure className="landing-stitch-hero" aria-hidden="true">
-              <picture>
-                <source srcSet="/stitch/highres/hero-prism-art.jpg" type="image/jpeg" />
-                <img src="/stitch/generated/hero-prism.png" alt="" loading="eager" />
-              </picture>
-              <div className="landing-art-fallback landing-art-prism">
-                <span />
-                <span />
-                <span />
-                <span />
-              </div>
+              <img src="/stitch/landing/hero-prism.png" alt="" loading="eager" />
             </figure>
           </div>
         </section>
@@ -189,17 +180,7 @@ export default function Landing() {
         <section className="landing-section landing-core-section">
           <div className="landing-container landing-feature-split landing-visual-led">
             <figure className="landing-stitch-optics" aria-hidden="true">
-              <img src="/stitch/generated/forensic-optics.png" alt="" loading="lazy" />
-              <div className="landing-art-fallback landing-art-optics">
-                <span className="landing-art-beam landing-art-beam-a" />
-                <span className="landing-art-beam landing-art-beam-b" />
-                <span className="landing-art-pane landing-art-pane-a" />
-                <span className="landing-art-pane landing-art-pane-b" />
-                <span className="landing-art-pane landing-art-pane-c" />
-                <span className="landing-art-label landing-art-label-a">address_pattern: 8pqr</span>
-                <span className="landing-art-label landing-art-label-b">gate_status: resolved</span>
-                <span className="landing-art-label landing-art-label-c">risk_vector: dust</span>
-              </div>
+              <img src="/stitch/landing/forensic-optics.png" alt="" loading="lazy" />
             </figure>
             <div className="landing-feature-copy">
               <div className="landing-kicker">Technical Core</div>
@@ -252,32 +233,7 @@ export default function Landing() {
         <section className="landing-section landing-ledger-section">
           <div className="landing-container landing-feature-split landing-visual-led">
             <figure className="landing-stitch-ledger-detail" aria-hidden="true">
-              <picture>
-                <source srcSet="/stitch/highres/evidence-ledger-detail.jpg" type="image/jpeg" />
-                <img src="/stitch/generated/evidence-ledger.png" alt="" loading="lazy" />
-              </picture>
-              <div className="landing-art-fallback landing-art-ledger">
-                <span>signature</span>
-                <span>time</span>
-                <span>status</span>
-                <span>type</span>
-                <span>dust</span>
-                <span>8Pqr...55tu</span>
-                <span>1m ago</span>
-                <span>Resolved</span>
-                <span>receiver</span>
-                <span>No</span>
-                <span>5KqR...8Hs</span>
-                <span>2m ago</span>
-                <span>Resolved</span>
-                <span>receiver</span>
-                <span>Yes</span>
-                <span>6Zab...2Cde</span>
-                <span>15m ago</span>
-                <span>Blocked</span>
-                <span>sender</span>
-                <span>No</span>
-              </div>
+              <img src="/stitch/landing/evidence-ledger.png" alt="" loading="lazy" />
             </figure>
             <div className="landing-feature-copy">
               <div className="landing-chapter-head landing-chapter-head-stacked">
@@ -382,15 +338,7 @@ export default function Landing() {
               </div>
             </div>
             <figure className="landing-stitch-crystal landing-rules-diamond" aria-hidden="true">
-              <picture>
-                <source srcSet="/stitch/highres/signal-crystal-art.jpg" type="image/jpeg" />
-                <img src="/stitch/generated/methodology-diamond.png" alt="" loading="lazy" />
-              </picture>
-              <div className="landing-art-fallback landing-art-diamond">
-                <span />
-                <span />
-                <span />
-              </div>
+              <img src="/stitch/landing/rule-callouts.png" alt="" loading="lazy" />
             </figure>
           </div>
         </section>
