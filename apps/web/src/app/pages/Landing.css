@@ -91,10 +91,10 @@
 }
 
 .landing-ledger-section {
-  --section-bg-start: rgba(5, 8, 12, 0.08);
-  --section-bg-end: rgba(9, 14, 18, 0.26);
-  --section-glow-a: rgba(167, 243, 208, 0.06);
-  --section-glow-b: rgba(165, 243, 252, 0.09);
+  --section-bg-start: rgba(5, 9, 13, 0.12);
+  --section-bg-end: rgba(7, 12, 15, 0.3);
+  --section-glow-a: rgba(167, 243, 208, 0.075);
+  --section-glow-b: rgba(165, 243, 252, 0.12);
 }
 
 .landing-snapshot-section {
@@ -123,6 +123,8 @@
   position: absolute;
   inset: 0;
   background:
+    radial-gradient(ellipse 40rem 25rem at 76% 54%, rgba(3, 6, 10, 0.62), transparent 72%),
+    radial-gradient(ellipse 34rem 18rem at 76% 64%, rgba(36, 68, 78, 0.16), transparent 74%),
     radial-gradient(ellipse 44rem 28rem at 74% 42%, rgba(165, 243, 252, 0.18), transparent 72%),
     radial-gradient(ellipse 36rem 26rem at 88% 62%, rgba(86, 122, 255, 0.13), transparent 74%),
     radial-gradient(ellipse 28rem 20rem at 20% 62%, rgba(167, 243, 208, 0.08), transparent 76%);
@@ -219,10 +221,12 @@
 }
 
 .landing-hero-note {
+  width: 100%;
   max-width: 32rem;
   font-size: 0.875rem;
   line-height: 1.65;
   color: rgba(255, 255, 255, 0.58);
+  overflow-wrap: break-word;
 }
 
 .landing-button {
@@ -292,20 +296,34 @@
   position: relative;
   height: clamp(21rem, 48svh, 34rem);
   overflow: hidden;
+  -webkit-mask-image: radial-gradient(ellipse 62% 46% at 70% 56%, black 0 42%, rgba(0, 0, 0, 0.42) 58%, transparent 82%);
+  mask-image: radial-gradient(ellipse 62% 46% at 70% 56%, black 0 42%, rgba(0, 0, 0, 0.42) 58%, transparent 82%);
 }
 
 .landing-stitch-hero::before {
   content: "";
   position: absolute;
-  inset: 12% 0 2% 18%;
+  inset: 5% -6% -2% 8%;
   background:
-    radial-gradient(ellipse 52% 42% at 68% 58%, rgba(165, 243, 252, 0.18), transparent 68%),
-    radial-gradient(ellipse 44% 36% at 90% 52%, rgba(92, 132, 255, 0.14), transparent 72%),
-    radial-gradient(ellipse 38% 30% at 86% 56%, rgba(167, 243, 208, 0.1), transparent 72%);
-  filter: blur(1.75rem);
-  opacity: 0.72;
-  -webkit-mask-image: radial-gradient(ellipse 78% 64% at 70% 58%, black 0 52%, transparent 86%);
-  mask-image: radial-gradient(ellipse 78% 64% at 70% 58%, black 0 52%, transparent 86%);
+    radial-gradient(ellipse 58% 44% at 66% 58%, rgba(165, 243, 252, 0.16), transparent 72%),
+    radial-gradient(ellipse 56% 40% at 88% 54%, rgba(92, 132, 255, 0.13), transparent 76%),
+    radial-gradient(ellipse 48% 34% at 38% 70%, rgba(167, 243, 208, 0.08), transparent 76%);
+  filter: blur(2.25rem);
+  opacity: 0.68;
+  -webkit-mask-image: radial-gradient(ellipse 86% 70% at 66% 58%, black 0 48%, rgba(0, 0, 0, 0.68) 64%, transparent 90%);
+  mask-image: radial-gradient(ellipse 86% 70% at 66% 58%, black 0 48%, rgba(0, 0, 0, 0.68) 64%, transparent 90%);
+}
+
+.landing-stitch-hero::after {
+  content: "";
+  position: absolute;
+  inset: -14% -10%;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 34% 28% at 69% 50%, rgba(206, 251, 255, 0.1), transparent 66%),
+    linear-gradient(90deg, transparent 0%, transparent 56%, rgba(14, 23, 36, 0.3) 70%, rgba(14, 23, 36, 0.88) 88%, rgba(13, 22, 34, 0.96) 100%),
+    linear-gradient(180deg, transparent 0%, transparent 62%, rgba(7, 10, 16, 0.72) 100%);
+  mix-blend-mode: normal;
 }
 
 .landing-stitch-hero img {
@@ -314,11 +332,19 @@
   height: 100%;
   object-fit: contain;
   object-position: center;
-  opacity: 0.84;
+  opacity: 0.74;
   mix-blend-mode: screen;
-  filter: saturate(1.04) contrast(1.08) brightness(0.98);
-  -webkit-mask-image: radial-gradient(ellipse 62% 48% at 68% 54%, black 0 48%, rgba(0, 0, 0, 0.62) 66%, transparent 100%);
-  mask-image: radial-gradient(ellipse 62% 48% at 68% 54%, black 0 48%, rgba(0, 0, 0, 0.62) 66%, transparent 100%);
+  filter: saturate(0.96) contrast(1.02) brightness(0.86);
+  transform: translateX(-2%) scale(1.14);
+  transform-origin: 68% 54%;
+  -webkit-mask-image:
+    radial-gradient(ellipse 58% 44% at 70% 56%, black 0 40%, rgba(0, 0, 0, 0.46) 56%, transparent 78%),
+    linear-gradient(90deg, transparent 0%, black 18%, black 64%, rgba(0, 0, 0, 0.42) 74%, transparent 84%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    radial-gradient(ellipse 58% 44% at 70% 56%, black 0 40%, rgba(0, 0, 0, 0.46) 56%, transparent 78%),
+    linear-gradient(90deg, transparent 0%, black 18%, black 64%, rgba(0, 0, 0, 0.42) 74%, transparent 84%);
+  mask-composite: intersect;
 }
 
 .landing-pipeline-art {
@@ -338,8 +364,9 @@
   inset: 8% 6%;
   pointer-events: none;
   background:
-    radial-gradient(circle at 46% 46%, rgba(165, 243, 252, 0.16), transparent 38%),
-    radial-gradient(circle at 58% 54%, rgba(167, 243, 208, 0.08), transparent 42%);
+    radial-gradient(ellipse 48% 38% at var(--art-glow-x, 46%) var(--art-glow-y, 46%), var(--art-glow-core, rgba(165, 243, 252, 0.16)), transparent 64%),
+    radial-gradient(ellipse 64% 52% at var(--art-glow-b-x, 58%) var(--art-glow-b-y, 54%), var(--art-glow-side, rgba(167, 243, 208, 0.08)), transparent 76%),
+    radial-gradient(ellipse 54% 44% at var(--art-glow-c-x, 36%) var(--art-glow-c-y, 68%), var(--art-glow-low, rgba(87, 194, 255, 0.05)), transparent 78%);
   filter: blur(2rem);
   opacity: 0.85;
 }
@@ -356,9 +383,27 @@
 
 .landing-stitch-optics {
   position: relative;
-  overflow: visible;
-  opacity: 0.98;
+  overflow: hidden;
+  --art-glow-core: rgba(150, 247, 240, 0.13);
+  --art-glow-side: rgba(72, 128, 255, 0.11);
+  --art-glow-low: rgba(42, 217, 169, 0.055);
+  --art-glow-x: 43%;
+  --art-glow-y: 47%;
+  --art-glow-b-x: 69%;
+  --art-glow-b-y: 50%;
+  --art-glow-c-x: 34%;
+  --art-glow-c-y: 67%;
+  --art-highlight: rgba(203, 255, 248, 0.07);
+  --art-highlight-x: 42%;
+  --art-highlight-y: 42%;
+  --art-edge-left: rgba(5, 7, 10, 0.64);
+  --art-edge-right: rgba(4, 8, 14, 0.9);
+  --art-edge-top: rgba(5, 7, 10, 0.48);
+  --art-edge-bottom: rgba(5, 7, 10, 0.94);
+  opacity: 0.86;
   mix-blend-mode: screen;
+  -webkit-mask-image: radial-gradient(ellipse 74% 60% at 46% 50%, black 0 46%, rgba(0, 0, 0, 0.42) 62%, transparent 84%);
+  mask-image: radial-gradient(ellipse 74% 60% at 46% 50%, black 0 46%, rgba(0, 0, 0, 0.42) 62%, transparent 84%);
 }
 
 .landing-stitch-optics::after,
@@ -369,8 +414,7 @@
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(circle at 20% 20%, rgba(165, 243, 252, 0.09), transparent 22rem),
-    linear-gradient(180deg, transparent 0%, rgba(5, 7, 10, 0.14) 100%);
+    radial-gradient(ellipse 42% 34% at var(--art-highlight-x, 42%) var(--art-highlight-y, 42%), var(--art-highlight, rgba(165, 243, 252, 0.09)), transparent 68%);
 }
 
 .landing-stitch-optics img {
@@ -378,16 +422,42 @@
   width: 100%;
   height: auto;
   display: block;
-  filter: saturate(0.98) contrast(1.14) brightness(1.06);
-  -webkit-mask-image: radial-gradient(ellipse 76% 70% at 48% 50%, black 0 58%, rgba(0, 0, 0, 0.74) 72%, transparent 100%);
-  mask-image: radial-gradient(ellipse 76% 70% at 48% 50%, black 0 58%, rgba(0, 0, 0, 0.74) 72%, transparent 100%);
+  filter: saturate(0.92) contrast(1.06) brightness(0.9);
+  transform: scale(1.08);
+  transform-origin: 46% 50%;
+  -webkit-mask-image:
+    radial-gradient(ellipse 68% 56% at 46% 50%, black 0 44%, rgba(0, 0, 0, 0.38) 60%, transparent 80%),
+    linear-gradient(90deg, transparent 0%, black 14%, black 76%, transparent 92%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    radial-gradient(ellipse 68% 56% at 46% 50%, black 0 44%, rgba(0, 0, 0, 0.38) 60%, transparent 80%),
+    linear-gradient(90deg, transparent 0%, black 14%, black 76%, transparent 92%);
+  mask-composite: intersect;
 }
 
 .landing-stitch-ledger-detail {
   position: relative;
-  overflow: visible;
-  opacity: 0.98;
+  overflow: hidden;
+  --art-glow-core: rgba(167, 243, 208, 0.15);
+  --art-glow-side: rgba(126, 229, 255, 0.1);
+  --art-glow-low: rgba(60, 180, 134, 0.07);
+  --art-glow-x: 48%;
+  --art-glow-y: 52%;
+  --art-glow-b-x: 70%;
+  --art-glow-b-y: 44%;
+  --art-glow-c-x: 28%;
+  --art-glow-c-y: 64%;
+  --art-highlight: rgba(192, 255, 225, 0.08);
+  --art-highlight-x: 52%;
+  --art-highlight-y: 50%;
+  --art-edge-left: rgba(4, 9, 10, 0.58);
+  --art-edge-right: rgba(5, 11, 12, 0.92);
+  --art-edge-top: rgba(4, 8, 11, 0.48);
+  --art-edge-bottom: rgba(4, 8, 10, 0.96);
+  opacity: 0.84;
   mix-blend-mode: screen;
+  -webkit-mask-image: radial-gradient(ellipse 74% 58% at 46% 52%, black 0 46%, rgba(0, 0, 0, 0.42) 62%, transparent 84%);
+  mask-image: radial-gradient(ellipse 74% 58% at 46% 52%, black 0 46%, rgba(0, 0, 0, 0.42) 62%, transparent 84%);
 }
 
 .landing-stitch-ledger-detail img {
@@ -395,15 +465,42 @@
   width: 100%;
   height: auto;
   display: block;
-  filter: saturate(0.96) contrast(1.12) brightness(1.06);
-  -webkit-mask-image: radial-gradient(ellipse 78% 68% at 48% 52%, black 0 58%, rgba(0, 0, 0, 0.76) 72%, transparent 100%);
-  mask-image: radial-gradient(ellipse 78% 68% at 48% 52%, black 0 58%, rgba(0, 0, 0, 0.76) 72%, transparent 100%);
+  filter: saturate(0.9) contrast(1.06) brightness(0.88);
+  transform: scale(1.08);
+  transform-origin: 46% 52%;
+  -webkit-mask-image:
+    radial-gradient(ellipse 70% 54% at 46% 52%, black 0 44%, rgba(0, 0, 0, 0.38) 60%, transparent 80%),
+    linear-gradient(90deg, transparent 0%, black 14%, black 76%, transparent 92%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    radial-gradient(ellipse 70% 54% at 46% 52%, black 0 44%, rgba(0, 0, 0, 0.38) 60%, transparent 80%),
+    linear-gradient(90deg, transparent 0%, black 14%, black 76%, transparent 92%);
+  mask-composite: intersect;
 }
 
 .landing-stitch-crystal {
   position: relative;
-  opacity: 0.98;
+  overflow: hidden;
+  --art-glow-core: rgba(226, 246, 255, 0.23);
+  --art-glow-side: rgba(107, 150, 255, 0.13);
+  --art-glow-low: rgba(165, 243, 252, 0.12);
+  --art-glow-x: 50%;
+  --art-glow-y: 48%;
+  --art-glow-b-x: 63%;
+  --art-glow-b-y: 54%;
+  --art-glow-c-x: 42%;
+  --art-glow-c-y: 64%;
+  --art-highlight: rgba(238, 252, 255, 0.12);
+  --art-highlight-x: 50%;
+  --art-highlight-y: 48%;
+  --art-edge-left: rgba(5, 7, 11, 0.82);
+  --art-edge-right: rgba(5, 7, 13, 0.86);
+  --art-edge-top: rgba(6, 9, 14, 0.42);
+  --art-edge-bottom: rgba(5, 7, 10, 0.94);
+  opacity: 0.9;
   mix-blend-mode: screen;
+  -webkit-mask-image: radial-gradient(ellipse 76% 62% at 50% 50%, black 0 48%, rgba(0, 0, 0, 0.46) 64%, transparent 86%);
+  mask-image: radial-gradient(ellipse 76% 62% at 50% 50%, black 0 48%, rgba(0, 0, 0, 0.46) 64%, transparent 86%);
 }
 
 .landing-stitch-crystal img {
@@ -411,9 +508,17 @@
   width: 100%;
   height: auto;
   display: block;
-  filter: saturate(0.98) contrast(1.14) brightness(1.06);
-  -webkit-mask-image: radial-gradient(ellipse 78% 68% at 50% 50%, black 0 58%, rgba(0, 0, 0, 0.74) 72%, transparent 100%);
-  mask-image: radial-gradient(ellipse 78% 68% at 50% 50%, black 0 58%, rgba(0, 0, 0, 0.74) 72%, transparent 100%);
+  filter: saturate(0.96) contrast(1.1) brightness(1.02);
+  transform: scale(1.08);
+  transform-origin: 50% 50%;
+  -webkit-mask-image:
+    radial-gradient(ellipse 70% 56% at 50% 50%, black 0 46%, rgba(0, 0, 0, 0.44) 62%, transparent 84%),
+    linear-gradient(90deg, transparent 0%, black 16%, black 78%, transparent 94%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    radial-gradient(ellipse 70% 56% at 50% 50%, black 0 46%, rgba(0, 0, 0, 0.44) 62%, transparent 84%),
+    linear-gradient(90deg, transparent 0%, black 16%, black 78%, transparent 94%);
+  mask-composite: intersect;
 }
 
 .landing-explanation,
@@ -451,12 +556,6 @@
   max-width: 29rem;
 }
 
-.landing-visual-led .landing-stitch-optics,
-.landing-visual-led .landing-stitch-ledger-detail,
-.landing-visual-led-copy-first .landing-stitch-crystal {
-  mix-blend-mode: lighten;
-}
-
 .landing-visual-led .landing-heading,
 .landing-visual-led-copy-first .landing-heading {
   margin-bottom: 1rem;
@@ -477,13 +576,23 @@
 .landing-visual-led .landing-stitch-optics::after,
 .landing-visual-led .landing-stitch-ledger-detail::after,
 .landing-visual-led-copy-first .landing-stitch-crystal::after {
-  display: none;
+  display: block;
+  inset: -12%;
+  background:
+    radial-gradient(ellipse 46% 36% at var(--art-highlight-x, 46%) var(--art-highlight-y, 50%), var(--art-highlight, rgba(5, 8, 12, 0)), transparent 62%);
 }
 
 .landing-visual-led .landing-stitch-optics::before,
 .landing-visual-led .landing-stitch-ledger-detail::before,
 .landing-visual-led-copy-first .landing-stitch-crystal::before {
-  display: none;
+  display: block;
+  inset: 2% -4%;
+  background:
+    radial-gradient(ellipse 54% 42% at var(--art-glow-x, 46%) var(--art-glow-y, 50%), var(--art-glow-core, rgba(165, 243, 252, 0.1)), transparent 68%),
+    radial-gradient(ellipse 70% 56% at var(--art-glow-b-x, 58%) var(--art-glow-b-y, 54%), var(--art-glow-side, rgba(87, 194, 255, 0.08)), transparent 76%),
+    radial-gradient(ellipse 58% 48% at var(--art-glow-c-x, 38%) var(--art-glow-c-y, 66%), var(--art-glow-low, rgba(167, 243, 208, 0.04)), transparent 78%);
+  filter: blur(2.4rem);
+  opacity: 0.74;
 }
 
 .landing-visual-led .landing-process-list,
@@ -626,7 +735,7 @@
 }
 
 .landing-rules-diamond img {
-  filter: saturate(1.04) contrast(1.18) brightness(1.12);
+  filter: saturate(1) contrast(1.14) brightness(1.06);
 }
 
 .landing-feature-copy {
@@ -1025,10 +1134,10 @@
   }
 
   .landing-header nav {
-    gap: 0.875rem;
-    flex-wrap: wrap;
+    gap: 0.75rem;
+    flex-wrap: nowrap;
     justify-content: flex-end;
-    max-width: 52%;
+    max-width: none;
     line-height: 1.4;
   }
 
@@ -1108,6 +1217,17 @@
   .landing-copy {
     overflow-wrap: anywhere;
     width: min(100%, 21rem);
+  }
+
+  .landing-hero-note {
+    max-width: 21rem;
+    overflow-wrap: anywhere;
+  }
+
+  .landing-metric-line:last-child {
+    max-width: 20rem;
+    letter-spacing: 0.12em;
+    overflow-wrap: anywhere;
   }
 
   .landing-thread-item {
