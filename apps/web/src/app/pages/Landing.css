@@ -7,9 +7,9 @@
   --landing-cyan: #a5f3fc;
   --landing-green: #a7f3d0;
   background:
-    radial-gradient(circle at 14% 10%, rgba(87, 194, 190, 0.12), transparent 32rem),
-    radial-gradient(circle at 78% 18%, rgba(184, 202, 255, 0.1), transparent 26rem),
-    linear-gradient(180deg, #080b10 0%, #06080c 50%, #05070a 100%);
+    radial-gradient(ellipse 80% 48rem at 18% 6rem, rgba(87, 194, 190, 0.12), transparent 70%),
+    radial-gradient(ellipse 62% 42rem at 86% 18rem, rgba(128, 153, 255, 0.1), transparent 72%),
+    linear-gradient(180deg, #080b10 0%, #06090d 42%, #05070a 100%);
   color: white;
   overflow-x: hidden;
 }
@@ -43,13 +43,72 @@
   overflow: clip;
 }
 
+.landing-section::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 42rem 24rem at 12% 28%, var(--section-glow-a, rgba(165, 243, 252, 0.06)), transparent 72%),
+    radial-gradient(ellipse 46rem 26rem at 88% 58%, var(--section-glow-b, rgba(118, 142, 255, 0.055)), transparent 74%),
+    linear-gradient(180deg, var(--section-bg-start, rgba(8, 11, 16, 0)) 0%, var(--section-bg-end, rgba(5, 7, 10, 0.28)) 100%);
+}
+
+.landing-section > * {
+  position: relative;
+  z-index: 1;
+}
+
 .landing-band {
   border-block: 1px solid rgba(255, 255, 255, 0.09);
-  background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px),
-    rgba(255, 255, 255, 0.018);
-  background-size: 4.5rem 4.5rem;
+  --section-bg-start: rgba(15, 23, 29, 0.3);
+  --section-bg-end: rgba(4, 8, 12, 0.18);
+  --section-glow-a: rgba(165, 243, 252, 0.075);
+  --section-glow-b: rgba(167, 243, 208, 0.045);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0.006));
+}
+
+.landing-threat-section {
+  --section-bg-start: rgba(10, 17, 18, 0.32);
+  --section-bg-end: rgba(5, 8, 12, 0.2);
+  --section-glow-a: rgba(167, 243, 208, 0.08);
+  --section-glow-b: rgba(165, 243, 252, 0.045);
+}
+
+.landing-core-section {
+  --section-bg-start: rgba(5, 7, 10, 0.04);
+  --section-bg-end: rgba(7, 12, 17, 0.22);
+  --section-glow-a: rgba(165, 243, 252, 0.095);
+  --section-glow-b: rgba(91, 124, 255, 0.07);
+}
+
+.landing-pipeline-section {
+  --section-bg-start: rgba(9, 12, 18, 0.32);
+  --section-bg-end: rgba(5, 7, 10, 0.2);
+  --section-glow-a: rgba(184, 202, 255, 0.07);
+  --section-glow-b: rgba(167, 243, 208, 0.04);
+}
+
+.landing-ledger-section {
+  --section-bg-start: rgba(5, 8, 12, 0.08);
+  --section-bg-end: rgba(9, 14, 18, 0.26);
+  --section-glow-a: rgba(167, 243, 208, 0.06);
+  --section-glow-b: rgba(165, 243, 252, 0.09);
+}
+
+.landing-snapshot-section {
+  --section-bg-start: rgba(12, 12, 17, 0.32);
+  --section-bg-end: rgba(5, 7, 10, 0.24);
+  --section-glow-a: rgba(255, 159, 159, 0.045);
+  --section-glow-b: rgba(165, 243, 252, 0.05);
+}
+
+.landing-checklist-section {
+  --section-bg-start: rgba(5, 7, 10, 0.04);
+  --section-bg-end: rgba(6, 10, 12, 0.22);
+  --section-glow-a: rgba(167, 243, 208, 0.055);
+  --section-glow-b: rgba(184, 202, 255, 0.045);
 }
 
 .landing-hero {
@@ -64,10 +123,9 @@
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(117deg, transparent 0 46%, rgba(255, 255, 255, 0.18) 46.2%, transparent 46.55%),
-    radial-gradient(circle at 75% 44%, rgba(165, 243, 252, 0.18), transparent 18rem),
-    radial-gradient(circle at 88% 62%, rgba(86, 122, 255, 0.14), transparent 22rem),
-    radial-gradient(circle at 86% 48%, rgba(167, 243, 208, 0.1), transparent 16rem);
+    radial-gradient(ellipse 44rem 28rem at 74% 42%, rgba(165, 243, 252, 0.18), transparent 72%),
+    radial-gradient(ellipse 36rem 26rem at 88% 62%, rgba(86, 122, 255, 0.13), transparent 74%),
+    radial-gradient(ellipse 28rem 20rem at 20% 62%, rgba(167, 243, 208, 0.08), transparent 76%);
   opacity: 0.8;
   pointer-events: none;
 }
@@ -467,6 +525,110 @@
   line-height: 1.48;
 }
 
+.landing-rules-focus {
+  --section-bg-start: rgba(9, 13, 18, 0.16);
+  --section-bg-end: rgba(5, 7, 10, 0.32);
+  --section-glow-a: rgba(165, 243, 252, 0.05);
+  --section-glow-b: rgba(87, 194, 255, 0.12);
+  padding-block: clamp(4.25rem, 7vw, 6.75rem);
+}
+
+.landing-rules-layout {
+  grid-template-columns: minmax(18rem, 0.48fr) minmax(36rem, 1.52fr);
+  gap: clamp(2.25rem, 5vw, 6rem);
+}
+
+.landing-rules-copy {
+  position: relative;
+  max-width: 23rem;
+  padding-block: 1rem;
+}
+
+.landing-rules-copy::after {
+  content: "";
+  position: absolute;
+  top: 48%;
+  left: min(100%, 23rem);
+  width: clamp(7rem, 13vw, 15rem);
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(165, 243, 252, 0.36), rgba(165, 243, 252, 0));
+}
+
+.landing-rules-copy .landing-heading {
+  max-width: 20rem;
+  margin-bottom: 0.8rem;
+  font-size: clamp(1.55rem, 2vw, 2.05rem);
+  line-height: 1.03;
+}
+
+.landing-rules-copy .landing-section-intro {
+  max-width: 21rem;
+  margin-bottom: 1.1rem;
+  font-size: 0.8125rem;
+  line-height: 1.52;
+}
+
+.landing-rules-copy .landing-rule-list {
+  margin-top: 1rem;
+  border-top-color: rgba(255, 255, 255, 0.09);
+}
+
+.landing-rules-copy .landing-rule-item {
+  grid-template-columns: 1.75rem minmax(0, 1fr);
+  gap: 0.75rem;
+  padding-block: 0.72rem;
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.landing-rules-copy .landing-rule-item .landing-step-index {
+  font-size: 0.625rem;
+  color: rgba(255, 255, 255, 0.34);
+}
+
+.landing-rules-copy .landing-rule-item h3 {
+  font-size: 0.8125rem;
+  line-height: 1.2;
+}
+
+.landing-rules-copy .landing-rule-item span {
+  font-size: 0.5625rem;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.landing-rules-copy .landing-rule-item p {
+  margin-top: 0.32rem;
+  font-size: 0.6875rem;
+  line-height: 1.38;
+  color: rgba(255, 255, 255, 0.44);
+}
+
+.landing-visual-led-copy-first .landing-rules-diamond {
+  isolation: isolate;
+  transform: translateX(clamp(0rem, 2.2vw, 2.25rem)) scale(1.08);
+}
+
+.landing-visual-led-copy-first .landing-rules-diamond::before {
+  content: "";
+  display: block;
+  position: absolute;
+  inset: 10% 12% 8%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 44% 38% at 50% 48%, rgba(226, 246, 255, 0.5), transparent 58%),
+    radial-gradient(ellipse 66% 58% at 50% 54%, rgba(165, 243, 252, 0.28), transparent 70%),
+    radial-gradient(ellipse 78% 64% at 57% 55%, rgba(87, 194, 255, 0.16), transparent 78%);
+  filter: blur(1.8rem);
+  opacity: 0.78;
+  -webkit-mask-image: radial-gradient(ellipse 72% 62% at center, black 0 58%, transparent 86%);
+  mask-image: radial-gradient(ellipse 72% 62% at center, black 0 58%, transparent 86%);
+}
+
+.landing-rules-diamond img {
+  filter: saturate(1.04) contrast(1.18) brightness(1.12);
+}
+
 .landing-feature-copy {
   min-width: 0;
 }
@@ -826,6 +988,22 @@
     max-width: 54rem;
   }
 
+  .landing-rules-copy {
+    max-width: 32rem;
+    padding-block: 0;
+  }
+
+  .landing-rules-copy::after {
+    display: none;
+  }
+
+  .landing-visual-led-copy-first .landing-rules-diamond {
+    order: -1;
+    justify-self: center;
+    width: min(100%, 54rem);
+    transform: none;
+  }
+
   .landing-thread-list,
   .landing-timeline {
     grid-template-columns: 1fr;
@@ -862,6 +1040,34 @@
   .landing-explanation-row,
   .landing-rule-item {
     grid-template-columns: 1fr;
+  }
+
+  .landing-rules-focus {
+    padding-block: clamp(3.5rem, 11vw, 5rem);
+  }
+
+  .landing-rules-copy,
+  .landing-rules-copy .landing-heading,
+  .landing-rules-copy .landing-section-intro {
+    max-width: 100%;
+  }
+
+  .landing-rules-copy .landing-rule-item {
+    grid-template-columns: 1.55rem minmax(0, 1fr);
+    gap: 0.65rem;
+    padding-block: 0.68rem;
+  }
+
+  .landing-rules-copy .landing-rule-item h3 {
+    font-size: 0.8rem;
+  }
+
+  .landing-rules-copy .landing-rule-item p {
+    font-size: 0.6875rem;
+  }
+
+  .landing-visual-led-copy-first .landing-rules-diamond {
+    width: min(100%, 32rem);
   }
 
   .landing-stat-stack {
@@ -923,6 +1129,19 @@
 
   .landing-heading {
     font-size: clamp(2rem, 11vw, 2.75rem);
+  }
+
+  .landing-rules-copy .landing-heading {
+    font-size: clamp(1.75rem, 8.6vw, 2.15rem);
+  }
+
+  .landing-rules-copy .landing-section-intro {
+    font-size: 0.875rem;
+    line-height: 1.55;
+  }
+
+  .landing-rules-copy .landing-rule-item h3 {
+    font-size: 0.9375rem;
   }
 
   .landing-stat-grid {

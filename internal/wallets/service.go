@@ -8,18 +8,36 @@ import (
 )
 
 func LoadAddressesFromFile(path string, max int) ([]string, error) {
+	return LoadAddressesExcludingFile(path, "", max)
+}
+
+func LoadAddressesExcludingFile(path string, excludePath string, max int) ([]string, error) {
+	excluded := map[string]struct{}{}
+	if excludePath != "" {
+		exclude, err := LoadAddressesFromFile(excludePath, 0)
+		if err != nil {
+			return nil, fmt.Errorf("load excluded wallet file: %w", err)
+		}
+		for _, addr := range exclude {
+			excluded[addr] = struct{}{}
+		}
+	}
+
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("open wallet file: %w", err)
 	}
 	defer f.Close()
 
-	out := make([]string, 0, max)
-	seen := make(map[string]struct{}, max)
+	out := make([]string, 0)
+	seen := make(map[string]struct{})
 	s := bufio.NewScanner(f)
 	for s.Scan() {
 		addr := strings.TrimSpace(s.Text())
 		if addr == "" || strings.HasPrefix(addr, "#") {
+			continue
+		}
+		if _, ok := excluded[addr]; ok {
 			continue
 		}
 		if _, ok := seen[addr]; ok {
@@ -27,7 +45,7 @@ func LoadAddressesFromFile(path string, max int) ([]string, error) {
 		}
 		seen[addr] = struct{}{}
 		out = append(out, addr)
-		if len(out) >= max {
+		if max > 0 && len(out) >= max {
 			break
 		}
 	}

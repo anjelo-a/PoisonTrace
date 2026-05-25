@@ -72,20 +72,17 @@ const ruleItems = [
   {
     label: "VERIFIABLE",
     title: "Transparent Reasoning",
-    text: "Every detection includes gate-by-gate outcomes, observed values, expected thresholds, and linked evidence.",
-    verify: "Verify: Open any flagged transaction and inspect the gate trace and observed-vs-expected values.",
+    text: "Gate outcomes stay inspectable.",
   },
   {
     label: "NO ML",
     title: "Rule-Based Detection",
-    text: "Signals come from explicit rules and thresholds, not predictive black-box scoring.",
-    verify: "Verify: Review rule names, thresholds, and pass/fail outcomes in the detection log.",
+    text: "Signals come from thresholds.",
   },
   {
     label: "FAIL-CLOSED",
     title: "Fail-Closed Behavior",
-    text: "If required data is unknown, candidate emission is blocked and the reason is logged.",
-    verify: "Verify: Check unknown_gate_reason and incomplete_window markers in blocked outcomes.",
+    text: "Unknown gates block emission.",
   },
 ];
 
@@ -156,7 +153,7 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="landing-section landing-band">
+        <section className="landing-section landing-band landing-threat-section">
           <div className="landing-container landing-split">
             <div>
               <div className="landing-kicker">Threat Pattern</div>
@@ -180,7 +177,7 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="landing-section">
+        <section className="landing-section landing-core-section">
           <div className="landing-container landing-feature-split landing-visual-led">
             <figure className="landing-stitch-optics" aria-hidden="true">
               <img src="/stitch/generated/forensic-optics.png" alt="" loading="lazy" />
@@ -210,7 +207,7 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="landing-section landing-band">
+        <section className="landing-section landing-band landing-pipeline-section">
           <div className="landing-container">
             <div className="landing-section-head">
               <div>
@@ -233,7 +230,7 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="landing-section">
+        <section className="landing-section landing-ledger-section">
           <div className="landing-container landing-feature-split landing-visual-led">
             <figure className="landing-stitch-ledger-detail" aria-hidden="true">
               <img src="/stitch/generated/evidence-ledger.png" alt="" loading="lazy" />
@@ -260,7 +257,7 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="landing-section landing-band">
+        <section className="landing-section landing-band landing-snapshot-section">
           <div className="landing-container">
             <div className="landing-chapter-head">
               <div>
@@ -292,7 +289,7 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="landing-section">
+        <section className="landing-section landing-checklist-section">
           <div className="landing-container">
             <div className="landing-chapter-head">
               <div>
@@ -315,16 +312,15 @@ export default function Landing() {
           </div>
         </section>
 
-        <section className="landing-section landing-band">
-          <div className="landing-container landing-feature-split landing-visual-led-copy-first">
-            <div className="landing-feature-copy">
+        <section className="landing-section landing-band landing-rules-focus">
+          <div className="landing-container landing-feature-split landing-visual-led-copy-first landing-rules-layout">
+            <div className="landing-feature-copy landing-rules-copy">
               <div className="landing-chapter-head landing-chapter-head-stacked">
                 <div className="landing-kicker">Signal Truth</div>
                 <h2 className="landing-heading">Built on Explicit Rules</h2>
               </div>
             <p className="landing-section-intro">
-              These are the scanner principles behind the evidence flow. They explain how PoisonTrace limits ambiguity
-              before anything becomes a probable candidate.
+              A compact rule rail explains why ambiguity stops before a candidate appears.
             </p>
               <div className="landing-rule-list">
                 {ruleItems.map((item, index) => (
@@ -336,13 +332,12 @@ export default function Landing() {
                         <span>{item.label}</span>
                       </div>
                       <p>{item.text}</p>
-                      <div className="landing-evidence">{item.verify}</div>
                     </div>
                   </article>
                 ))}
               </div>
             </div>
-            <figure className="landing-stitch-crystal" aria-hidden="true">
+            <figure className="landing-stitch-crystal landing-rules-diamond" aria-hidden="true">
               <img src="/stitch/generated/methodology-diamond.png" alt="" loading="lazy" />
             </figure>
           </div>

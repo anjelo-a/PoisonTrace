@@ -9,12 +9,14 @@ Example:
 ```bash
 go run ./cmd/scanner run \
   --wallets ./wallets.seed.txt \
+  --skip-wallets ./wallets.completed.txt \
   --scan-start 2026-04-01T00:00:00Z \
   --scan-end 2026-04-08T00:00:00Z
 ```
 
 Determinism and bounds:
 - wallet scheduling order is canonicalized before fan-out.
+- repeated wallets and wallets listed in `--skip-wallets` are excluded before the run cap is applied.
 - run-level notes are emitted in stable wallet-key order.
 - run summary persists truncation metrics:
 - `truncation_wallet_count`
