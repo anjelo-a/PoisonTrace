@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -275,6 +277,44 @@ func TestRunAggregatesPoisoningCandidateCounters(t *testing.T) {
 	}
 	if runRepo.finalCounters.PoisoningCandidatesInserted != 3 {
 		t.Fatalf("expected aggregated poisoning candidate count=3, got %+v", runRepo.finalCounters)
+	}
+}
+
+func TestRunSkipsWalletsFromSkipFileBeforeScheduling(t *testing.T) {
+	cfg := testConfig()
+	runRepo := &runRepoStub{}
+	var mu sync.Mutex
+	var called []string
+
+	orch := NewOrchestrator(
+		cfg,
+		WithRunRepository(runRepo),
+		WithWalletRunner(func(_ context.Context, wallet string, _ RunParams, _ WalletRunLimits) (WalletRunReport, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			called = append(called, wallet)
+			return WalletRunReport{WalletStatus: runs.WalletStatusSucceeded}, nil
+		}),
+	)
+
+	err := orch.Run(context.Background(), RunParams{
+		WalletFile:           writeWalletFile(t, []string{"walletA", "walletB", "walletC"}),
+		SkipWalletFile:       writeWalletFile(t, []string{"walletB"}),
+		ScanStart:            time.Now().UTC().Add(-2 * time.Hour),
+		ScanEnd:              time.Now().UTC().Add(-1 * time.Hour),
+		BaselineLookbackDays: 90,
+	})
+	if err != nil {
+		t.Fatalf("run returned unexpected error: %v", err)
+	}
+
+	want := []string{"walletA", "walletC"}
+	sort.Strings(called)
+	if !reflect.DeepEqual(called, want) {
+		t.Fatalf("expected scheduled wallets %v, got %v", want, called)
+	}
+	if runRepo.finalCounters.WalletsRequested != len(want) {
+		t.Fatalf("expected wallets requested=%d, got %+v", len(want), runRepo.finalCounters)
 	}
 }
 

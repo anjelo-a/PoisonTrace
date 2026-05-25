@@ -24,6 +24,7 @@ type Orchestrator struct {
 
 type RunParams struct {
 	WalletFile            string
+	SkipWalletFile        string
 	ScanStart             time.Time
 	ScanEnd               time.Time
 	BaselineLookbackDays  int
@@ -99,7 +100,7 @@ func (o *Orchestrator) Run(ctx context.Context, p RunParams) error {
 	runCtx, cancelRun := context.WithTimeout(ctx, time.Duration(o.cfg.RunTimeoutSeconds)*time.Second)
 	defer cancelRun()
 
-	walletList, err := wallets.LoadAddressesFromFile(p.WalletFile, o.cfg.MaxWalletsPerRun)
+	walletList, err := wallets.LoadAddressesExcludingFile(p.WalletFile, p.SkipWalletFile, o.cfg.MaxWalletsPerRun)
 	if err != nil {
 		return err
 	}

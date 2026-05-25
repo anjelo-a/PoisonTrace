@@ -67,6 +67,7 @@ func main() {
 func runCmd(cfg config.Config, args []string) {
 	fs := flag.NewFlagSet("run", flag.ExitOnError)
 	walletFile := fs.String("wallets", "", "path to wallet list (one address per line)")
+	skipWalletFile := fs.String("skip-wallets", "", "optional path to wallet list to exclude from this run")
 	scanStart := fs.String("scan-start", "", "scan window start in RFC3339")
 	scanEnd := fs.String("scan-end", "", "scan window end in RFC3339")
 	baselineLookbackDays := fs.Int("baseline-lookback-days", cfg.BaselineLookbackDays, "baseline lookback days")
@@ -119,6 +120,7 @@ func runCmd(cfg config.Config, args []string) {
 	)
 	err = orch.Run(ctx, pipeline.RunParams{
 		WalletFile:            *walletFile,
+		SkipWalletFile:        *skipWalletFile,
 		ScanStart:             startAt.UTC(),
 		ScanEnd:               endAt.UTC(),
 		BaselineLookbackDays:  *baselineLookbackDays,
