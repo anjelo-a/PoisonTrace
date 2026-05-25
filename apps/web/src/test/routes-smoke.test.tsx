@@ -97,6 +97,6 @@ describe("route smoke", () => {
   it("renders settings route", async () => {
     renderAt("/app/settings");
     expect(await screen.findByRole("heading", { name: "Settings" })).toBeInTheDocument();
-    expect(await screen.findByText(/read-only backend configuration/i)).toBeInTheDocument();
+    expect(await screen.findByText(/runtime configuration for new scanner runs/i)).toBeInTheDocument();
   });
 });

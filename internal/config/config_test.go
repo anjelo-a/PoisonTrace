@@ -66,3 +66,11 @@ func TestValidateRejectsNonHTTPSHeliusBaseURL(t *testing.T) {
 		t.Fatal("expected error when HELIUS_BASE_URL is not https")
 	}
 }
+
+func TestValidateAcceptsMinInjectionCountOne(t *testing.T) {
+	cfg := validConfig()
+	cfg.MinInjectionCount = 1
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("expected MIN_INJECTION_COUNT=1 to be valid, got %v", err)
+	}
+}

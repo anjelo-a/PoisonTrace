@@ -54,3 +54,23 @@ func LoadAddressesExcludingFile(path string, excludePath string, max int) ([]str
 	}
 	return out, nil
 }
+
+func NormalizeAddresses(addresses []string, max int) ([]string, int) {
+	out := make([]string, 0, len(addresses))
+	seen := make(map[string]struct{})
+	for _, raw := range addresses {
+		addr := strings.TrimSpace(raw)
+		if addr == "" || strings.HasPrefix(addr, "#") {
+			continue
+		}
+		if _, ok := seen[addr]; ok {
+			continue
+		}
+		seen[addr] = struct{}{}
+		if max > 0 && len(out) >= max {
+			continue
+		}
+		out = append(out, addr)
+	}
+	return out, len(seen)
+}

@@ -330,7 +330,54 @@ func serveAPICmd(cfg config.Config, args []string) {
 		os.Exit(1)
 	}
 
-	srv := api.NewServer(store, cfg)
+	srv := api.NewServer(store, cfg).WithRunStarter(func(ctx context.Context, req api.RunStartRequest) (api.RunStartResult, error) {
+		runCfg := cfg
+		if override, ok, err := store.GetConfigOverride(ctx); err != nil {
+			return api.RunStartResult{}, err
+		} else if ok {
+			runCfg = applyStoredConfigOverride(runCfg, override)
+		}
+		if err := runCfg.Validate(); err != nil {
+			return api.RunStartResult{}, err
+		}
+
+		heliusClient, err := helius.NewHTTPClient(runCfg.HeliusBaseURL, runCfg.HeliusAPIKey, 15*time.Second)
+		if err != nil {
+			return api.RunStartResult{}, err
+		}
+		runID, err := store.CreateIngestionRun(ctx, time.Now().UTC())
+		if err != nil {
+			return api.RunStartResult{}, err
+		}
+		orch := pipeline.NewOrchestrator(
+			runCfg,
+			pipeline.WithRunRepository(store),
+			pipeline.WithWalletLockRepository(store),
+			pipeline.WithWalletRunner(pipeline.NewWalletExecutionRunner(runCfg, heliusClient, store)),
+		)
+		go func() {
+			runCtx, cancel := context.WithTimeout(context.Background(), time.Duration(runCfg.RunTimeoutSeconds)*time.Second)
+			defer cancel()
+			err := orch.Run(runCtx, pipeline.RunParams{
+				WalletAddresses:       req.WalletAddresses,
+				ScanStart:             req.ScanStart.UTC(),
+				ScanEnd:               req.ScanEnd.UTC(),
+				BaselineLookbackDays:  req.BaselineLookbackDays,
+				RequestedByCLICommand: req.RequestedBy,
+				IngestionRunID:        runID,
+			})
+			if err != nil {
+				log.Printf("manual run %d failed: %v", runID, err)
+			}
+		}()
+		return api.RunStartResult{
+			RunID:                runID,
+			WalletCount:          len(req.WalletAddresses),
+			ScanStart:            req.ScanStart.UTC(),
+			ScanEnd:              req.ScanEnd.UTC(),
+			BaselineLookbackDays: req.BaselineLookbackDays,
+		}, nil
+	})
 	log.Printf("api server listening on %s", *addr)
 
 	httpServer := &http.Server{
@@ -364,4 +411,53 @@ func serveAPICmd(cfg config.Config, args []string) {
 			os.Exit(1)
 		}
 	}
+}
+
+func applyStoredConfigOverride(cfg config.Config, override storage.ConfigOverrideRecord) config.Config {
+	if override.MaxWalletsPerRun != nil {
+		cfg.MaxWalletsPerRun = *override.MaxWalletsPerRun
+	}
+	if override.MaxTXPagesPerWallet != nil {
+		cfg.MaxTXPagesPerWallet = *override.MaxTXPagesPerWallet
+	}
+	if override.MaxTXPerWallet != nil {
+		cfg.MaxTXPerWallet = *override.MaxTXPerWallet
+	}
+	if override.MaxConcurrentWallets != nil {
+		cfg.MaxConcurrentWallets = *override.MaxConcurrentWallets
+	}
+	if override.WalletSyncTimeoutSeconds != nil {
+		cfg.WalletSyncTimeoutSeconds = *override.WalletSyncTimeoutSeconds
+	}
+	if override.RunTimeoutSeconds != nil {
+		cfg.RunTimeoutSeconds = *override.RunTimeoutSeconds
+	}
+	if override.MaxHeliusRetries != nil {
+		cfg.MaxHeliusRetries = *override.MaxHeliusRetries
+	}
+	if override.HeliusRequestDelayMS != nil {
+		cfg.HeliusRequestDelayMS = *override.HeliusRequestDelayMS
+	}
+	if override.BaselineLookbackDays != nil {
+		cfg.BaselineLookbackDays = *override.BaselineLookbackDays
+	}
+	if override.ScanWindowDays != nil {
+		cfg.ScanWindowDays = *override.ScanWindowDays
+	}
+	if override.LookalikeRecencyDays != nil {
+		cfg.LookalikeRecencyDays = *override.LookalikeRecencyDays
+	}
+	if override.LookalikePrefixMin != nil {
+		cfg.LookalikePrefixMin = *override.LookalikePrefixMin
+	}
+	if override.LookalikeSuffixMin != nil {
+		cfg.LookalikeSuffixMin = *override.LookalikeSuffixMin
+	}
+	if override.LookalikeSingleSideMin != nil {
+		cfg.LookalikeSingleSideMin = *override.LookalikeSingleSideMin
+	}
+	if override.MinInjectionCount != nil {
+		cfg.MinInjectionCount = *override.MinInjectionCount
+	}
+	return cfg
 }

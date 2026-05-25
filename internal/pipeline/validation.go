@@ -57,8 +57,8 @@ func validateLookalikeAndInjectionParams(recencyDays, prefixMin, suffixMin, sing
 	if prefixMin < 4 || suffixMin < 4 || singleSideMin < 6 {
 		return fmt.Errorf("lookalike thresholds must satisfy phase1 minimums: prefix>=4, suffix>=4, single-side>=6")
 	}
-	if minInjectionCount < 2 {
-		return fmt.Errorf("min injection count must be >= 2")
+	if minInjectionCount < 1 {
+		return fmt.Errorf("min injection count must be >= 1")
 	}
 	return nil
 }

@@ -218,9 +218,9 @@ func TestRunWalletCoreSyncRejectsInvalidLookalikeThresholds(t *testing.T) {
 		{
 			name: "min_injection_non_positive",
 			mutate: func(p *CoreSyncParams) {
-				p.MinInjectionCount = 1
+				p.MinInjectionCount = 0
 			},
-			wantInErr: "min injection count must be >= 2",
+			wantInErr: "min injection count must be >= 1",
 		},
 	}
 

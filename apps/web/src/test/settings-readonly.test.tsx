@@ -3,7 +3,7 @@ import { RouterProvider, createMemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { routes } from "../app/routes";
 
-describe("settings read-only truthfulness", () => {
+describe("settings editor", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
@@ -35,16 +35,16 @@ describe("settings read-only truthfulness", () => {
     vi.restoreAllMocks();
   });
 
-  it("shows backend values and no save actions", async () => {
+  it("shows backend values and save action", async () => {
     const router = createMemoryRouter(routes, { initialEntries: ["/app/settings"] });
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(<QueryClientProvider client={queryClient}><RouterProvider router={router} /></QueryClientProvider>);
 
-    expect(await screen.findByText("Read-only backend configuration from `GET /api/settings`")).toBeInTheDocument();
-    expect(await screen.findByText("12")).toBeInTheDocument();
-    expect(await screen.findByText("34")).toBeInTheDocument();
-    expect(await screen.findByText("900")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /save/i })).not.toBeInTheDocument();
-    expect(await screen.findByText(/not yet API-backed/i)).toBeInTheDocument();
+    expect(await screen.findByText("Runtime configuration for new scanner runs")).toBeInTheDocument();
+    expect(await screen.findByDisplayValue("12")).toBeInTheDocument();
+    expect(await screen.findByDisplayValue("34")).toBeInTheDocument();
+    expect(await screen.findByDisplayValue("900")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /save/i })).toBeInTheDocument();
+    expect(await screen.findByText(/app_config_overrides/i)).toBeInTheDocument();
   });
 });

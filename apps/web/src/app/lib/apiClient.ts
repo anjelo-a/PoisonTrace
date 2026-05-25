@@ -9,6 +9,8 @@ import type {
   WalletSyncRunListItem,
   IngestionRunListItem,
   OverviewMetrics,
+  ManualRunStartRequest,
+  ManualRunStartResponse,
 } from "@poisontrace/contracts";
 
 export type OverviewResponse = {
@@ -69,13 +71,20 @@ const REQUEST_TIMEOUT_MS = Number.isFinite(REQUEST_TIMEOUT_MS_ENV) && REQUEST_TI
   ? REQUEST_TIMEOUT_MS_ENV
   : DEFAULT_REQUEST_TIMEOUT_MS;
 
-async function request<T>(path: string): Promise<T> {
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const controller = new AbortController();
   const timeoutId = globalThis.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    const response = await fetch(`${API_BASE}${path}`, { signal: controller.signal });
+    const response = await fetch(`${API_BASE}${path}`, { ...init, signal: controller.signal });
     if (!response.ok) {
-      throw new Error(`request failed: ${response.status}`);
+      let detail = "";
+      try {
+        const body = await response.json() as { error?: string };
+        detail = body.error ? `: ${body.error}` : "";
+      } catch {
+        detail = "";
+      }
+      throw new Error(`request failed: ${response.status}${detail}`);
     }
     return response.json() as Promise<T>;
   } catch (error) {
@@ -93,6 +102,12 @@ export const apiClient = {
   getCandidates: (page = 1, pageSize = 50) => request<PagedResponse<CandidateListItem>>(`/api/candidates?page=${page}&page_size=${pageSize}`),
   getTransactions: (page = 1, pageSize = 50) => request<PagedResponse<TransactionListItem>>(`/api/transactions?page=${page}&page_size=${pageSize}`),
   getRuns: (page = 1, pageSize = 50) => request<PagedResponse<IngestionRunListItem>>(`/api/runs?page=${page}&page_size=${pageSize}`),
+  startManualRun: (payload: ManualRunStartRequest) =>
+    request<ManualRunStartResponse>("/api/runs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
   getWalletSync: (page = 1, pageSize = 50) => request<PagedResponse<WalletSyncRunListItem>>(`/api/wallet-sync?page=${page}&page_size=${pageSize}`),
   getCounterparties: (page = 1, pageSize = 50) => request<PagedResponse<CounterpartyListItem>>(`/api/counterparties?page=${page}&page_size=${pageSize}`),
   getCandidateExplanation: (walletSyncRunId: number, signature: string, transferIndex: number) =>
@@ -106,4 +121,10 @@ export const apiClient = {
   getExportFiles: (runId: number) =>
     request<ExportFilesResponse>(`/api/exports/files?run_id=${runId}`),
   getSettings: () => request<SettingsResponse>("/api/settings"),
+  updateSettings: (payload: SettingsResponse) =>
+    request<SettingsResponse>("/api/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }),
 };
