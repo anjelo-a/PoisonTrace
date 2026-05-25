@@ -148,10 +148,7 @@ export default function Landing() {
             </div>
 
             <figure className="landing-stitch-hero" aria-hidden="true">
-              <picture>
-                <source srcSet="/stitch/highres/hero-prism-art.jpg" type="image/jpeg" />
-                <img src="/stitch/generated/hero-prism.png" alt="" loading="eager" />
-              </picture>
+              <img src="/stitch/landing/hero-prism.png" alt="" loading="eager" />
             </figure>
           </div>
         </section>
@@ -183,7 +180,7 @@ export default function Landing() {
         <section className="landing-section landing-core-section">
           <div className="landing-container landing-feature-split landing-visual-led">
             <figure className="landing-stitch-optics" aria-hidden="true">
-              <img src="/stitch/generated/forensic-optics.png" alt="" loading="lazy" />
+              <img src="/stitch/landing/forensic-optics.png" alt="" loading="lazy" />
             </figure>
             <div className="landing-feature-copy">
               <div className="landing-kicker">Technical Core</div>
@@ -236,10 +233,7 @@ export default function Landing() {
         <section className="landing-section landing-ledger-section">
           <div className="landing-container landing-feature-split landing-visual-led">
             <figure className="landing-stitch-ledger-detail" aria-hidden="true">
-              <picture>
-                <source srcSet="/stitch/highres/evidence-ledger-detail.jpg" type="image/jpeg" />
-                <img src="/stitch/generated/evidence-ledger.png" alt="" loading="lazy" />
-              </picture>
+              <img src="/stitch/landing/evidence-ledger.png" alt="" loading="lazy" />
             </figure>
             <div className="landing-feature-copy">
               <div className="landing-chapter-head landing-chapter-head-stacked">
@@ -344,7 +338,7 @@ export default function Landing() {
               </div>
             </div>
             <figure className="landing-stitch-crystal landing-rules-diamond" aria-hidden="true">
-              <img src="/stitch/generated/methodology-diamond.png" alt="" loading="lazy" />
+              <img src="/stitch/landing/rule-callouts.png" alt="" loading="lazy" />
             </figure>
           </div>
         </section>
