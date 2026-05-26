@@ -193,6 +193,7 @@ type ScrapeOptions struct {
 	MaxWallets           int
 	MaxTXPerBlock        int
 	MaxNoisyInstructions int
+	MinNativeLamports    int64
 }
 
 func ScrapeRecentWallets(ctx context.Context, rpc RPC, opts ScrapeOptions) ([]string, error) {
@@ -209,8 +210,8 @@ func ScrapeRecentWallets(ctx context.Context, rpc RPC, opts ScrapeOptions) ([]st
 		startSlot = latest
 	}
 
-	counts := make(map[string]int)
-	for checked := 0; checked < opts.BlockLookback && len(counts) < opts.MaxWallets; checked++ {
+	stats := make(map[string]blockWalletStats)
+	for checked := 0; checked < opts.BlockLookback; checked++ {
 		if opts.MaxBlocks > 0 && checked >= opts.MaxBlocks {
 			break
 		}
@@ -234,14 +235,31 @@ func ScrapeRecentWallets(ctx context.Context, rpc RPC, opts ScrapeOptions) ([]st
 			if opts.MaxTXPerBlock > 0 && inspected > opts.MaxTXPerBlock {
 				break
 			}
-			addresses := parsedTransferSources(tx.Transaction.Message.Instructions)
-			if len(addresses) == 0 {
-				addresses = signerWallets(tx.Transaction.Message.AccountKeys)
+			observations, hasParsedTransfer := parsedTransferOwnerObservations(tx.Transaction.Message.Instructions, opts.MinNativeLamports)
+			if len(observations) == 0 && !hasParsedTransfer {
+				for _, address := range signerWallets(tx.Transaction.Message.AccountKeys) {
+					observations = append(observations, blockWalletObservation{address: address, outbound: true})
+				}
 			}
-			for _, address := range addresses {
-				counts[address]++
+			for _, obs := range observations {
+				rec := stats[obs.address]
+				rec.count++
+				if obs.outbound {
+					rec.outbound++
+				} else {
+					rec.inbound++
+				}
+				stats[obs.address] = rec
 			}
 		}
+	}
+
+	counts := make(map[string]int)
+	for address, stat := range stats {
+		if stat.outbound == 0 || stat.inbound > stat.outbound {
+			continue
+		}
+		counts[address] = stat.count
 	}
 
 	type scored struct {
@@ -269,9 +287,21 @@ func ScrapeRecentWallets(ctx context.Context, rpc RPC, opts ScrapeOptions) ([]st
 	return out, nil
 }
 
-func parsedTransferSources(instructions []RPCInstruction) []string {
-	seen := make(map[string]struct{})
-	out := make([]string, 0)
+type blockWalletStats struct {
+	count    int
+	outbound int
+	inbound  int
+}
+
+type blockWalletObservation struct {
+	address  string
+	outbound bool
+}
+
+func parsedTransferOwnerObservations(instructions []RPCInstruction, minNativeLamports int64) ([]blockWalletObservation, bool) {
+	seen := make(map[blockWalletObservation]struct{})
+	out := make([]blockWalletObservation, 0)
+	hasParsedTransfer := false
 	for _, ix := range instructions {
 		ixType := strings.ToLower(strings.TrimSpace(parsedInstructionType(ix)))
 		if ixType != "transfer" && ixType != "transferchecked" {
@@ -280,22 +310,57 @@ func parsedTransferSources(instructions []RPCInstruction) []string {
 		if ix.Parsed == nil || ix.Parsed.Info == nil {
 			continue
 		}
-		address, _ := ix.Parsed.Info["authority"].(string)
-		address = strings.TrimSpace(address)
-		if address == "" {
-			address, _ = ix.Parsed.Info["source"].(string)
-			address = strings.TrimSpace(address)
+		hasParsedTransfer = true
+		for _, obs := range transferOwnerObservations(ix, minNativeLamports) {
+			if _, ok := seen[obs]; ok {
+				continue
+			}
+			seen[obs] = struct{}{}
+			out = append(out, obs)
 		}
-		if address == "" {
-			continue
-		}
-		if _, ok := seen[address]; ok {
-			continue
-		}
-		seen[address] = struct{}{}
-		out = append(out, address)
 	}
-	return out
+	return out, hasParsedTransfer
+}
+
+func transferOwnerObservations(ix RPCInstruction, minNativeLamports int64) []blockWalletObservation {
+	observations := make([]blockWalletObservation, 0, 2)
+	authority, _ := ix.Parsed.Info["authority"].(string)
+	authority = strings.TrimSpace(authority)
+	if authority != "" {
+		observations = append(observations, blockWalletObservation{address: authority, outbound: true})
+	}
+	if strings.EqualFold(ix.Program, "system") {
+		if lamports, ok := parsedLamports(ix.Parsed.Info["lamports"]); ok && lamports < minNativeLamports {
+			return observations
+		}
+		source, _ := ix.Parsed.Info["source"].(string)
+		source = strings.TrimSpace(source)
+		if source != "" {
+			observations = append(observations, blockWalletObservation{address: source, outbound: true})
+		}
+		destination, _ := ix.Parsed.Info["destination"].(string)
+		destination = strings.TrimSpace(destination)
+		if destination != "" {
+			observations = append(observations, blockWalletObservation{address: destination, outbound: false})
+		}
+	}
+	return observations
+}
+
+func parsedLamports(value any) (int64, bool) {
+	switch v := value.(type) {
+	case float64:
+		return int64(v), true
+	case int64:
+		return v, true
+	case int:
+		return int64(v), true
+	case json.Number:
+		n, err := v.Int64()
+		return n, err == nil
+	default:
+		return 0, false
+	}
 }
 
 func signerWallets(keys []RPCAccountKey) []string {
@@ -327,6 +392,9 @@ func withScrapeDefaults(opts ScrapeOptions) ScrapeOptions {
 	}
 	if opts.MaxNoisyInstructions < 0 {
 		opts.MaxNoisyInstructions = 0
+	}
+	if opts.MinNativeLamports < 0 {
+		opts.MinNativeLamports = 0
 	}
 	return opts
 }

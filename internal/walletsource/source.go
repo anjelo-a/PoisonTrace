@@ -16,14 +16,15 @@ import (
 )
 
 type Options struct {
-	SeedWalletFile   string
-	SeedWallets      []string
-	ScoreSeedWallets bool
-	OutPath          string
-	RejectedOutPath  string
-	ScanStart        time.Time
-	ScanEnd          time.Time
-	BaselineLookback time.Duration
+	SeedWalletFile    string
+	SeedWallets       []string
+	ScoreSeedWallets  bool
+	DiscoverNeighbors bool
+	OutPath           string
+	RejectedOutPath   string
+	ScanStart         time.Time
+	ScanEnd           time.Time
+	BaselineLookback  time.Duration
 
 	TargetCount        int
 	MaxSeedWallets     int
@@ -115,6 +116,9 @@ func Source(ctx context.Context, client helius.Client, opts Options) (Result, er
 		seedSet[seed] = struct{}{}
 		if opts.ScoreSeedWallets {
 			addDiscovered(discovered, seed, nil, seed)
+		}
+		if !opts.DiscoverNeighbors {
+			continue
 		}
 		page, fetchErr := pipeline.FetchEnhancedWindow(ctx, client, seed, pipeline.FetchWindowParams{
 			Start:        windowStart,
@@ -229,6 +233,7 @@ func SourceDiscovered(ctx context.Context, client helius.Client, seeds []string,
 	opts.SeedWallets = seeds
 	opts.SeedWalletFile = ""
 	opts.ScoreSeedWallets = true
+	opts.DiscoverNeighbors = false
 	return Source(ctx, client, opts)
 }
 
@@ -262,6 +267,9 @@ func withDefaults(opts Options) Options {
 	}
 	if opts.MaxTransfersPerTX <= 0 {
 		opts.MaxTransfersPerTX = 4
+	}
+	if !opts.ScoreSeedWallets && !opts.DiscoverNeighbors {
+		opts.DiscoverNeighbors = true
 	}
 	return opts
 }

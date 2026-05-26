@@ -59,9 +59,13 @@ func TestScrapeRecentWalletsPrefersParsedTransferSource(t *testing.T) {
 								Source:   "transaction",
 							}},
 							Instructions: []RPCInstruction{{
+								Program: "system",
 								Parsed: &RPCParsedInstruction{
 									Type: "transfer",
-									Info: map[string]any{"source": "Source1111111111111111111111111111111111111"},
+									Info: map[string]any{
+										"lamports": float64(100),
+										"source":   "Source1111111111111111111111111111111111111",
+									},
 								},
 							}},
 						},
@@ -98,6 +102,7 @@ func TestScrapeRecentWalletsPrefersParsedTransferAuthority(t *testing.T) {
 								Source:   "transaction",
 							}},
 							Instructions: []RPCInstruction{{
+								Program: "spl-token",
 								Parsed: &RPCParsedInstruction{
 									Type: "transferChecked",
 									Info: map[string]any{
@@ -117,6 +122,73 @@ func TestScrapeRecentWalletsPrefersParsedTransferAuthority(t *testing.T) {
 	}
 	if len(wallets) != 1 || wallets[0] != "Owner11111111111111111111111111111111111111" {
 		t.Fatalf("expected parsed transfer authority, got %#v", wallets)
+	}
+}
+
+func TestScrapeRecentWalletsSkipsSPLTokenAccountSourceWithoutAuthority(t *testing.T) {
+	wallets, err := ScrapeRecentWallets(context.Background(), fakeRPC{
+		slot: 10,
+		blocks: map[int64]RPCBlock{
+			10: {
+				Transactions: []RPCBlockTxEnvelope{{
+					Transaction: RPCTransaction{
+						Message: RPCMessage{
+							AccountKeys: []RPCAccountKey{{
+								Pubkey:   "FeePayer1111111111111111111111111111111111",
+								Signer:   true,
+								Writable: true,
+								Source:   "transaction",
+							}},
+							Instructions: []RPCInstruction{{
+								Program: "spl-token",
+								Parsed: &RPCParsedInstruction{
+									Type: "transfer",
+									Info: map[string]any{"source": "TokenAcct1111111111111111111111111111111111"},
+								},
+							}},
+						},
+					},
+				}},
+			},
+		},
+	}, ScrapeOptions{BlockLookback: 1, MaxWallets: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(wallets) != 0 {
+		t.Fatalf("expected token-account source without authority to be skipped, got %#v", wallets)
+	}
+}
+
+func TestScrapeRecentWalletsSkipsNativeDustBelowFloor(t *testing.T) {
+	wallets, err := ScrapeRecentWallets(context.Background(), fakeRPC{
+		slot: 10,
+		blocks: map[int64]RPCBlock{
+			10: {
+				Transactions: []RPCBlockTxEnvelope{{
+					Transaction: RPCTransaction{
+						Message: RPCMessage{
+							Instructions: []RPCInstruction{{
+								Program: "system",
+								Parsed: &RPCParsedInstruction{
+									Type: "transfer",
+									Info: map[string]any{
+										"lamports": float64(999),
+										"source":   "DustSender111111111111111111111111111111111",
+									},
+								},
+							}},
+						},
+					},
+				}},
+			},
+		},
+	}, ScrapeOptions{BlockLookback: 1, MaxWallets: 10, MinNativeLamports: 1000})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(wallets) != 0 {
+		t.Fatalf("expected dust transfer to be skipped, got %#v", wallets)
 	}
 }
 
@@ -167,12 +239,21 @@ func blockTx(signer string, ixType string) RPCBlockTxEnvelope {
 					Writable: true,
 					Source:   "transaction",
 				}},
-				Instructions: []RPCInstruction{parsedIx(ixType)},
+				Instructions: []RPCInstruction{{
+					Program: "system",
+					Parsed: &RPCParsedInstruction{
+						Type: ixType,
+						Info: map[string]any{
+							"lamports": float64(100),
+							"source":   signer,
+						},
+					},
+				}},
 			},
 		},
 	}
 }
 
 func parsedIx(ixType string) RPCInstruction {
-	return RPCInstruction{Parsed: &RPCParsedInstruction{Type: ixType}}
+	return RPCInstruction{Program: "system", Parsed: &RPCParsedInstruction{Type: ixType}}
 }

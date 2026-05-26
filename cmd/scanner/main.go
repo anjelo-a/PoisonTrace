@@ -150,6 +150,7 @@ func sourceWalletsCmd(cfg config.Config, args []string) {
 	maxScrapedWallets := fs.Int("max-scraped-wallets", 100, "maximum wallets discovered from block scraping")
 	maxTXPerBlock := fs.Int("max-tx-per-block", 200, "maximum transactions inspected per block")
 	maxNoisyInstructions := fs.Int("max-noisy-instructions", 0, "maximum non-transfer instruction types allowed in scraped transactions")
+	minNativeLamports := fs.Int64("min-native-lamports", 10000000, "minimum lamports for native SOL transfer seeds")
 	outPath := fs.String("out", "", "path to write accepted wallet addresses")
 	rejectedOutPath := fs.String("rejected-out", "", "path to write rejected wallet TSV with reasons")
 	scanStart := fs.String("scan-start", "", "scan window start in RFC3339")
@@ -212,6 +213,7 @@ func sourceWalletsCmd(cfg config.Config, args []string) {
 			MaxWallets:           *maxScrapedWallets,
 			MaxTXPerBlock:        *maxTXPerBlock,
 			MaxNoisyInstructions: *maxNoisyInstructions,
+			MinNativeLamports:    *minNativeLamports,
 		})
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "scrape wallets failed: %v\n", err)
@@ -228,6 +230,7 @@ func sourceWalletsCmd(cfg config.Config, args []string) {
 		SeedWalletFile:     *seedWalletFile,
 		SeedWallets:        scrapedWallets,
 		ScoreSeedWallets:   *scrapeBlocks,
+		DiscoverNeighbors:  !*scrapeBlocks,
 		OutPath:            *outPath,
 		RejectedOutPath:    *rejectedOutPath,
 		ScanStart:          startAt.UTC(),
