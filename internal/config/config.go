@@ -286,8 +286,8 @@ func (c Config) Validate() error {
 	if c.LookalikePrefixMin < 4 || c.LookalikeSuffixMin < 4 || c.LookalikeSingleSideMin < 6 {
 		return errors.New("lookalike thresholds must satisfy phase1 minimums: prefix>=4, suffix>=4, single-side>=6")
 	}
-	if c.MinInjectionCount < 1 {
-		return errors.New("MIN_INJECTION_COUNT must be >= 1")
+	if c.MinInjectionCount < 2 {
+		return errors.New("MIN_INJECTION_COUNT must be >= 2")
 	}
 	if strings.TrimSpace(c.DustThresholdsSeedPath) == "" {
 		return errors.New("DUST_THRESHOLDS_SEED_PATH is required")
@@ -348,8 +348,8 @@ func (c Config) ValidateReadOnlyAPI() error {
 	if c.LookalikePrefixMin < 4 || c.LookalikeSuffixMin < 4 || c.LookalikeSingleSideMin < 6 {
 		return errors.New("lookalike thresholds must satisfy phase1 minimums: prefix>=4, suffix>=4, single-side>=6")
 	}
-	if c.MinInjectionCount < 1 {
-		return errors.New("MIN_INJECTION_COUNT must be >= 1")
+	if c.MinInjectionCount < 2 {
+		return errors.New("MIN_INJECTION_COUNT must be >= 2")
 	}
 	if strings.TrimSpace(c.DustThresholdsSeedPath) == "" {
 		return errors.New("DUST_THRESHOLDS_SEED_PATH is required")

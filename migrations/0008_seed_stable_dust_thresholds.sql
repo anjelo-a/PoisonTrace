@@ -1,6 +1,6 @@
--- Seed thresholds for local development and bounded smoke runs.
--- Values are conservative placeholders and must be tuned from known poisoning corpus.
--- Use a stable historical active_from so historical scans do not classify SOL dust as unknown.
+-- Ensure baseline dust thresholds are effective for historical scan windows.
+-- The seed file is still the source for local refreshes; this migration repairs DBs
+-- that already ran earlier migrations before seed loading was wired into migrate.sh.
 
 INSERT INTO asset_thresholds (asset_key, token_mint, dust_amount_raw_threshold, active_from)
 VALUES

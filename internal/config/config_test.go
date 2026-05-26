@@ -67,10 +67,10 @@ func TestValidateRejectsNonHTTPSHeliusBaseURL(t *testing.T) {
 	}
 }
 
-func TestValidateAcceptsMinInjectionCountOne(t *testing.T) {
+func TestValidateRejectsMinInjectionCountOne(t *testing.T) {
 	cfg := validConfig()
 	cfg.MinInjectionCount = 1
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("expected MIN_INJECTION_COUNT=1 to be valid, got %v", err)
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected MIN_INJECTION_COUNT=1 to be rejected")
 	}
 }
