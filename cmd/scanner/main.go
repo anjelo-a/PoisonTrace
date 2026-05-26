@@ -174,6 +174,11 @@ func sourceWalletsCmd(cfg config.Config, args []string) {
 	maxSameTimestampTX := fs.Int("max-same-timestamp-tx", 5, "maximum transactions with identical timestamp allowed")
 	maxTransfersPerTX := fs.Int("max-transfers-per-tx", 4, "maximum owner-level transfers involving candidate in one transaction")
 	maxUnknownDustSPL := fs.Int("max-unknown-dust-spl", 0, "maximum non-zero SPL transfers without a configured dust threshold allowed")
+	minScanInboundDust := fs.Int("min-scan-inbound-dust", 0, "minimum zero/dust inbound transfers in the scan window required for sourced wallets")
+	deepDiveTopN := fs.Int("deep-dive-top-n", 0, "number of high-signal capped wallets to retry with deeper sampling")
+	deepDiveMaxPages := fs.Int("deep-dive-max-pages", 0, "maximum Helius pages for deep-dive wallet sampling (0 uses default)")
+	deepDiveMaxTX := fs.Int("deep-dive-max-tx", 0, "maximum sampled transactions for deep-dive wallet sampling (0 uses default)")
+	deepDiveMinScore := fs.Int("deep-dive-min-score", 0, "minimum source score required to qualify for deep-dive retries (0 uses default)")
 	knownDustAssets := fs.String("known-dust-assets", strings.Join(walletsource.DefaultKnownDustAssetKeys(), ","), "comma-separated asset keys with configured dust thresholds")
 	_ = fs.Parse(args)
 
@@ -258,7 +263,12 @@ func sourceWalletsCmd(cfg config.Config, args []string) {
 		MaxSameTimestampTX: *maxSameTimestampTX,
 		MaxTransfersPerTX:  *maxTransfersPerTX,
 		MaxUnknownDustSPL:  *maxUnknownDustSPL,
+		MinScanInboundDust: *minScanInboundDust,
 		KnownDustAssetKeys: splitCSV(*knownDustAssets),
+		DeepDiveTopN:       *deepDiveTopN,
+		DeepDiveMaxPages:   *deepDiveMaxPages,
+		DeepDiveMaxTX:      *deepDiveMaxTX,
+		DeepDiveMinScore:   *deepDiveMinScore,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "source wallets failed: %v\n", err)
@@ -454,7 +464,7 @@ func printUsage() {
 Usage:
   scanner run --wallets <path> --scan-start <RFC3339> --scan-end <RFC3339> [--baseline-lookback-days N]
   scanner source-wallets (--seed-wallets <path> | --scrape-blocks) --out <path> --rejected-out <path> --scan-start <RFC3339> --scan-end <RFC3339>
-  scanner daemon [--once] [--cycle-interval 24h] [--daily-credit-budget 30000]
+  scanner daemon [--once] [--cycle-interval 24h] [--daily-credit-budget 35000]
   scanner replay-fixture --fixture <case_id> [--fixtures-root data/fixtures] [--write-expected]
   scanner validate-corpus [--fixtures-root data/fixtures] [--report-out path] [--strict-miss-reason]
   scanner export-dataset --out-dir <dir> [--run-id N | --started-at-from <RFC3339> --started-at-to <RFC3339>]

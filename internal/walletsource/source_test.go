@@ -295,6 +295,180 @@ func TestSourceAcceptsKnownDustSPLActivity(t *testing.T) {
 	}
 }
 
+func TestSourcePrioritizesPoisoningLikeWallets(t *testing.T) {
+	tmp := t.TempDir()
+	seedPath := filepath.Join(tmp, "seeds.txt")
+	outPath := filepath.Join(tmp, "accepted.txt")
+	rejectedPath := filepath.Join(tmp, "rejected.tsv")
+	if err := os.WriteFile(seedPath, []byte("Seed111111111111111111111111111111111111111\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	poisonWallet := "PoisonWallet111111111111111111111111111111"
+	boringWallet := "BoringWallet111111111111111111111111111111"
+	legit := "LookalikeLegit1111111111111111111111ZZZZ"
+	suspicious := "LookalikeBad11111111111111111111111ZZZZ"
+	client := fakeHeliusClient{pages: map[string][]helius.EnhancedPage{
+		"Seed111111111111111111111111111111111111111": {{
+			Transactions: []helius.EnhancedTransaction{
+				nativeTx("seed-to-boring", 100, "Seed111111111111111111111111111111111111111", boringWallet, "1000"),
+				nativeTx("seed-to-poison", 101, "Seed111111111111111111111111111111111111111", poisonWallet, "1000"),
+			},
+		}},
+		boringWallet: {{
+			Transactions: []helius.EnhancedTransaction{
+				nativeTx("boring-out", 101, boringWallet, "Friend111111111111111111111111111111111111", "2000"),
+				nativeTx("boring-in", 102, "Friend111111111111111111111111111111111111", boringWallet, "3000"),
+			},
+		}},
+		poisonWallet: {{
+			Transactions: []helius.EnhancedTransaction{
+				nativeTx("poison-baseline-out", 80, poisonWallet, legit, "5000000"),
+				nativeTx("poison-in-1", 101, suspicious, poisonWallet, "1"),
+				nativeTx("poison-in-2", 102, suspicious, poisonWallet, "1"),
+			},
+		}},
+	}}
+
+	res, err := Source(context.Background(), client, Options{
+		SeedWalletFile:   seedPath,
+		OutPath:          outPath,
+		RejectedOutPath:  rejectedPath,
+		ScanStart:        time.Unix(90, 0),
+		ScanEnd:          time.Unix(200, 0),
+		BaselineLookback: 60 * time.Second,
+		TargetCount:      1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Accepted) != 1 {
+		t.Fatalf("expected one accepted wallet, got %d", len(res.Accepted))
+	}
+	if res.Accepted[0].Address != poisonWallet {
+		t.Fatalf("expected poisoning-like wallet to be accepted first, got %s", res.Accepted[0].Address)
+	}
+	if res.Accepted[0].ScanInboundDustTransfers != 2 {
+		t.Fatalf("expected two inbound dust transfers, got %d", res.Accepted[0].ScanInboundDustTransfers)
+	}
+	if res.Accepted[0].RepeatedInboundDustCounterparts != 1 {
+		t.Fatalf("expected repeated inbound dust counterparty, got %d", res.Accepted[0].RepeatedInboundDustCounterparts)
+	}
+	if res.Accepted[0].LookalikeInboundDustMatches != 1 {
+		t.Fatalf("expected lookalike inbound dust match, got %d", res.Accepted[0].LookalikeInboundDustMatches)
+	}
+}
+
+func TestSourceCanRequireInboundDustActivity(t *testing.T) {
+	tmp := t.TempDir()
+	seedPath := filepath.Join(tmp, "seeds.txt")
+	outPath := filepath.Join(tmp, "accepted.txt")
+	rejectedPath := filepath.Join(tmp, "rejected.tsv")
+	if err := os.WriteFile(seedPath, []byte("Seed111111111111111111111111111111111111111\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	client := fakeHeliusClient{pages: map[string][]helius.EnhancedPage{
+		"Seed111111111111111111111111111111111111111": {{
+			Transactions: []helius.EnhancedTransaction{
+				nativeTx("seed-to-candidate", 100, "Seed111111111111111111111111111111111111111", "Candidate111111111111111111111111111111111", "1000"),
+			},
+		}},
+		"Candidate111111111111111111111111111111111": {{
+			Transactions: []helius.EnhancedTransaction{
+				nativeTx("candidate-out", 101, "Candidate111111111111111111111111111111111", "Friend111111111111111111111111111111111111", "2000"),
+				nativeTx("candidate-in", 102, "Friend111111111111111111111111111111111111", "Candidate111111111111111111111111111111111", "3000"),
+			},
+		}},
+	}}
+
+	res, err := Source(context.Background(), client, Options{
+		SeedWalletFile:     seedPath,
+		OutPath:            outPath,
+		RejectedOutPath:    rejectedPath,
+		ScanStart:          time.Unix(90, 0),
+		ScanEnd:            time.Unix(200, 0),
+		BaselineLookback:   60 * time.Second,
+		TargetCount:        10,
+		MinScanInboundDust: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Accepted) != 0 {
+		t.Fatalf("expected no accepted wallets, got %d", len(res.Accepted))
+	}
+	if len(res.Rejected) != 1 {
+		t.Fatalf("expected one rejected wallet, got %d", len(res.Rejected))
+	}
+	if res.Rejected[0].Reason != "insufficient_inbound_dust_activity" {
+		t.Fatalf("expected inbound dust rejection, got %q", res.Rejected[0].Reason)
+	}
+}
+
+func TestSourceDeepDiveRecoversHighSignalCappedWallet(t *testing.T) {
+	tmp := t.TempDir()
+	seedPath := filepath.Join(tmp, "seeds.txt")
+	outPath := filepath.Join(tmp, "accepted.txt")
+	rejectedPath := filepath.Join(tmp, "rejected.tsv")
+	if err := os.WriteFile(seedPath, []byte("Seed111111111111111111111111111111111111111\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	wallet := "DeepDiveWallet11111111111111111111111111111"
+	legit := "LookalikeLegit1111111111111111111111ZZZZ"
+	suspicious := "LookalikeBad11111111111111111111111ZZZZ"
+
+	client := fakeHeliusClient{pages: map[string][]helius.EnhancedPage{
+		"Seed111111111111111111111111111111111111111": {{
+			Transactions: []helius.EnhancedTransaction{
+				nativeTx("seed-to-candidate", 100, "Seed111111111111111111111111111111111111111", wallet, "1000"),
+			},
+		}},
+		wallet: {
+			{
+				Transactions: []helius.EnhancedTransaction{
+					nativeTx("baseline-out", 80, wallet, legit, "5000000"),
+					nativeTx("inbound-dust-1", 101, suspicious, wallet, "1"),
+					nativeTx("inbound-dust-2", 102, suspicious, wallet, "1"),
+				},
+				Before: "page-1",
+			},
+			{
+				Transactions: []helius.EnhancedTransaction{
+					nativeTx("filler", 79, wallet, "Friend111111111111111111111111111111111111", "2000"),
+				},
+			},
+		},
+	}}
+
+	res, err := Source(context.Background(), client, Options{
+		SeedWalletFile:     seedPath,
+		OutPath:            outPath,
+		RejectedOutPath:    rejectedPath,
+		ScanStart:          time.Unix(90, 0),
+		ScanEnd:            time.Unix(200, 0),
+		BaselineLookback:   60 * time.Second,
+		TargetCount:        1,
+		CandidateMaxPages:  1,
+		MaxTXPerWallet:     50,
+		MinScanInboundDust: 1,
+		DeepDiveTopN:       1,
+		DeepDiveMaxPages:   3,
+		DeepDiveMaxTX:      200,
+		DeepDiveMinScore:   40,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Accepted) != 1 {
+		t.Fatalf("expected deep dive to recover one accepted wallet, got %d", len(res.Accepted))
+	}
+	if res.Accepted[0].Address != wallet {
+		t.Fatalf("unexpected accepted wallet %s", res.Accepted[0].Address)
+	}
+}
+
 func nativeTx(signature string, ts int64, from string, to string, amount string) helius.EnhancedTransaction {
 	return helius.EnhancedTransaction{
 		Signature:     signature,
