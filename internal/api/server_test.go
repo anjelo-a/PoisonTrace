@@ -113,7 +113,7 @@ func TestRunsAPI_PostStartsManualRun(t *testing.T) {
 		LookalikePrefixMin:       4,
 		LookalikeSuffixMin:       4,
 		LookalikeSingleSideMin:   6,
-		MinInjectionCount:        1,
+		MinInjectionCount:        2,
 		DustThresholdsSeedPath:   "data/seeds/asset_thresholds.seed.sql",
 	}).WithRunStarter(func(ctx context.Context, req RunStartRequest) (RunStartResult, error) {
 		got = req
