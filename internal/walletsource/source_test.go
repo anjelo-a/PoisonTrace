@@ -295,6 +295,66 @@ func TestSourceAcceptsKnownDustSPLActivity(t *testing.T) {
 	}
 }
 
+func TestSourceAttackerModeRequiresOutboundDust(t *testing.T) {
+	tmp := t.TempDir()
+	seedPath := filepath.Join(tmp, "seeds.txt")
+	outPath := filepath.Join(tmp, "accepted.txt")
+	rejectedPath := filepath.Join(tmp, "rejected.tsv")
+	if err := os.WriteFile(seedPath, []byte("Seed111111111111111111111111111111111111111\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	client := fakeHeliusClient{pages: map[string][]helius.EnhancedPage{
+		"Seed111111111111111111111111111111111111111": {{
+			Transactions: []helius.EnhancedTransaction{
+				nativeTx("seed-to-attacker", 100, "Seed111111111111111111111111111111111111111", "Attacker111111111111111111111111111111111", "5000"),
+			},
+		}},
+		"Attacker111111111111111111111111111111111": {{
+			Transactions: []helius.EnhancedTransaction{
+				nativeTx("attacker-out-1", 101, "Attacker111111111111111111111111111111111", "Victim11111111111111111111111111111111111", "1"),
+				nativeTx("attacker-out-2", 102, "Attacker111111111111111111111111111111111", "Victim22222222222222222222222222222222222", "1"),
+			},
+		}},
+		"Bystander111111111111111111111111111111111": {{
+			Transactions: []helius.EnhancedTransaction{
+				nativeTx("bystander-out", 101, "Bystander111111111111111111111111111111111", "Friend111111111111111111111111111111111111", "5000"),
+			},
+		}},
+	}}
+
+	res, err := Source(context.Background(), client, Options{
+		SeedWalletFile:     seedPath,
+		SeedWallets:        []string{"Bystander111111111111111111111111111111111"},
+		ScoreSeedWallets:   true,
+		DiscoverNeighbors:  true,
+		OutPath:            outPath,
+		RejectedOutPath:    rejectedPath,
+		ScanStart:          time.Unix(90, 0),
+		ScanEnd:            time.Unix(200, 0),
+		BaselineLookback:   60 * time.Second,
+		TargetCount:        10,
+		MinScanInboundDust: 1,
+		SourceMode:         SourceModeAttackerOutboundDust,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Accepted) != 1 {
+		t.Fatalf("expected one accepted wallet in attacker mode, got %d", len(res.Accepted))
+	}
+	if res.Accepted[0].Address != "Attacker111111111111111111111111111111111" {
+		t.Fatalf("unexpected accepted wallet %s", res.Accepted[0].Address)
+	}
+	reasons := map[string]string{}
+	for _, r := range res.Rejected {
+		reasons[r.Address] = r.Reason
+	}
+	if reasons["Bystander111111111111111111111111111111111"] != "insufficient_outbound_dust_activity" {
+		t.Fatalf("expected outbound dust rejection for bystander, got %q", reasons["Bystander111111111111111111111111111111111"])
+	}
+}
+
 func TestSourcePrioritizesPoisoningLikeWallets(t *testing.T) {
 	tmp := t.TempDir()
 	seedPath := filepath.Join(tmp, "seeds.txt")
