@@ -464,7 +464,7 @@ func printUsage() {
 Usage:
   scanner run --wallets <path> --scan-start <RFC3339> --scan-end <RFC3339> [--baseline-lookback-days N]
   scanner source-wallets (--seed-wallets <path> | --scrape-blocks) --out <path> --rejected-out <path> --scan-start <RFC3339> --scan-end <RFC3339>
-  scanner daemon [--once] [--cycle-interval 24h] [--daily-credit-budget 35000]
+  scanner daemon [--once] [--cycle-interval 24h] [--daily-credit-budget 45000]
   scanner replay-fixture --fixture <case_id> [--fixtures-root data/fixtures] [--write-expected]
   scanner validate-corpus [--fixtures-root data/fixtures] [--report-out path] [--strict-miss-reason]
   scanner export-dataset --out-dir <dir> [--run-id N | --started-at-from <RFC3339> --started-at-to <RFC3339>]
