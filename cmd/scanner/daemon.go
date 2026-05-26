@@ -65,6 +65,7 @@ type daemonOptions struct {
 	deepDiveMinScore     int
 	maxNoisyInstructions int
 	minOutbound          int
+	sourceMode           string
 }
 
 func daemonCmd(cfg config.Config, args []string) {
@@ -161,6 +162,7 @@ func parseDaemonOptions(cfg config.Config, args []string) (daemonOptions, error)
 	fs.IntVar(&opts.deepDiveMinScore, "deep-dive-min-score", 30, "minimum source score required to qualify for deep-dive retries")
 	fs.IntVar(&opts.maxNoisyInstructions, "max-noisy-instructions", 0, "maximum non-transfer instruction types allowed in scraped transactions")
 	fs.IntVar(&opts.minOutbound, "min-outbound", 1, "minimum resolved outbound transfers required")
+	fs.StringVar(&opts.sourceMode, "source-mode", walletsource.SourceModeAttackerOutboundDust, "wallet source mode: attacker_outbound_dust or victim_inbound_dust")
 	if err := fs.Parse(args); err != nil {
 		return daemonOptions{}, err
 	}
@@ -213,6 +215,9 @@ func validateDaemonOptions(cfg config.Config, opts daemonOptions) error {
 	}
 	if opts.scanWindowDays < 1 || opts.baselineLookbackDays <= opts.scanWindowDays {
 		return fmt.Errorf("baseline-lookback-days must be greater than scan-window-days")
+	}
+	if opts.sourceMode != walletsource.SourceModeAttackerOutboundDust && opts.sourceMode != walletsource.SourceModeVictimInboundDust {
+		return fmt.Errorf("source-mode must be %q or %q", walletsource.SourceModeAttackerOutboundDust, walletsource.SourceModeVictimInboundDust)
 	}
 	if estimateDaemonCycleCredits(opts) > opts.dailyCreditBudget {
 		return fmt.Errorf("daily-credit-budget is below one cycle worst-case estimate (%d credits)", estimateDaemonCycleCredits(opts))
@@ -290,6 +295,7 @@ func runDaemonCycle(ctx context.Context, cfg config.Config, store *storage.Postg
 		DeepDiveMaxPages:   opts.deepDiveMaxPages,
 		DeepDiveMaxTX:      opts.deepDiveMaxTX,
 		DeepDiveMinScore:   opts.deepDiveMinScore,
+		SourceMode:         opts.sourceMode,
 	})
 	if err != nil {
 		return fmt.Errorf("source wallets: %w", err)

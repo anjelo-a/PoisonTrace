@@ -45,7 +45,13 @@ type Options struct {
 	DeepDiveMaxPages   int
 	DeepDiveMaxTX      int
 	DeepDiveMinScore   int
+	SourceMode         string
 }
+
+const (
+	SourceModeVictimInboundDust    = "victim_inbound_dust"
+	SourceModeAttackerOutboundDust = "attacker_outbound_dust"
+)
 
 type Result struct {
 	Accepted []AcceptedWallet
@@ -201,7 +207,7 @@ func Source(ctx context.Context, client helius.Client, opts Options) (Result, er
 			})
 			continue
 		}
-		stats := summarizeWallet(c.address, page.Transactions, opts.ScanStart.UTC(), knownDustThresholds)
+		stats := summarizeWallet(c.address, page.Transactions, opts.ScanStart.UTC(), knownDustThresholds, opts.SourceMode)
 		stats.discoveredFromSeeds = len(c.seeds)
 		stats.sourceScore = sourceScore(stats)
 
@@ -221,32 +227,8 @@ func Source(ctx context.Context, client helius.Client, opts Options) (Result, er
 			result.Rejected = append(result.Rejected, rejectedFromStats(stats, "helius_retry_exhausted"))
 			continue
 		}
-		if stats.sampleTransactions == 0 {
-			result.Rejected = append(result.Rejected, rejectedFromStats(stats, "no_sample_transactions"))
-			continue
-		}
-		if stats.sampleTransactions > opts.MaxAcceptedTX {
-			result.Rejected = append(result.Rejected, rejectedFromStats(stats, "too_many_sample_transactions"))
-			continue
-		}
-		if stats.outboundTransfers < opts.MinOutbound {
-			result.Rejected = append(result.Rejected, rejectedFromStats(stats, "insufficient_outbound_history"))
-			continue
-		}
-		if stats.maxSameTimestampTX > opts.MaxSameTimestampTX {
-			result.Rejected = append(result.Rejected, rejectedFromStats(stats, "bursty_same_timestamp_activity"))
-			continue
-		}
-		if stats.maxTransfersPerTX > opts.MaxTransfersPerTX {
-			result.Rejected = append(result.Rejected, rejectedFromStats(stats, "batch_transfer_activity"))
-			continue
-		}
-		if stats.unknownDustSPL > opts.MaxUnknownDustSPL {
-			result.Rejected = append(result.Rejected, rejectedFromStats(stats, "unknown_dust_spl_activity"))
-			continue
-		}
-		if stats.scanInboundDustTransfers < opts.MinScanInboundDust {
-			result.Rejected = append(result.Rejected, rejectedFromStats(stats, "insufficient_inbound_dust_activity"))
+		if reason, ok := statsRejectReason(stats, opts); ok {
+			result.Rejected = append(result.Rejected, rejectedFromStats(stats, reason))
 			continue
 		}
 
@@ -280,7 +262,7 @@ func Source(ctx context.Context, client helius.Client, opts Options) (Result, er
 				result.Rejected = append(result.Rejected, rejectedFromStats(cand.initialStats, "deep_dive_fetch_error"))
 				continue
 			}
-			reStats := summarizeWallet(cand.discovery.address, reFetched.Transactions, opts.ScanStart.UTC(), knownDustThresholds)
+			reStats := summarizeWallet(cand.discovery.address, reFetched.Transactions, opts.ScanStart.UTC(), knownDustThresholds, opts.SourceMode)
 			reStats.discoveredFromSeeds = len(cand.discovery.seeds)
 			reStats.sourceScore = sourceScore(reStats)
 
@@ -386,7 +368,19 @@ func withDefaults(opts Options) Options {
 	if !opts.ScoreSeedWallets && !opts.DiscoverNeighbors {
 		opts.DiscoverNeighbors = true
 	}
+	opts.SourceMode = normalizeSourceMode(opts.SourceMode)
 	return opts
+}
+
+func normalizeSourceMode(mode string) string {
+	switch strings.TrimSpace(mode) {
+	case "", SourceModeVictimInboundDust:
+		return SourceModeVictimInboundDust
+	case SourceModeAttackerOutboundDust:
+		return SourceModeAttackerOutboundDust
+	default:
+		return SourceModeVictimInboundDust
+	}
 }
 
 func DefaultKnownDustAssetKeys() []string {
@@ -501,7 +495,7 @@ func loadSeedWallets(path string, explicit []string) ([]string, error) {
 	return out, nil
 }
 
-func summarizeWallet(address string, txs []helius.EnhancedTransaction, scanStart time.Time, knownDustThresholds map[string]int64) walletStats {
+func summarizeWallet(address string, txs []helius.EnhancedTransaction, scanStart time.Time, knownDustThresholds map[string]int64, sourceMode string) walletStats {
 	stats := walletStats{address: address, sampleTransactions: len(txs)}
 	counterparties := make(map[string]struct{})
 	legitOutbound := make(map[string]struct{})
@@ -540,13 +534,21 @@ func summarizeWallet(address string, txs []helius.EnhancedTransaction, scanStart
 				transfersInTx++
 				if tr.SourceOwnerAddress != "" && tr.SourceOwnerAddress != address {
 					counterparties[tr.SourceOwnerAddress] = struct{}{}
-					if !tx.BlockTimeUTC().Before(scanStart) && sourceDustStatus(tr, knownDustThresholds) == transactions.DustTrue {
+					if sourceMode == SourceModeVictimInboundDust && !tx.BlockTimeUTC().Before(scanStart) && sourceDustStatus(tr, knownDustThresholds) == transactions.DustTrue {
 						scanInboundDustByCounterparty[tr.SourceOwnerAddress]++
 					}
 				}
 				if transferNeedsKnownDustThreshold(tr, knownDustThresholds) {
 					stats.unknownDustSPL++
 				}
+			}
+			if sourceMode == SourceModeAttackerOutboundDust &&
+				tr.SourceOwnerAddress == address &&
+				tr.DestinationOwnerAddress != "" &&
+				tr.DestinationOwnerAddress != address &&
+				!tx.BlockTimeUTC().Before(scanStart) &&
+				sourceDustStatus(tr, knownDustThresholds) == transactions.DustTrue {
+				scanInboundDustByCounterparty[tr.DestinationOwnerAddress]++
 			}
 		}
 		if transfersInTx > stats.maxTransfersPerTX {
@@ -633,6 +635,9 @@ func statsRejectReason(stats walletStats, opts Options) (string, bool) {
 		return "unknown_dust_spl_activity", true
 	}
 	if stats.scanInboundDustTransfers < opts.MinScanInboundDust {
+		if opts.SourceMode == SourceModeAttackerOutboundDust {
+			return "insufficient_outbound_dust_activity", true
+		}
 		return "insufficient_inbound_dust_activity", true
 	}
 	return "", false
