@@ -131,7 +131,7 @@ func parseDaemonOptions(cfg config.Config, args []string) (daemonOptions, error)
 	fs.BoolVar(&opts.once, "once", false, "run one daemon cycle and exit")
 	fs.StringVar(&opts.workDir, "work-dir", "artifacts/daemon", "directory for generated wallet files")
 	fs.Var(&cycleInterval, "cycle-interval", "duration between cycles, for example 24h or 6h")
-	fs.IntVar(&opts.dailyCreditBudget, "daily-credit-budget", 45000, "maximum estimated Helius credits used by the daemon per UTC day")
+	fs.IntVar(&opts.dailyCreditBudget, "daily-credit-budget", 50000, "maximum estimated Helius credits used by the daemon per UTC day")
 	fs.IntVar(&opts.rpcRPS, "rpc-rps", freePlanRPCDefaultRPS, "maximum Helius RPC requests per second")
 	fs.IntVar(&opts.enhancedRPS, "enhanced-rps", freePlanEnhancedDefaultRPS, "maximum Helius Enhanced API requests per second")
 	fs.IntVar(&opts.maxHeliusRetries, "max-helius-retries", minInt(cfg.MaxHeliusRetries, 1), "maximum retries per Helius Enhanced API request in daemon cycles")
@@ -155,7 +155,7 @@ func parseDaemonOptions(cfg config.Config, args []string) (daemonOptions, error)
 	fs.IntVar(&opts.maxTransfersPerTX, "max-transfers-per-tx", 4, "maximum owner-level transfers involving candidate in one transaction")
 	fs.IntVar(&opts.maxUnknownDustSPL, "max-unknown-dust-spl", 0, "maximum non-zero SPL transfers without a configured dust threshold allowed")
 	fs.IntVar(&opts.minScanInboundDust, "min-scan-inbound-dust", 1, "minimum zero/dust inbound transfers in the scan window required for daemon sourced wallets")
-	fs.IntVar(&opts.deepDiveTopN, "deep-dive-top-n", 5, "number of high-signal capped wallets to retry with deeper sampling")
+	fs.IntVar(&opts.deepDiveTopN, "deep-dive-top-n", 7, "number of high-signal capped wallets to retry with deeper sampling")
 	fs.IntVar(&opts.deepDiveMaxPages, "deep-dive-max-pages", 8, "maximum Helius pages for deep-dive wallet sampling")
 	fs.IntVar(&opts.deepDiveMaxTX, "deep-dive-max-tx", 900, "maximum sampled transactions for deep-dive wallet sampling")
 	fs.IntVar(&opts.deepDiveMinScore, "deep-dive-min-score", 30, "minimum source score required to qualify for deep-dive retries")
@@ -214,14 +214,14 @@ func validateDaemonOptions(cfg config.Config, opts daemonOptions) error {
 	if opts.scanWindowDays < 1 || opts.baselineLookbackDays <= opts.scanWindowDays {
 		return fmt.Errorf("baseline-lookback-days must be greater than scan-window-days")
 	}
-	if estimateDaemonCycleCredits(cfg, opts) > opts.dailyCreditBudget {
-		return fmt.Errorf("daily-credit-budget is below one cycle worst-case estimate (%d credits)", estimateDaemonCycleCredits(cfg, opts))
+	if estimateDaemonCycleCredits(opts) > opts.dailyCreditBudget {
+		return fmt.Errorf("daily-credit-budget is below one cycle worst-case estimate (%d credits)", estimateDaemonCycleCredits(opts))
 	}
 	return nil
 }
 
 func runDaemonCycle(ctx context.Context, cfg config.Config, store *storage.PostgresStore, opts daemonOptions, rpcLimiter, enhancedLimiter *requestLimiter, budget *dailyCreditBudget) error {
-	estimate := estimateDaemonCycleCredits(cfg, opts)
+	estimate := estimateDaemonCycleCredits(opts)
 	if err := budget.Reserve(estimate); err != nil {
 		return err
 	}
@@ -328,7 +328,7 @@ func runDaemonCycle(ctx context.Context, cfg config.Config, store *storage.Postg
 	return nil
 }
 
-func estimateDaemonCycleCredits(cfg config.Config, opts daemonOptions) int {
+func estimateDaemonCycleCredits(opts daemonOptions) int {
 	rpcCalls := 1 + opts.maxBlocks
 	sourceEnhancedCalls := opts.maxCandidates * opts.candidateMaxPages
 	deepDiveEnhancedCalls := opts.deepDiveTopN * opts.deepDiveMaxPages
