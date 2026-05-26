@@ -18,6 +18,7 @@ import (
 type Options struct {
 	SeedWalletFile   string
 	SeedWallets      []string
+	ScoreSeedWallets bool
 	OutPath          string
 	RejectedOutPath  string
 	ScanStart        time.Time
@@ -112,6 +113,9 @@ func Source(ctx context.Context, client helius.Client, opts Options) (Result, er
 	windowStart := opts.ScanStart.Add(-opts.BaselineLookback).UTC()
 	for _, seed := range seeds {
 		seedSet[seed] = struct{}{}
+		if opts.ScoreSeedWallets {
+			addDiscovered(discovered, seed, nil, seed)
+		}
 		page, fetchErr := pipeline.FetchEnhancedWindow(ctx, client, seed, pipeline.FetchWindowParams{
 			Start:        windowStart,
 			End:          opts.ScanEnd.UTC(),
@@ -224,6 +228,7 @@ func Source(ctx context.Context, client helius.Client, opts Options) (Result, er
 func SourceDiscovered(ctx context.Context, client helius.Client, seeds []string, opts Options) (Result, error) {
 	opts.SeedWallets = seeds
 	opts.SeedWalletFile = ""
+	opts.ScoreSeedWallets = true
 	return Source(ctx, client, opts)
 }
 
@@ -266,8 +271,10 @@ func addDiscovered(discovered map[string]*candidateDiscovery, seed string, seedS
 	if address == "" {
 		return
 	}
-	if _, ok := seedSet[address]; ok {
-		return
+	if seedSet != nil {
+		if _, ok := seedSet[address]; ok {
+			return
+		}
 	}
 	rec, ok := discovered[address]
 	if !ok {

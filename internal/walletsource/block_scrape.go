@@ -154,7 +154,32 @@ type RPCInstruction struct {
 }
 
 type RPCParsedInstruction struct {
-	Type string `json:"type"`
+	Type string         `json:"type"`
+	Info map[string]any `json:"info"`
+}
+
+func (i *RPCInstruction) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		Program string          `json:"program"`
+		Parsed  json.RawMessage `json:"parsed"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	i.Program = raw.Program
+	trimmed := bytes.TrimSpace(raw.Parsed)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+		return nil
+	}
+	if trimmed[0] != '{' {
+		return nil
+	}
+	var parsed RPCParsedInstruction
+	if err := json.Unmarshal(trimmed, &parsed); err != nil {
+		return nil
+	}
+	i.Parsed = &parsed
+	return nil
 }
 
 type RPCMeta struct {
@@ -197,25 +222,24 @@ func ScrapeRecentWallets(ctx context.Context, rpc RPC, opts ScrapeOptions) ([]st
 		if err != nil {
 			continue
 		}
-		txLimit := len(block.Transactions)
-		if opts.MaxTXPerBlock > 0 && txLimit > opts.MaxTXPerBlock {
-			txLimit = opts.MaxTXPerBlock
-		}
-		for _, tx := range block.Transactions[:txLimit] {
+		inspected := 0
+		for _, tx := range block.Transactions {
 			if tx.Meta.Err != nil {
 				continue
 			}
 			if !quietTransferLike(tx.Transaction.Message.Instructions, opts.MaxNoisyInstructions) {
 				continue
 			}
-			for _, key := range tx.Transaction.Message.AccountKeys {
-				if !key.Signer || !key.Writable || key.Source == "lookupTable" {
-					continue
-				}
-				if strings.TrimSpace(key.Pubkey) == "" {
-					continue
-				}
-				counts[key.Pubkey]++
+			inspected++
+			if opts.MaxTXPerBlock > 0 && inspected > opts.MaxTXPerBlock {
+				break
+			}
+			addresses := parsedTransferSources(tx.Transaction.Message.Instructions)
+			if len(addresses) == 0 {
+				addresses = signerWallets(tx.Transaction.Message.AccountKeys)
+			}
+			for _, address := range addresses {
+				counts[address]++
 			}
 		}
 	}
@@ -232,7 +256,7 @@ func ScrapeRecentWallets(ctx context.Context, rpc RPC, opts ScrapeOptions) ([]st
 		if scoredWallets[i].count == scoredWallets[j].count {
 			return scoredWallets[i].address < scoredWallets[j].address
 		}
-		return scoredWallets[i].count > scoredWallets[j].count
+		return scoredWallets[i].count < scoredWallets[j].count
 	})
 
 	out := make([]string, 0, len(scoredWallets))
@@ -243,6 +267,49 @@ func ScrapeRecentWallets(ctx context.Context, rpc RPC, opts ScrapeOptions) ([]st
 		}
 	}
 	return out, nil
+}
+
+func parsedTransferSources(instructions []RPCInstruction) []string {
+	seen := make(map[string]struct{})
+	out := make([]string, 0)
+	for _, ix := range instructions {
+		ixType := strings.ToLower(strings.TrimSpace(parsedInstructionType(ix)))
+		if ixType != "transfer" && ixType != "transferchecked" {
+			continue
+		}
+		if ix.Parsed == nil || ix.Parsed.Info == nil {
+			continue
+		}
+		address, _ := ix.Parsed.Info["authority"].(string)
+		address = strings.TrimSpace(address)
+		if address == "" {
+			address, _ = ix.Parsed.Info["source"].(string)
+			address = strings.TrimSpace(address)
+		}
+		if address == "" {
+			continue
+		}
+		if _, ok := seen[address]; ok {
+			continue
+		}
+		seen[address] = struct{}{}
+		out = append(out, address)
+	}
+	return out
+}
+
+func signerWallets(keys []RPCAccountKey) []string {
+	out := make([]string, 0)
+	for _, key := range keys {
+		if !key.Signer || !key.Writable || key.Source == "lookupTable" {
+			continue
+		}
+		if strings.TrimSpace(key.Pubkey) == "" {
+			continue
+		}
+		out = append(out, key.Pubkey)
+	}
+	return out
 }
 
 func withScrapeDefaults(opts ScrapeOptions) ScrapeOptions {

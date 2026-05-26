@@ -44,6 +44,82 @@ func TestScrapeRecentWalletsKeepsQuietTransferSigners(t *testing.T) {
 	}
 }
 
+func TestScrapeRecentWalletsPrefersParsedTransferSource(t *testing.T) {
+	rpc := fakeRPC{
+		slot: 10,
+		blocks: map[int64]RPCBlock{
+			10: {
+				Transactions: []RPCBlockTxEnvelope{{
+					Transaction: RPCTransaction{
+						Message: RPCMessage{
+							AccountKeys: []RPCAccountKey{{
+								Pubkey:   "FeePayer1111111111111111111111111111111111",
+								Signer:   true,
+								Writable: true,
+								Source:   "transaction",
+							}},
+							Instructions: []RPCInstruction{{
+								Parsed: &RPCParsedInstruction{
+									Type: "transfer",
+									Info: map[string]any{"source": "Source1111111111111111111111111111111111111"},
+								},
+							}},
+						},
+					},
+				}},
+			},
+		},
+	}
+
+	wallets, err := ScrapeRecentWallets(context.Background(), rpc, ScrapeOptions{
+		BlockLookback: 1,
+		MaxWallets:    10,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(wallets) != 1 || wallets[0] != "Source1111111111111111111111111111111111111" {
+		t.Fatalf("expected parsed transfer source, got %#v", wallets)
+	}
+}
+
+func TestScrapeRecentWalletsPrefersParsedTransferAuthority(t *testing.T) {
+	wallets, err := ScrapeRecentWallets(context.Background(), fakeRPC{
+		slot: 10,
+		blocks: map[int64]RPCBlock{
+			10: {
+				Transactions: []RPCBlockTxEnvelope{{
+					Transaction: RPCTransaction{
+						Message: RPCMessage{
+							AccountKeys: []RPCAccountKey{{
+								Pubkey:   "FeePayer1111111111111111111111111111111111",
+								Signer:   true,
+								Writable: true,
+								Source:   "transaction",
+							}},
+							Instructions: []RPCInstruction{{
+								Parsed: &RPCParsedInstruction{
+									Type: "transferChecked",
+									Info: map[string]any{
+										"authority": "Owner11111111111111111111111111111111111111",
+										"source":    "TokenAcct1111111111111111111111111111111111",
+									},
+								},
+							}},
+						},
+					},
+				}},
+			},
+		},
+	}, ScrapeOptions{BlockLookback: 1, MaxWallets: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(wallets) != 1 || wallets[0] != "Owner11111111111111111111111111111111111111" {
+		t.Fatalf("expected parsed transfer authority, got %#v", wallets)
+	}
+}
+
 func TestQuietTransferLikeRejectsNoisyInstructions(t *testing.T) {
 	instructions := []RPCInstruction{
 		parsedIx("transfer"),
@@ -54,6 +130,30 @@ func TestQuietTransferLikeRejectsNoisyInstructions(t *testing.T) {
 	}
 	if !quietTransferLike(instructions, 1) {
 		t.Fatal("expected noisy allowance to keep transaction")
+	}
+}
+
+func TestScrapeRecentWalletsPrefersLowFrequencySigners(t *testing.T) {
+	rpc := fakeRPC{
+		slot: 10,
+		blocks: map[int64]RPCBlock{
+			10: {Transactions: []RPCBlockTxEnvelope{
+				blockTx("Frequent11111111111111111111111111111111111", "transfer"),
+				blockTx("Frequent11111111111111111111111111111111111", "transfer"),
+				blockTx("Boring111111111111111111111111111111111111", "transfer"),
+			}},
+		},
+	}
+
+	wallets, err := ScrapeRecentWallets(context.Background(), rpc, ScrapeOptions{
+		BlockLookback: 1,
+		MaxWallets:    2,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if wallets[0] != "Boring111111111111111111111111111111111111" {
+		t.Fatalf("expected low-frequency signer first, got %s", wallets[0])
 	}
 }
 

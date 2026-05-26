@@ -227,6 +227,7 @@ func sourceWalletsCmd(cfg config.Config, args []string) {
 	result, err := walletsource.Source(ctx, heliusClient, walletsource.Options{
 		SeedWalletFile:     *seedWalletFile,
 		SeedWallets:        scrapedWallets,
+		ScoreSeedWallets:   *scrapeBlocks,
 		OutPath:            *outPath,
 		RejectedOutPath:    *rejectedOutPath,
 		ScanStart:          startAt.UTC(),
