@@ -606,10 +606,15 @@ func shouldDeepDive(stats walletStats, truncationCode string, opts Options) bool
 	if truncationCode != "max_tx_pages_per_wallet_reached" && truncationCode != "max_tx_per_wallet_reached" {
 		return false
 	}
-	if stats.sourceScore < opts.DeepDiveMinScore {
+	if stats.scanInboundDustTransfers < opts.MinScanInboundDust {
 		return false
 	}
-	if stats.scanInboundDustTransfers < 1 {
+	if opts.SourceMode == SourceModeAttackerOutboundDust {
+		// In attacker mode, dust-signal wallets should still earn a deep-dive retry even when
+		// baseline-style score features are weak under truncated sampling.
+		return true
+	}
+	if stats.sourceScore < opts.DeepDiveMinScore {
 		return false
 	}
 	return true
