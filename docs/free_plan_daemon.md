@@ -6,7 +6,7 @@ Helius Free limits used by the daemon:
 
 - RPC: 10 requests/second max. Daemon default: `--rpc-rps 5`.
 - DAS & Enhanced APIs: 2 requests/second max. Daemon default: `--enhanced-rps 1`.
-- Monthly credits: 1,000,000. Daemon default: `--daily-credit-budget 45000`.
+- Monthly credits: 1,000,000. Daemon default: `--daily-credit-budget 50000`.
 
 Default command:
 
@@ -19,7 +19,7 @@ Equivalent explicit command:
 ```sh
 go run ./cmd/scanner daemon \
   --cycle-interval 24h \
-  --daily-credit-budget 45000 \
+  --daily-credit-budget 50000 \
   --rpc-rps 5 \
   --enhanced-rps 1 \
   --max-helius-retries 1 \

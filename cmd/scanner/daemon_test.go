@@ -40,7 +40,7 @@ func TestDaemonDefaultsFitFreePlanBudget(t *testing.T) {
 	if opts.cycleInterval != 24*time.Hour {
 		t.Fatalf("unexpected cycle interval %s", opts.cycleInterval)
 	}
-	if got := estimateDaemonCycleCredits(cfg, opts); got > opts.dailyCreditBudget {
+	if got := estimateDaemonCycleCredits(opts); got > opts.dailyCreditBudget {
 		t.Fatalf("estimate %d exceeds daily budget %d", got, opts.dailyCreditBudget)
 	}
 }
