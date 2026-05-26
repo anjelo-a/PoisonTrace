@@ -210,6 +210,91 @@ func TestSourceDiscoveredDoesNotScoreNeighbors(t *testing.T) {
 	}
 }
 
+func TestSourceRejectsUnknownDustSPLActivity(t *testing.T) {
+	tmp := t.TempDir()
+	seedPath := filepath.Join(tmp, "seeds.txt")
+	outPath := filepath.Join(tmp, "accepted.txt")
+	rejectedPath := filepath.Join(tmp, "rejected.tsv")
+	if err := os.WriteFile(seedPath, []byte("Seed111111111111111111111111111111111111111\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	client := fakeHeliusClient{pages: map[string][]helius.EnhancedPage{
+		"Seed111111111111111111111111111111111111111": {{
+			Transactions: []helius.EnhancedTransaction{
+				nativeTx("seed-to-candidate", 100, "Seed111111111111111111111111111111111111111", "Candidate111111111111111111111111111111111", "1000"),
+			},
+		}},
+		"Candidate111111111111111111111111111111111": {{
+			Transactions: []helius.EnhancedTransaction{
+				tokenTx("candidate-unknown-spl", 101, "Candidate111111111111111111111111111111111", "Friend111111111111111111111111111111111111", "UnknownMint111111111111111111111111111111", "42"),
+			},
+		}},
+	}}
+
+	res, err := Source(context.Background(), client, Options{
+		SeedWalletFile:   seedPath,
+		OutPath:          outPath,
+		RejectedOutPath:  rejectedPath,
+		ScanStart:        time.Unix(90, 0),
+		ScanEnd:          time.Unix(200, 0),
+		BaselineLookback: 60 * time.Second,
+		TargetCount:      10,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Accepted) != 0 {
+		t.Fatalf("expected unknown-dust SPL wallet to be rejected, got %d accepted", len(res.Accepted))
+	}
+	if len(res.Rejected) != 1 {
+		t.Fatalf("expected one rejected wallet, got %d", len(res.Rejected))
+	}
+	if res.Rejected[0].Reason != "unknown_dust_spl_activity" {
+		t.Fatalf("expected unknown dust rejection, got %q", res.Rejected[0].Reason)
+	}
+}
+
+func TestSourceAcceptsKnownDustSPLActivity(t *testing.T) {
+	tmp := t.TempDir()
+	seedPath := filepath.Join(tmp, "seeds.txt")
+	outPath := filepath.Join(tmp, "accepted.txt")
+	rejectedPath := filepath.Join(tmp, "rejected.tsv")
+	if err := os.WriteFile(seedPath, []byte("Seed111111111111111111111111111111111111111\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	const usdc = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+	client := fakeHeliusClient{pages: map[string][]helius.EnhancedPage{
+		"Seed111111111111111111111111111111111111111": {{
+			Transactions: []helius.EnhancedTransaction{
+				nativeTx("seed-to-candidate", 100, "Seed111111111111111111111111111111111111111", "Candidate111111111111111111111111111111111", "1000"),
+			},
+		}},
+		"Candidate111111111111111111111111111111111": {{
+			Transactions: []helius.EnhancedTransaction{
+				tokenTx("candidate-known-spl", 101, "Candidate111111111111111111111111111111111", "Friend111111111111111111111111111111111111", usdc, "42"),
+			},
+		}},
+	}}
+
+	res, err := Source(context.Background(), client, Options{
+		SeedWalletFile:   seedPath,
+		OutPath:          outPath,
+		RejectedOutPath:  rejectedPath,
+		ScanStart:        time.Unix(90, 0),
+		ScanEnd:          time.Unix(200, 0),
+		BaselineLookback: 60 * time.Second,
+		TargetCount:      10,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Accepted) != 1 {
+		t.Fatalf("expected known-dust SPL wallet to be accepted, got %d accepted", len(res.Accepted))
+	}
+}
+
 func nativeTx(signature string, ts int64, from string, to string, amount string) helius.EnhancedTransaction {
 	return helius.EnhancedTransaction{
 		Signature:     signature,
@@ -219,6 +304,27 @@ func nativeTx(signature string, ts int64, from string, to string, amount string)
 			FromUserAccount: from,
 			ToUserAccount:   to,
 			Amount:          amount,
+		}},
+	}
+}
+
+func tokenTx(signature string, ts int64, from string, to string, mint string, amount string) helius.EnhancedTransaction {
+	decimals := 6
+	return helius.EnhancedTransaction{
+		Signature:     signature,
+		Slot:          ts,
+		TimestampUnix: ts,
+		TokenTransfers: []helius.TokenTransfer{{
+			FromUserAccount:  from,
+			ToUserAccount:    to,
+			FromTokenAccount: from + "Token",
+			ToTokenAccount:   to + "Token",
+			Mint:             mint,
+			TokenAmount: helius.TokenAmount{
+				Amount:   amount,
+				Decimals: &decimals,
+			},
+			TokenStandard: "Fungible",
 		}},
 	}
 }

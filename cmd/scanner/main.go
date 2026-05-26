@@ -166,6 +166,8 @@ func sourceWalletsCmd(cfg config.Config, args []string) {
 	maxAcceptedTX := fs.Int("max-accepted-tx", cfg.MaxTXPerWallet, "maximum sampled transactions allowed for accepted wallets")
 	maxSameTimestampTX := fs.Int("max-same-timestamp-tx", 5, "maximum transactions with identical timestamp allowed")
 	maxTransfersPerTX := fs.Int("max-transfers-per-tx", 4, "maximum owner-level transfers involving candidate in one transaction")
+	maxUnknownDustSPL := fs.Int("max-unknown-dust-spl", 0, "maximum non-zero SPL transfers without a configured dust threshold allowed")
+	knownDustAssets := fs.String("known-dust-assets", strings.Join(walletsource.DefaultKnownDustAssetKeys(), ","), "comma-separated asset keys with configured dust thresholds")
 	_ = fs.Parse(args)
 
 	if !*scrapeBlocks && *seedWalletFile == "" {
@@ -248,6 +250,8 @@ func sourceWalletsCmd(cfg config.Config, args []string) {
 		MaxAcceptedTX:      *maxAcceptedTX,
 		MaxSameTimestampTX: *maxSameTimestampTX,
 		MaxTransfersPerTX:  *maxTransfersPerTX,
+		MaxUnknownDustSPL:  *maxUnknownDustSPL,
+		KnownDustAssetKeys: splitCSV(*knownDustAssets),
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "source wallets failed: %v\n", err)
@@ -256,6 +260,19 @@ func sourceWalletsCmd(cfg config.Config, args []string) {
 
 	fmt.Printf("accepted wallets: %d -> %s\n", len(result.Accepted), *outPath)
 	fmt.Printf("rejected wallets: %d -> %s\n", len(result.Rejected), *rejectedOutPath)
+}
+
+func splitCSV(value string) []string {
+	parts := strings.Split(value, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		out = append(out, part)
+	}
+	return out
 }
 
 func replayFixtureCmd(args []string) {
