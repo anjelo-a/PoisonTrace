@@ -1,4 +1,4 @@
-.PHONY: build test test-guardrails test-fixture-metadata validate-corpus migrate run-fixture run ts-install ts-check ts-fixtures phase4-preflight phase4-integrity phase4-repro
+.PHONY: build test test-guardrails test-fixture-metadata validate-corpus migrate run-fixture run daemon-free ts-install ts-check ts-fixtures phase4-preflight phase4-integrity phase4-repro
 
 build:
 	go build ./cmd/scanner
@@ -21,6 +21,9 @@ migrate:
 
 run:
 	go run ./cmd/scanner run --wallets data/seeds/wallets.example.txt --scan-start 2026-04-01T00:00:00Z --scan-end 2026-04-08T00:00:00Z
+
+daemon-free:
+	go run ./cmd/scanner daemon
 
 run-fixture:
 	go run ./cmd/scanner replay-fixture --fixture baseline_truncated_newness_unknown
