@@ -143,6 +143,13 @@ func runCmd(cfg config.Config, args []string) {
 func sourceWalletsCmd(cfg config.Config, args []string) {
 	fs := flag.NewFlagSet("source-wallets", flag.ExitOnError)
 	seedWalletFile := fs.String("seed-wallets", "", "path to seed wallet list used to discover counterparties")
+	scrapeBlocks := fs.Bool("scrape-blocks", false, "discover seed wallets from recent finalized Solana blocks")
+	startSlot := fs.Int64("start-slot", 0, "slot to start block scraping from (default latest finalized slot)")
+	blockLookback := fs.Int("block-lookback", 100, "maximum slots to inspect when scraping blocks")
+	maxBlocks := fs.Int("max-blocks", 100, "maximum getBlock calls when scraping blocks")
+	maxScrapedWallets := fs.Int("max-scraped-wallets", 100, "maximum wallets discovered from block scraping")
+	maxTXPerBlock := fs.Int("max-tx-per-block", 200, "maximum transactions inspected per block")
+	maxNoisyInstructions := fs.Int("max-noisy-instructions", 0, "maximum non-transfer instruction types allowed in scraped transactions")
 	outPath := fs.String("out", "", "path to write accepted wallet addresses")
 	rejectedOutPath := fs.String("rejected-out", "", "path to write rejected wallet TSV with reasons")
 	scanStart := fs.String("scan-start", "", "scan window start in RFC3339")
@@ -160,8 +167,13 @@ func sourceWalletsCmd(cfg config.Config, args []string) {
 	maxTransfersPerTX := fs.Int("max-transfers-per-tx", 4, "maximum owner-level transfers involving candidate in one transaction")
 	_ = fs.Parse(args)
 
-	if *seedWalletFile == "" || *outPath == "" || *rejectedOutPath == "" || *scanStart == "" || *scanEnd == "" {
-		fmt.Fprintln(os.Stderr, "missing required flags: --seed-wallets --out --rejected-out --scan-start --scan-end")
+	if !*scrapeBlocks && *seedWalletFile == "" {
+		fmt.Fprintln(os.Stderr, "missing required seed source: provide --seed-wallets or --scrape-blocks")
+		fs.Usage()
+		os.Exit(2)
+	}
+	if *outPath == "" || *rejectedOutPath == "" || *scanStart == "" || *scanEnd == "" {
+		fmt.Fprintln(os.Stderr, "missing required flags: --out --rejected-out --scan-start --scan-end")
 		fs.Usage()
 		os.Exit(2)
 	}
@@ -186,8 +198,35 @@ func sourceWalletsCmd(cfg config.Config, args []string) {
 		os.Exit(1)
 	}
 
+	var scrapedWallets []string
+	if *scrapeBlocks {
+		rpcClient, rpcErr := walletsource.NewHeliusRPCClient(cfg.HeliusAPIKey, 15*time.Second)
+		if rpcErr != nil {
+			fmt.Fprintf(os.Stderr, "helius rpc client error: %v\n", rpcErr)
+			os.Exit(1)
+		}
+		scrapedWallets, err = walletsource.ScrapeRecentWallets(ctx, rpcClient, walletsource.ScrapeOptions{
+			StartSlot:            *startSlot,
+			BlockLookback:        *blockLookback,
+			MaxBlocks:            *maxBlocks,
+			MaxWallets:           *maxScrapedWallets,
+			MaxTXPerBlock:        *maxTXPerBlock,
+			MaxNoisyInstructions: *maxNoisyInstructions,
+		})
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "scrape wallets failed: %v\n", err)
+			os.Exit(1)
+		}
+		if len(scrapedWallets) == 0 && *seedWalletFile == "" {
+			fmt.Fprintln(os.Stderr, "scrape wallets found no seed wallets")
+			os.Exit(1)
+		}
+		fmt.Printf("scraped seed wallets: %d\n", len(scrapedWallets))
+	}
+
 	result, err := walletsource.Source(ctx, heliusClient, walletsource.Options{
 		SeedWalletFile:     *seedWalletFile,
+		SeedWallets:        scrapedWallets,
 		OutPath:            *outPath,
 		RejectedOutPath:    *rejectedOutPath,
 		ScanStart:          startAt.UTC(),
@@ -386,7 +425,7 @@ func printUsage() {
 
 Usage:
   scanner run --wallets <path> --scan-start <RFC3339> --scan-end <RFC3339> [--baseline-lookback-days N]
-  scanner source-wallets --seed-wallets <path> --out <path> --rejected-out <path> --scan-start <RFC3339> --scan-end <RFC3339>
+  scanner source-wallets (--seed-wallets <path> | --scrape-blocks) --out <path> --rejected-out <path> --scan-start <RFC3339> --scan-end <RFC3339>
   scanner replay-fixture --fixture <case_id> [--fixtures-root data/fixtures] [--write-expected]
   scanner validate-corpus [--fixtures-root data/fixtures] [--report-out path] [--strict-miss-reason]
   scanner export-dataset --out-dir <dir> [--run-id N | --started-at-from <RFC3339> --started-at-to <RFC3339>]
