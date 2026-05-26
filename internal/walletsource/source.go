@@ -17,6 +17,7 @@ import (
 
 type Options struct {
 	SeedWalletFile   string
+	SeedWallets      []string
 	OutPath          string
 	RejectedOutPath  string
 	ScanStart        time.Time
@@ -81,8 +82,8 @@ func Source(ctx context.Context, client helius.Client, opts Options) (Result, er
 	if client == nil {
 		return Result{}, fmt.Errorf("helius client is required")
 	}
-	if opts.SeedWalletFile == "" {
-		return Result{}, fmt.Errorf("seed wallet file is required")
+	if opts.SeedWalletFile == "" && len(opts.SeedWallets) == 0 {
+		return Result{}, fmt.Errorf("seed wallet file or seed wallets are required")
 	}
 	if opts.OutPath == "" {
 		return Result{}, fmt.Errorf("out path is required")
@@ -95,7 +96,7 @@ func Source(ctx context.Context, client helius.Client, opts Options) (Result, er
 	}
 	opts = withDefaults(opts)
 
-	seeds, err := readWalletLines(opts.SeedWalletFile)
+	seeds, err := loadSeedWallets(opts.SeedWalletFile, opts.SeedWallets)
 	if err != nil {
 		return Result{}, err
 	}
@@ -220,6 +221,12 @@ func Source(ctx context.Context, client helius.Client, opts Options) (Result, er
 	return result, nil
 }
 
+func SourceDiscovered(ctx context.Context, client helius.Client, seeds []string, opts Options) (Result, error) {
+	opts.SeedWallets = seeds
+	opts.SeedWalletFile = ""
+	return Source(ctx, client, opts)
+}
+
 func withDefaults(opts Options) Options {
 	if opts.TargetCount <= 0 {
 		opts.TargetCount = 30
@@ -310,6 +317,37 @@ func readWalletLines(path string) ([]string, error) {
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("read wallet file %s: %w", path, err)
+	}
+	return out, nil
+}
+
+func loadSeedWallets(path string, explicit []string) ([]string, error) {
+	seen := make(map[string]struct{})
+	out := make([]string, 0, len(explicit))
+	for _, wallet := range explicit {
+		wallet = strings.TrimSpace(wallet)
+		if wallet == "" {
+			continue
+		}
+		if _, ok := seen[wallet]; ok {
+			continue
+		}
+		seen[wallet] = struct{}{}
+		out = append(out, wallet)
+	}
+	if path == "" {
+		return out, nil
+	}
+	fromFile, err := readWalletLines(path)
+	if err != nil {
+		return nil, err
+	}
+	for _, wallet := range fromFile {
+		if _, ok := seen[wallet]; ok {
+			continue
+		}
+		seen[wallet] = struct{}{}
+		out = append(out, wallet)
 	}
 	return out, nil
 }
