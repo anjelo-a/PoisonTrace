@@ -38,6 +38,8 @@ type Options struct {
 	MaxAcceptedTX      int
 	MaxSameTimestampTX int
 	MaxTransfersPerTX  int
+	MaxUnknownDustSPL  int
+	KnownDustAssetKeys []string
 }
 
 type Result struct {
@@ -77,6 +79,7 @@ type walletStats struct {
 	uniqueCounterparties int
 	maxSameTimestampTX   int
 	maxTransfersPerTX    int
+	unknownDustSPL       int
 	discoveredFromSeeds  int
 }
 
@@ -147,6 +150,7 @@ func Source(ctx context.Context, client helius.Client, opts Options) (Result, er
 	if opts.MaxCandidates > 0 && len(candidates) > opts.MaxCandidates {
 		candidates = candidates[:opts.MaxCandidates]
 	}
+	knownDustAssetKeys := knownDustAssetSet(opts.KnownDustAssetKeys)
 
 	result := Result{
 		Accepted: make([]AcceptedWallet, 0, opts.TargetCount),
@@ -178,7 +182,7 @@ func Source(ctx context.Context, client helius.Client, opts Options) (Result, er
 			})
 			continue
 		}
-		stats := summarizeWallet(c.address, page.Transactions)
+		stats := summarizeWallet(c.address, page.Transactions, knownDustAssetKeys)
 		stats.discoveredFromSeeds = len(c.seeds)
 
 		if page.Partial {
@@ -207,6 +211,10 @@ func Source(ctx context.Context, client helius.Client, opts Options) (Result, er
 		}
 		if stats.maxTransfersPerTX > opts.MaxTransfersPerTX {
 			result.Rejected = append(result.Rejected, rejectedFromStats(stats, "batch_transfer_activity"))
+			continue
+		}
+		if stats.unknownDustSPL > opts.MaxUnknownDustSPL {
+			result.Rejected = append(result.Rejected, rejectedFromStats(stats, "unknown_dust_spl_activity"))
 			continue
 		}
 
@@ -268,10 +276,22 @@ func withDefaults(opts Options) Options {
 	if opts.MaxTransfersPerTX <= 0 {
 		opts.MaxTransfersPerTX = 4
 	}
+	if len(opts.KnownDustAssetKeys) == 0 {
+		opts.KnownDustAssetKeys = DefaultKnownDustAssetKeys()
+	}
 	if !opts.ScoreSeedWallets && !opts.DiscoverNeighbors {
 		opts.DiscoverNeighbors = true
 	}
 	return opts
+}
+
+func DefaultKnownDustAssetKeys() []string {
+	return []string{
+		"SOL",
+		"So11111111111111111111111111111111111111112",
+		"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+		"Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+	}
 }
 
 func addDiscovered(discovered map[string]*candidateDiscovery, seed string, seedSet map[string]struct{}, address string) {
@@ -367,7 +387,7 @@ func loadSeedWallets(path string, explicit []string) ([]string, error) {
 	return out, nil
 }
 
-func summarizeWallet(address string, txs []helius.EnhancedTransaction) walletStats {
+func summarizeWallet(address string, txs []helius.EnhancedTransaction, knownDustAssetKeys map[string]struct{}) walletStats {
 	stats := walletStats{address: address, sampleTransactions: len(txs)}
 	counterparties := make(map[string]struct{})
 	sameTimestamp := make(map[int64]int)
@@ -393,11 +413,17 @@ func summarizeWallet(address string, txs []helius.EnhancedTransaction) walletSta
 				if tr.DestinationOwnerAddress != "" && tr.DestinationOwnerAddress != address {
 					counterparties[tr.DestinationOwnerAddress] = struct{}{}
 				}
+				if transferNeedsKnownDustThreshold(tr, knownDustAssetKeys) {
+					stats.unknownDustSPL++
+				}
 			case tr.DestinationOwnerAddress == address:
 				stats.inboundTransfers++
 				transfersInTx++
 				if tr.SourceOwnerAddress != "" && tr.SourceOwnerAddress != address {
 					counterparties[tr.SourceOwnerAddress] = struct{}{}
+				}
+				if transferNeedsKnownDustThreshold(tr, knownDustAssetKeys) {
+					stats.unknownDustSPL++
 				}
 			}
 		}
@@ -407,6 +433,42 @@ func summarizeWallet(address string, txs []helius.EnhancedTransaction) walletSta
 	}
 	stats.uniqueCounterparties = len(counterparties)
 	return stats
+}
+
+func knownDustAssetSet(keys []string) map[string]struct{} {
+	out := make(map[string]struct{}, len(keys))
+	for _, key := range keys {
+		key = strings.TrimSpace(key)
+		if key == "" {
+			continue
+		}
+		out[key] = struct{}{}
+	}
+	return out
+}
+
+func transferNeedsKnownDustThreshold(tr transactions.NormalizedTransfer, knownDustAssetKeys map[string]struct{}) bool {
+	if tr.AssetType != transactions.AssetTypeSPLFungible {
+		return false
+	}
+	if amountRawIsZero(tr.AmountRaw) {
+		return false
+	}
+	_, ok := knownDustAssetKeys[tr.AssetKey]
+	return !ok
+}
+
+func amountRawIsZero(v string) bool {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return false
+	}
+	for _, r := range v {
+		if r != '0' {
+			return false
+		}
+	}
+	return true
 }
 
 func rejectedFromStats(stats walletStats, reason string) RejectedWallet {
