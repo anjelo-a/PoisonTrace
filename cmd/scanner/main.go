@@ -48,6 +48,13 @@ func main() {
 			os.Exit(1)
 		}
 		sourceWalletsCmd(cfg, os.Args[2:])
+	case "daemon":
+		cfg, err := config.LoadFromEnv()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "config error: %v\n", err)
+			os.Exit(1)
+		}
+		daemonCmd(cfg, os.Args[2:])
 	case "replay-fixture":
 		replayFixtureCmd(os.Args[2:])
 	case "validate-corpus":
@@ -447,6 +454,7 @@ func printUsage() {
 Usage:
   scanner run --wallets <path> --scan-start <RFC3339> --scan-end <RFC3339> [--baseline-lookback-days N]
   scanner source-wallets (--seed-wallets <path> | --scrape-blocks) --out <path> --rejected-out <path> --scan-start <RFC3339> --scan-end <RFC3339>
+  scanner daemon [--once] [--cycle-interval 24h] [--daily-credit-budget 30000]
   scanner replay-fixture --fixture <case_id> [--fixtures-root data/fixtures] [--write-expected]
   scanner validate-corpus [--fixtures-root data/fixtures] [--report-out path] [--strict-miss-reason]
   scanner export-dataset --out-dir <dir> [--run-id N | --started-at-from <RFC3339> --started-at-to <RFC3339>]
