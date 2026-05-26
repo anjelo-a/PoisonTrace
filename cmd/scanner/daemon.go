@@ -58,6 +58,7 @@ type daemonOptions struct {
 	maxSameTimestampTX   int
 	maxTransfersPerTX    int
 	maxUnknownDustSPL    int
+	minScanInboundDust   int
 	maxNoisyInstructions int
 	minOutbound          int
 }
@@ -149,6 +150,7 @@ func parseDaemonOptions(cfg config.Config, args []string) (daemonOptions, error)
 	fs.IntVar(&opts.maxSameTimestampTX, "max-same-timestamp-tx", 5, "maximum transactions with identical timestamp allowed")
 	fs.IntVar(&opts.maxTransfersPerTX, "max-transfers-per-tx", 4, "maximum owner-level transfers involving candidate in one transaction")
 	fs.IntVar(&opts.maxUnknownDustSPL, "max-unknown-dust-spl", 0, "maximum non-zero SPL transfers without a configured dust threshold allowed")
+	fs.IntVar(&opts.minScanInboundDust, "min-scan-inbound-dust", 1, "minimum zero/dust inbound transfers in the scan window required for daemon sourced wallets")
 	fs.IntVar(&opts.maxNoisyInstructions, "max-noisy-instructions", 0, "maximum non-transfer instruction types allowed in scraped transactions")
 	fs.IntVar(&opts.minOutbound, "min-outbound", 1, "minimum resolved outbound transfers required")
 	if err := fs.Parse(args); err != nil {
@@ -272,6 +274,7 @@ func runDaemonCycle(ctx context.Context, cfg config.Config, store *storage.Postg
 		MaxSameTimestampTX: opts.maxSameTimestampTX,
 		MaxTransfersPerTX:  opts.maxTransfersPerTX,
 		MaxUnknownDustSPL:  opts.maxUnknownDustSPL,
+		MinScanInboundDust: opts.minScanInboundDust,
 	})
 	if err != nil {
 		return fmt.Errorf("source wallets: %w", err)

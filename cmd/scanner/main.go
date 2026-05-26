@@ -174,6 +174,7 @@ func sourceWalletsCmd(cfg config.Config, args []string) {
 	maxSameTimestampTX := fs.Int("max-same-timestamp-tx", 5, "maximum transactions with identical timestamp allowed")
 	maxTransfersPerTX := fs.Int("max-transfers-per-tx", 4, "maximum owner-level transfers involving candidate in one transaction")
 	maxUnknownDustSPL := fs.Int("max-unknown-dust-spl", 0, "maximum non-zero SPL transfers without a configured dust threshold allowed")
+	minScanInboundDust := fs.Int("min-scan-inbound-dust", 0, "minimum zero/dust inbound transfers in the scan window required for sourced wallets")
 	knownDustAssets := fs.String("known-dust-assets", strings.Join(walletsource.DefaultKnownDustAssetKeys(), ","), "comma-separated asset keys with configured dust thresholds")
 	_ = fs.Parse(args)
 
@@ -258,6 +259,7 @@ func sourceWalletsCmd(cfg config.Config, args []string) {
 		MaxSameTimestampTX: *maxSameTimestampTX,
 		MaxTransfersPerTX:  *maxTransfersPerTX,
 		MaxUnknownDustSPL:  *maxUnknownDustSPL,
+		MinScanInboundDust: *minScanInboundDust,
 		KnownDustAssetKeys: splitCSV(*knownDustAssets),
 	})
 	if err != nil {

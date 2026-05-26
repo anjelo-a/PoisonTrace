@@ -40,6 +40,7 @@ Operational behavior:
   - `--max-candidates 30`
   - `--candidate-max-pages 3`
   - `--max-helius-retries 1`
+  - `--min-scan-inbound-dust 1`
 
 For a one-cycle smoke run:
 
