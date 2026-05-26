@@ -22,6 +22,7 @@ import (
 	"poisontrace/internal/helius"
 	"poisontrace/internal/pipeline"
 	"poisontrace/internal/storage"
+	"poisontrace/internal/walletsource"
 
 	_ "github.com/lib/pq"
 )
@@ -40,6 +41,13 @@ func main() {
 			os.Exit(1)
 		}
 		runCmd(cfg, os.Args[2:])
+	case "source-wallets":
+		cfg, err := config.LoadFromEnv()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "config error: %v\n", err)
+			os.Exit(1)
+		}
+		sourceWalletsCmd(cfg, os.Args[2:])
 	case "replay-fixture":
 		replayFixtureCmd(os.Args[2:])
 	case "validate-corpus":
@@ -130,6 +138,81 @@ func runCmd(cfg config.Config, args []string) {
 		fmt.Fprintf(os.Stderr, "run failed: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func sourceWalletsCmd(cfg config.Config, args []string) {
+	fs := flag.NewFlagSet("source-wallets", flag.ExitOnError)
+	seedWalletFile := fs.String("seed-wallets", "", "path to seed wallet list used to discover counterparties")
+	outPath := fs.String("out", "", "path to write accepted wallet addresses")
+	rejectedOutPath := fs.String("rejected-out", "", "path to write rejected wallet TSV with reasons")
+	scanStart := fs.String("scan-start", "", "scan window start in RFC3339")
+	scanEnd := fs.String("scan-end", "", "scan window end in RFC3339")
+	baselineLookbackDays := fs.Int("baseline-lookback-days", cfg.BaselineLookbackDays, "baseline lookback days")
+	targetCount := fs.Int("target-count", 30, "maximum accepted wallet count")
+	maxSeedWallets := fs.Int("max-seed-wallets", 10, "maximum seed wallets to sample")
+	maxCandidates := fs.Int("max-candidates", 100, "maximum discovered candidates to score")
+	seedMaxPages := fs.Int("seed-max-pages", 3, "maximum Helius pages per seed wallet")
+	candidateMaxPages := fs.Int("candidate-max-pages", cfg.MaxTXPagesPerWallet, "maximum Helius pages per candidate wallet")
+	maxTXPerWallet := fs.Int("max-tx-per-wallet", cfg.MaxTXPerWallet, "maximum transactions sampled per wallet")
+	minOutbound := fs.Int("min-outbound", 1, "minimum resolved outbound transfers required")
+	maxAcceptedTX := fs.Int("max-accepted-tx", cfg.MaxTXPerWallet, "maximum sampled transactions allowed for accepted wallets")
+	maxSameTimestampTX := fs.Int("max-same-timestamp-tx", 5, "maximum transactions with identical timestamp allowed")
+	maxTransfersPerTX := fs.Int("max-transfers-per-tx", 4, "maximum owner-level transfers involving candidate in one transaction")
+	_ = fs.Parse(args)
+
+	if *seedWalletFile == "" || *outPath == "" || *rejectedOutPath == "" || *scanStart == "" || *scanEnd == "" {
+		fmt.Fprintln(os.Stderr, "missing required flags: --seed-wallets --out --rejected-out --scan-start --scan-end")
+		fs.Usage()
+		os.Exit(2)
+	}
+
+	startAt, err := time.Parse(time.RFC3339, *scanStart)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "invalid --scan-start: %v\n", err)
+		os.Exit(2)
+	}
+	endAt, err := time.Parse(time.RFC3339, *scanEnd)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "invalid --scan-end: %v\n", err)
+		os.Exit(2)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.RunTimeoutSeconds)*time.Second)
+	defer cancel()
+
+	heliusClient, err := helius.NewHTTPClient(cfg.HeliusBaseURL, cfg.HeliusAPIKey, 15*time.Second)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "helius client error: %v\n", err)
+		os.Exit(1)
+	}
+
+	result, err := walletsource.Source(ctx, heliusClient, walletsource.Options{
+		SeedWalletFile:     *seedWalletFile,
+		OutPath:            *outPath,
+		RejectedOutPath:    *rejectedOutPath,
+		ScanStart:          startAt.UTC(),
+		ScanEnd:            endAt.UTC(),
+		BaselineLookback:   time.Duration(*baselineLookbackDays) * 24 * time.Hour,
+		TargetCount:        *targetCount,
+		MaxSeedWallets:     *maxSeedWallets,
+		MaxCandidates:      *maxCandidates,
+		SeedMaxPages:       *seedMaxPages,
+		CandidateMaxPages:  *candidateMaxPages,
+		MaxTXPerWallet:     *maxTXPerWallet,
+		MaxRetries:         cfg.MaxHeliusRetries,
+		RequestDelay:       time.Duration(cfg.HeliusRequestDelayMS) * time.Millisecond,
+		MinOutbound:        *minOutbound,
+		MaxAcceptedTX:      *maxAcceptedTX,
+		MaxSameTimestampTX: *maxSameTimestampTX,
+		MaxTransfersPerTX:  *maxTransfersPerTX,
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "source wallets failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("accepted wallets: %d -> %s\n", len(result.Accepted), *outPath)
+	fmt.Printf("rejected wallets: %d -> %s\n", len(result.Rejected), *rejectedOutPath)
 }
 
 func replayFixtureCmd(args []string) {
@@ -303,6 +386,7 @@ func printUsage() {
 
 Usage:
   scanner run --wallets <path> --scan-start <RFC3339> --scan-end <RFC3339> [--baseline-lookback-days N]
+  scanner source-wallets --seed-wallets <path> --out <path> --rejected-out <path> --scan-start <RFC3339> --scan-end <RFC3339>
   scanner replay-fixture --fixture <case_id> [--fixtures-root data/fixtures] [--write-expected]
   scanner validate-corpus [--fixtures-root data/fixtures] [--report-out path] [--strict-miss-reason]
   scanner export-dataset --out-dir <dir> [--run-id N | --started-at-from <RFC3339> --started-at-to <RFC3339>]
