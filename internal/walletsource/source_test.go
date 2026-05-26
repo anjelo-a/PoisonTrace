@@ -406,6 +406,69 @@ func TestSourceCanRequireInboundDustActivity(t *testing.T) {
 	}
 }
 
+func TestSourceDeepDiveRecoversHighSignalCappedWallet(t *testing.T) {
+	tmp := t.TempDir()
+	seedPath := filepath.Join(tmp, "seeds.txt")
+	outPath := filepath.Join(tmp, "accepted.txt")
+	rejectedPath := filepath.Join(tmp, "rejected.tsv")
+	if err := os.WriteFile(seedPath, []byte("Seed111111111111111111111111111111111111111\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	wallet := "DeepDiveWallet11111111111111111111111111111"
+	legit := "LookalikeLegit1111111111111111111111ZZZZ"
+	suspicious := "LookalikeBad11111111111111111111111ZZZZ"
+
+	client := fakeHeliusClient{pages: map[string][]helius.EnhancedPage{
+		"Seed111111111111111111111111111111111111111": {{
+			Transactions: []helius.EnhancedTransaction{
+				nativeTx("seed-to-candidate", 100, "Seed111111111111111111111111111111111111111", wallet, "1000"),
+			},
+		}},
+		wallet: {
+			{
+				Transactions: []helius.EnhancedTransaction{
+					nativeTx("baseline-out", 80, wallet, legit, "5000000"),
+					nativeTx("inbound-dust-1", 101, suspicious, wallet, "1"),
+					nativeTx("inbound-dust-2", 102, suspicious, wallet, "1"),
+				},
+				Before: "page-1",
+			},
+			{
+				Transactions: []helius.EnhancedTransaction{
+					nativeTx("filler", 79, wallet, "Friend111111111111111111111111111111111111", "2000"),
+				},
+			},
+		},
+	}}
+
+	res, err := Source(context.Background(), client, Options{
+		SeedWalletFile:     seedPath,
+		OutPath:            outPath,
+		RejectedOutPath:    rejectedPath,
+		ScanStart:          time.Unix(90, 0),
+		ScanEnd:            time.Unix(200, 0),
+		BaselineLookback:   60 * time.Second,
+		TargetCount:        1,
+		CandidateMaxPages:  1,
+		MaxTXPerWallet:     50,
+		MinScanInboundDust: 1,
+		DeepDiveTopN:       1,
+		DeepDiveMaxPages:   3,
+		DeepDiveMaxTX:      200,
+		DeepDiveMinScore:   40,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Accepted) != 1 {
+		t.Fatalf("expected deep dive to recover one accepted wallet, got %d", len(res.Accepted))
+	}
+	if res.Accepted[0].Address != wallet {
+		t.Fatalf("unexpected accepted wallet %s", res.Accepted[0].Address)
+	}
+}
+
 func nativeTx(signature string, ts int64, from string, to string, amount string) helius.EnhancedTransaction {
 	return helius.EnhancedTransaction{
 		Signature:     signature,

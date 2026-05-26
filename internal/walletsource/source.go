@@ -41,6 +41,10 @@ type Options struct {
 	MaxUnknownDustSPL  int
 	MinScanInboundDust int
 	KnownDustAssetKeys []string
+	DeepDiveTopN       int
+	DeepDiveMaxPages   int
+	DeepDiveMaxTX      int
+	DeepDiveMinScore   int
 }
 
 type Result struct {
@@ -97,6 +101,12 @@ type walletStats struct {
 	maxTransfersPerTX               int
 	unknownDustSPL                  int
 	discoveredFromSeeds             int
+}
+
+type deepDiveCandidate struct {
+	discovery      candidateDiscovery
+	initialStats   walletStats
+	truncationCode string
 }
 
 func Source(ctx context.Context, client helius.Client, opts Options) (Result, error) {
@@ -173,6 +183,7 @@ func Source(ctx context.Context, client helius.Client, opts Options) (Result, er
 		Rejected: make([]RejectedWallet, 0, len(candidates)),
 	}
 	eligible := make([]walletStats, 0, len(candidates))
+	deepDiveQueue := make([]deepDiveCandidate, 0)
 	for _, c := range candidates {
 		page, fetchErr := pipeline.FetchEnhancedWindow(ctx, client, c.address, pipeline.FetchWindowParams{
 			Start:        windowStart,
@@ -195,6 +206,14 @@ func Source(ctx context.Context, client helius.Client, opts Options) (Result, er
 		stats.sourceScore = sourceScore(stats)
 
 		if page.Partial {
+			if shouldDeepDive(stats, page.TruncationCode, opts) {
+				deepDiveQueue = append(deepDiveQueue, deepDiveCandidate{
+					discovery:      c,
+					initialStats:   stats,
+					truncationCode: page.TruncationCode,
+				})
+				continue
+			}
 			result.Rejected = append(result.Rejected, rejectedFromStats(stats, "activity_cap_reached:"+page.TruncationCode))
 			continue
 		}
@@ -232,6 +251,53 @@ func Source(ctx context.Context, client helius.Client, opts Options) (Result, er
 		}
 
 		eligible = append(eligible, stats)
+	}
+	if len(deepDiveQueue) > 0 && opts.DeepDiveTopN > 0 {
+		sort.SliceStable(deepDiveQueue, func(i, j int) bool {
+			if deepDiveQueue[i].initialStats.sourceScore == deepDiveQueue[j].initialStats.sourceScore {
+				return deepDiveQueue[i].initialStats.address < deepDiveQueue[j].initialStats.address
+			}
+			return deepDiveQueue[i].initialStats.sourceScore > deepDiveQueue[j].initialStats.sourceScore
+		})
+		for idx, cand := range deepDiveQueue {
+			if idx >= opts.DeepDiveTopN {
+				result.Rejected = append(result.Rejected, rejectedFromStats(cand.initialStats, "activity_cap_reached:"+cand.truncationCode))
+				continue
+			}
+			if opts.TargetCount > 0 && len(eligible) >= opts.TargetCount {
+				result.Rejected = append(result.Rejected, rejectedFromStats(cand.initialStats, "target_count_reached"))
+				continue
+			}
+			reFetched, err := pipeline.FetchEnhancedWindow(ctx, client, cand.discovery.address, pipeline.FetchWindowParams{
+				Start:        windowStart,
+				End:          opts.ScanEnd.UTC(),
+				MaxPages:     opts.DeepDiveMaxPages,
+				MaxTx:        opts.DeepDiveMaxTX,
+				MaxRetries:   opts.MaxRetries,
+				RequestDelay: opts.RequestDelay,
+			})
+			if err != nil {
+				result.Rejected = append(result.Rejected, rejectedFromStats(cand.initialStats, "deep_dive_fetch_error"))
+				continue
+			}
+			reStats := summarizeWallet(cand.discovery.address, reFetched.Transactions, opts.ScanStart.UTC(), knownDustThresholds)
+			reStats.discoveredFromSeeds = len(cand.discovery.seeds)
+			reStats.sourceScore = sourceScore(reStats)
+
+			if reFetched.Partial {
+				result.Rejected = append(result.Rejected, rejectedFromStats(reStats, "activity_cap_reached:"+reFetched.TruncationCode))
+				continue
+			}
+			if reFetched.RetryExhausted {
+				result.Rejected = append(result.Rejected, rejectedFromStats(reStats, "helius_retry_exhausted"))
+				continue
+			}
+			if reason, ok := statsRejectReason(reStats, opts); ok {
+				result.Rejected = append(result.Rejected, rejectedFromStats(reStats, reason))
+				continue
+			}
+			eligible = append(eligible, reStats)
+		}
 	}
 
 	sort.SliceStable(eligible, func(i, j int) bool {
@@ -301,6 +367,18 @@ func withDefaults(opts Options) Options {
 	}
 	if opts.MaxTransfersPerTX <= 0 {
 		opts.MaxTransfersPerTX = 4
+	}
+	if opts.DeepDiveTopN < 0 {
+		opts.DeepDiveTopN = 0
+	}
+	if opts.DeepDiveMaxPages <= 0 {
+		opts.DeepDiveMaxPages = opts.CandidateMaxPages + 2
+	}
+	if opts.DeepDiveMaxTX <= 0 {
+		opts.DeepDiveMaxTX = opts.MaxTXPerWallet + 200
+	}
+	if opts.DeepDiveMinScore <= 0 {
+		opts.DeepDiveMinScore = 40
 	}
 	if len(opts.KnownDustAssetKeys) == 0 {
 		opts.KnownDustAssetKeys = DefaultKnownDustAssetKeys()
@@ -517,6 +595,47 @@ func sourceScore(stats walletStats) int {
 	score += stats.legitOutboundCounterparties * 3
 	score += stats.discoveredFromSeeds
 	return score
+}
+
+func shouldDeepDive(stats walletStats, truncationCode string, opts Options) bool {
+	if opts.DeepDiveTopN <= 0 {
+		return false
+	}
+	if truncationCode != "max_tx_pages_per_wallet_reached" && truncationCode != "max_tx_per_wallet_reached" {
+		return false
+	}
+	if stats.sourceScore < opts.DeepDiveMinScore {
+		return false
+	}
+	if stats.scanInboundDustTransfers < 1 {
+		return false
+	}
+	return true
+}
+
+func statsRejectReason(stats walletStats, opts Options) (string, bool) {
+	if stats.sampleTransactions == 0 {
+		return "no_sample_transactions", true
+	}
+	if stats.sampleTransactions > opts.MaxAcceptedTX {
+		return "too_many_sample_transactions", true
+	}
+	if stats.outboundTransfers < opts.MinOutbound {
+		return "insufficient_outbound_history", true
+	}
+	if stats.maxSameTimestampTX > opts.MaxSameTimestampTX {
+		return "bursty_same_timestamp_activity", true
+	}
+	if stats.maxTransfersPerTX > opts.MaxTransfersPerTX {
+		return "batch_transfer_activity", true
+	}
+	if stats.unknownDustSPL > opts.MaxUnknownDustSPL {
+		return "unknown_dust_spl_activity", true
+	}
+	if stats.scanInboundDustTransfers < opts.MinScanInboundDust {
+		return "insufficient_inbound_dust_activity", true
+	}
+	return "", false
 }
 
 func hasLookalikeMatch(suspicious string, legit map[string]struct{}) bool {
