@@ -143,6 +143,73 @@ func TestSourceRejectsCapAndBurstWallets(t *testing.T) {
 	}
 }
 
+func TestSourceDiscoveredScoresSeedWalletsDirectly(t *testing.T) {
+	tmp := t.TempDir()
+	outPath := filepath.Join(tmp, "accepted.txt")
+	rejectedPath := filepath.Join(tmp, "rejected.tsv")
+	client := fakeHeliusClient{pages: map[string][]helius.EnhancedPage{
+		"Scraped11111111111111111111111111111111111": {{
+			Transactions: []helius.EnhancedTransaction{
+				nativeTx("scraped-out", 101, "Scraped11111111111111111111111111111111111", "Friend111111111111111111111111111111111111", "2000"),
+			},
+		}},
+	}}
+
+	res, err := SourceDiscovered(context.Background(), client, []string{"Scraped11111111111111111111111111111111111"}, Options{
+		OutPath:          outPath,
+		RejectedOutPath:  rejectedPath,
+		ScanStart:        time.Unix(90, 0),
+		ScanEnd:          time.Unix(200, 0),
+		BaselineLookback: 60 * time.Second,
+		TargetCount:      10,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Accepted) != 1 {
+		t.Fatalf("expected scraped seed to be accepted, got %d", len(res.Accepted))
+	}
+	if res.Accepted[0].Address != "Scraped11111111111111111111111111111111111" {
+		t.Fatalf("unexpected accepted wallet %s", res.Accepted[0].Address)
+	}
+}
+
+func TestSourceDiscoveredDoesNotScoreNeighbors(t *testing.T) {
+	tmp := t.TempDir()
+	outPath := filepath.Join(tmp, "accepted.txt")
+	rejectedPath := filepath.Join(tmp, "rejected.tsv")
+	client := fakeHeliusClient{pages: map[string][]helius.EnhancedPage{
+		"Scraped11111111111111111111111111111111111": {{
+			Transactions: []helius.EnhancedTransaction{
+				nativeTx("scraped-to-neighbor", 101, "Scraped11111111111111111111111111111111111", "Neighbor111111111111111111111111111111111", "2000"),
+			},
+		}},
+		"Neighbor111111111111111111111111111111111": {{
+			Transactions: []helius.EnhancedTransaction{
+				nativeTx("neighbor-out", 102, "Neighbor111111111111111111111111111111111", "Friend111111111111111111111111111111111111", "2000"),
+			},
+		}},
+	}}
+
+	res, err := SourceDiscovered(context.Background(), client, []string{"Scraped11111111111111111111111111111111111"}, Options{
+		OutPath:          outPath,
+		RejectedOutPath:  rejectedPath,
+		ScanStart:        time.Unix(90, 0),
+		ScanEnd:          time.Unix(200, 0),
+		BaselineLookback: 60 * time.Second,
+		TargetCount:      10,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Accepted) != 1 {
+		t.Fatalf("expected only scraped seed to be accepted, got %d", len(res.Accepted))
+	}
+	if res.Accepted[0].Address == "Neighbor111111111111111111111111111111111" {
+		t.Fatal("did not expect discovered neighbor to be scored in scraped mode")
+	}
+}
+
 func nativeTx(signature string, ts int64, from string, to string, amount string) helius.EnhancedTransaction {
 	return helius.EnhancedTransaction{
 		Signature:     signature,

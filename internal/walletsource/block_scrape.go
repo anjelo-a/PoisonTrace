@@ -154,7 +154,32 @@ type RPCInstruction struct {
 }
 
 type RPCParsedInstruction struct {
-	Type string `json:"type"`
+	Type string         `json:"type"`
+	Info map[string]any `json:"info"`
+}
+
+func (i *RPCInstruction) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		Program string          `json:"program"`
+		Parsed  json.RawMessage `json:"parsed"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	i.Program = raw.Program
+	trimmed := bytes.TrimSpace(raw.Parsed)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+		return nil
+	}
+	if trimmed[0] != '{' {
+		return nil
+	}
+	var parsed RPCParsedInstruction
+	if err := json.Unmarshal(trimmed, &parsed); err != nil {
+		return nil
+	}
+	i.Parsed = &parsed
+	return nil
 }
 
 type RPCMeta struct {
@@ -168,6 +193,7 @@ type ScrapeOptions struct {
 	MaxWallets           int
 	MaxTXPerBlock        int
 	MaxNoisyInstructions int
+	MinNativeLamports    int64
 }
 
 func ScrapeRecentWallets(ctx context.Context, rpc RPC, opts ScrapeOptions) ([]string, error) {
@@ -184,8 +210,8 @@ func ScrapeRecentWallets(ctx context.Context, rpc RPC, opts ScrapeOptions) ([]st
 		startSlot = latest
 	}
 
-	counts := make(map[string]int)
-	for checked := 0; checked < opts.BlockLookback && len(counts) < opts.MaxWallets; checked++ {
+	stats := make(map[string]blockWalletStats)
+	for checked := 0; checked < opts.BlockLookback; checked++ {
 		if opts.MaxBlocks > 0 && checked >= opts.MaxBlocks {
 			break
 		}
@@ -197,27 +223,43 @@ func ScrapeRecentWallets(ctx context.Context, rpc RPC, opts ScrapeOptions) ([]st
 		if err != nil {
 			continue
 		}
-		txLimit := len(block.Transactions)
-		if opts.MaxTXPerBlock > 0 && txLimit > opts.MaxTXPerBlock {
-			txLimit = opts.MaxTXPerBlock
-		}
-		for _, tx := range block.Transactions[:txLimit] {
+		inspected := 0
+		for _, tx := range block.Transactions {
 			if tx.Meta.Err != nil {
 				continue
 			}
 			if !quietTransferLike(tx.Transaction.Message.Instructions, opts.MaxNoisyInstructions) {
 				continue
 			}
-			for _, key := range tx.Transaction.Message.AccountKeys {
-				if !key.Signer || !key.Writable || key.Source == "lookupTable" {
-					continue
+			inspected++
+			if opts.MaxTXPerBlock > 0 && inspected > opts.MaxTXPerBlock {
+				break
+			}
+			observations, hasParsedTransfer := parsedTransferOwnerObservations(tx.Transaction.Message.Instructions, opts.MinNativeLamports)
+			if len(observations) == 0 && !hasParsedTransfer {
+				for _, address := range signerWallets(tx.Transaction.Message.AccountKeys) {
+					observations = append(observations, blockWalletObservation{address: address, outbound: true})
 				}
-				if strings.TrimSpace(key.Pubkey) == "" {
-					continue
+			}
+			for _, obs := range observations {
+				rec := stats[obs.address]
+				rec.count++
+				if obs.outbound {
+					rec.outbound++
+				} else {
+					rec.inbound++
 				}
-				counts[key.Pubkey]++
+				stats[obs.address] = rec
 			}
 		}
+	}
+
+	counts := make(map[string]int)
+	for address, stat := range stats {
+		if stat.outbound == 0 || stat.inbound > stat.outbound {
+			continue
+		}
+		counts[address] = stat.count
 	}
 
 	type scored struct {
@@ -232,7 +274,7 @@ func ScrapeRecentWallets(ctx context.Context, rpc RPC, opts ScrapeOptions) ([]st
 		if scoredWallets[i].count == scoredWallets[j].count {
 			return scoredWallets[i].address < scoredWallets[j].address
 		}
-		return scoredWallets[i].count > scoredWallets[j].count
+		return scoredWallets[i].count < scoredWallets[j].count
 	})
 
 	out := make([]string, 0, len(scoredWallets))
@@ -243,6 +285,96 @@ func ScrapeRecentWallets(ctx context.Context, rpc RPC, opts ScrapeOptions) ([]st
 		}
 	}
 	return out, nil
+}
+
+type blockWalletStats struct {
+	count    int
+	outbound int
+	inbound  int
+}
+
+type blockWalletObservation struct {
+	address  string
+	outbound bool
+}
+
+func parsedTransferOwnerObservations(instructions []RPCInstruction, minNativeLamports int64) ([]blockWalletObservation, bool) {
+	seen := make(map[blockWalletObservation]struct{})
+	out := make([]blockWalletObservation, 0)
+	hasParsedTransfer := false
+	for _, ix := range instructions {
+		ixType := strings.ToLower(strings.TrimSpace(parsedInstructionType(ix)))
+		if ixType != "transfer" && ixType != "transferchecked" {
+			continue
+		}
+		if ix.Parsed == nil || ix.Parsed.Info == nil {
+			continue
+		}
+		hasParsedTransfer = true
+		for _, obs := range transferOwnerObservations(ix, minNativeLamports) {
+			if _, ok := seen[obs]; ok {
+				continue
+			}
+			seen[obs] = struct{}{}
+			out = append(out, obs)
+		}
+	}
+	return out, hasParsedTransfer
+}
+
+func transferOwnerObservations(ix RPCInstruction, minNativeLamports int64) []blockWalletObservation {
+	observations := make([]blockWalletObservation, 0, 2)
+	authority, _ := ix.Parsed.Info["authority"].(string)
+	authority = strings.TrimSpace(authority)
+	if authority != "" {
+		observations = append(observations, blockWalletObservation{address: authority, outbound: true})
+	}
+	if strings.EqualFold(ix.Program, "system") {
+		if lamports, ok := parsedLamports(ix.Parsed.Info["lamports"]); ok && lamports < minNativeLamports {
+			return observations
+		}
+		source, _ := ix.Parsed.Info["source"].(string)
+		source = strings.TrimSpace(source)
+		if source != "" {
+			observations = append(observations, blockWalletObservation{address: source, outbound: true})
+		}
+		destination, _ := ix.Parsed.Info["destination"].(string)
+		destination = strings.TrimSpace(destination)
+		if destination != "" {
+			observations = append(observations, blockWalletObservation{address: destination, outbound: false})
+		}
+	}
+	return observations
+}
+
+func parsedLamports(value any) (int64, bool) {
+	switch v := value.(type) {
+	case float64:
+		return int64(v), true
+	case int64:
+		return v, true
+	case int:
+		return int64(v), true
+	case json.Number:
+		n, err := v.Int64()
+		return n, err == nil
+	default:
+		return 0, false
+	}
+}
+
+func signerWallets(keys []RPCAccountKey) []string {
+	out := make([]string, 0)
+	for _, key := range keys {
+		if !key.Signer || !key.Writable || key.Source == "lookupTable" {
+			continue
+		}
+		if strings.TrimSpace(key.Pubkey) == "" {
+			continue
+		}
+		out = append(out, key.Pubkey)
+	}
+	return out
 }
 
 func withScrapeDefaults(opts ScrapeOptions) ScrapeOptions {
@@ -260,6 +392,9 @@ func withScrapeDefaults(opts ScrapeOptions) ScrapeOptions {
 	}
 	if opts.MaxNoisyInstructions < 0 {
 		opts.MaxNoisyInstructions = 0
+	}
+	if opts.MinNativeLamports < 0 {
+		opts.MinNativeLamports = 0
 	}
 	return opts
 }
