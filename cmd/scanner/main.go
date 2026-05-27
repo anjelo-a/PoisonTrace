@@ -214,7 +214,7 @@ func sourceWalletsCmd(cfg config.Config, args []string) {
 		os.Exit(1)
 	}
 
-	var scrapedWallets []string
+	var scrapedWallets []walletsource.ScrapedWallet
 	if *scrapeBlocks {
 		rpcClient, rpcErr := walletsource.NewHeliusRPCClient(cfg.HeliusAPIKey, 15*time.Second)
 		if rpcErr != nil {
@@ -240,10 +240,17 @@ func sourceWalletsCmd(cfg config.Config, args []string) {
 		}
 		fmt.Printf("scraped seed wallets: %d\n", len(scrapedWallets))
 	}
+	seedWallets := make([]string, 0, len(scrapedWallets))
+	scrapeStats := make(map[string]walletsource.ScrapedWallet, len(scrapedWallets))
+	for _, w := range scrapedWallets {
+		seedWallets = append(seedWallets, w.Address)
+		scrapeStats[w.Address] = w
+	}
 
 	result, err := walletsource.Source(ctx, heliusClient, walletsource.Options{
 		SeedWalletFile:     *seedWalletFile,
-		SeedWallets:        scrapedWallets,
+		SeedWallets:        seedWallets,
+		ScrapeStats:        scrapeStats,
 		ScoreSeedWallets:   *scrapeBlocks,
 		DiscoverNeighbors:  !*scrapeBlocks,
 		OutPath:            *outPath,

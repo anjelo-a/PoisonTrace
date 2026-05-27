@@ -263,6 +263,12 @@ func runDaemonCycle(ctx context.Context, cfg config.Config, store *storage.Postg
 		log.Printf("daemon cycle %s found no scraped wallets", cycleID)
 		return nil
 	}
+	seedWallets := make([]string, 0, len(scrapedWallets))
+	scrapeStats := make(map[string]walletsource.ScrapedWallet, len(scrapedWallets))
+	for _, w := range scrapedWallets {
+		seedWallets = append(seedWallets, w.Address)
+		scrapeStats[w.Address] = w
+	}
 
 	enhancedClient, err := helius.NewHTTPClient(cfg.HeliusBaseURL, cfg.HeliusAPIKey, 15*time.Second)
 	if err != nil {
@@ -270,7 +276,8 @@ func runDaemonCycle(ctx context.Context, cfg config.Config, store *storage.Postg
 	}
 	limitedEnhanced := limitedEnhancedClient{inner: enhancedClient, limiter: enhancedLimiter}
 	sourceResult, err := walletsource.Source(ctx, limitedEnhanced, walletsource.Options{
-		SeedWallets:        scrapedWallets,
+		SeedWallets:        seedWallets,
+		ScrapeStats:        scrapeStats,
 		ScoreSeedWallets:   true,
 		DiscoverNeighbors:  false,
 		OutPath:            acceptedPath,

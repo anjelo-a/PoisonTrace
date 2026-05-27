@@ -39,8 +39,8 @@ func TestScrapeRecentWalletsKeepsQuietTransferSigners(t *testing.T) {
 	if len(wallets) != 1 {
 		t.Fatalf("expected one scraped wallet, got %d", len(wallets))
 	}
-	if wallets[0] != "Normal111111111111111111111111111111111111" {
-		t.Fatalf("unexpected wallet %s", wallets[0])
+	if wallets[0].Address != "Normal111111111111111111111111111111111111" {
+		t.Fatalf("unexpected wallet %s", wallets[0].Address)
 	}
 }
 
@@ -82,7 +82,7 @@ func TestScrapeRecentWalletsPrefersParsedTransferSource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(wallets) != 1 || wallets[0] != "Source1111111111111111111111111111111111111" {
+	if len(wallets) != 1 || wallets[0].Address != "Source1111111111111111111111111111111111111" {
 		t.Fatalf("expected parsed transfer source, got %#v", wallets)
 	}
 }
@@ -120,7 +120,7 @@ func TestScrapeRecentWalletsPrefersParsedTransferAuthority(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(wallets) != 1 || wallets[0] != "Owner11111111111111111111111111111111111111" {
+	if len(wallets) != 1 || wallets[0].Address != "Owner11111111111111111111111111111111111111" {
 		t.Fatalf("expected parsed transfer authority, got %#v", wallets)
 	}
 }
@@ -224,8 +224,8 @@ func TestScrapeRecentWalletsPrefersLowFrequencySigners(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if wallets[0] != "Boring111111111111111111111111111111111111" {
-		t.Fatalf("expected low-frequency signer first, got %s", wallets[0])
+	if wallets[0].Address != "Boring111111111111111111111111111111111111" {
+		t.Fatalf("expected low-frequency signer first, got %s", wallets[0].Address)
 	}
 }
 
