@@ -196,7 +196,14 @@ type ScrapeOptions struct {
 	MinNativeLamports    int64
 }
 
-func ScrapeRecentWallets(ctx context.Context, rpc RPC, opts ScrapeOptions) ([]string, error) {
+type ScrapedWallet struct {
+	Address  string
+	Count    int
+	Outbound int
+	Inbound  int
+}
+
+func ScrapeRecentWallets(ctx context.Context, rpc RPC, opts ScrapeOptions) ([]ScrapedWallet, error) {
 	if rpc == nil {
 		return nil, fmt.Errorf("rpc client is required")
 	}
@@ -254,32 +261,37 @@ func ScrapeRecentWallets(ctx context.Context, rpc RPC, opts ScrapeOptions) ([]st
 		}
 	}
 
-	counts := make(map[string]int)
+	counts := make(map[string]blockWalletStats)
 	for address, stat := range stats {
 		if stat.outbound == 0 || stat.inbound > stat.outbound {
 			continue
 		}
-		counts[address] = stat.count
+		counts[address] = stat
 	}
 
 	type scored struct {
 		address string
-		count   int
+		stats   blockWalletStats
 	}
 	scoredWallets := make([]scored, 0, len(counts))
-	for address, count := range counts {
-		scoredWallets = append(scoredWallets, scored{address: address, count: count})
+	for address, stat := range counts {
+		scoredWallets = append(scoredWallets, scored{address: address, stats: stat})
 	}
 	sort.Slice(scoredWallets, func(i, j int) bool {
-		if scoredWallets[i].count == scoredWallets[j].count {
+		if scoredWallets[i].stats.count == scoredWallets[j].stats.count {
 			return scoredWallets[i].address < scoredWallets[j].address
 		}
-		return scoredWallets[i].count < scoredWallets[j].count
+		return scoredWallets[i].stats.count < scoredWallets[j].stats.count
 	})
 
-	out := make([]string, 0, len(scoredWallets))
+	out := make([]ScrapedWallet, 0, len(scoredWallets))
 	for _, wallet := range scoredWallets {
-		out = append(out, wallet.address)
+		out = append(out, ScrapedWallet{
+			Address:  wallet.address,
+			Count:    wallet.stats.count,
+			Outbound: wallet.stats.outbound,
+			Inbound:  wallet.stats.inbound,
+		})
 		if opts.MaxWallets > 0 && len(out) >= opts.MaxWallets {
 			break
 		}

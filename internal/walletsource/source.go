@@ -18,6 +18,7 @@ import (
 type Options struct {
 	SeedWalletFile    string
 	SeedWallets       []string
+	ScrapeStats       map[string]ScrapedWallet
 	ScoreSeedWallets  bool
 	DiscoverNeighbors bool
 	OutPath           string
@@ -60,6 +61,9 @@ type Result struct {
 
 type AcceptedWallet struct {
 	Address                         string
+	ScrapeCount                     int
+	ScrapeOutbound                  int
+	ScrapeInbound                   int
 	SampleTransactions              int
 	OutboundTransfers               int
 	InboundTransfers                int
@@ -75,6 +79,9 @@ type AcceptedWallet struct {
 type RejectedWallet struct {
 	Address                         string
 	Reason                          string
+	ScrapeCount                     int
+	ScrapeOutbound                  int
+	ScrapeInbound                   int
 	SampleTransactions              int
 	OutboundTransfers               int
 	InboundTransfers                int
@@ -94,6 +101,9 @@ type candidateDiscovery struct {
 
 type walletStats struct {
 	address                         string
+	scrapeCount                     int
+	scrapeOutbound                  int
+	scrapeInbound                   int
 	sampleTransactions              int
 	outboundTransfers               int
 	inboundTransfers                int
@@ -200,14 +210,23 @@ func Source(ctx context.Context, client helius.Client, opts Options) (Result, er
 			RequestDelay: opts.RequestDelay,
 		})
 		if fetchErr != nil {
+			scrape := opts.ScrapeStats[c.address]
 			result.Rejected = append(result.Rejected, RejectedWallet{
 				Address:             c.address,
 				Reason:              "fetch_error",
+				ScrapeCount:         scrape.Count,
+				ScrapeOutbound:      scrape.Outbound,
+				ScrapeInbound:       scrape.Inbound,
 				DiscoveredFromSeeds: len(c.seeds),
 			})
 			continue
 		}
 		stats := summarizeWallet(c.address, page.Transactions, opts.ScanStart.UTC(), knownDustThresholds, opts.SourceMode)
+		if scrape, ok := opts.ScrapeStats[c.address]; ok {
+			stats.scrapeCount = scrape.Count
+			stats.scrapeOutbound = scrape.Outbound
+			stats.scrapeInbound = scrape.Inbound
+		}
 		stats.discoveredFromSeeds = len(c.seeds)
 		stats.sourceScore = sourceScore(stats)
 
@@ -263,6 +282,11 @@ func Source(ctx context.Context, client helius.Client, opts Options) (Result, er
 				continue
 			}
 			reStats := summarizeWallet(cand.discovery.address, reFetched.Transactions, opts.ScanStart.UTC(), knownDustThresholds, opts.SourceMode)
+			if scrape, ok := opts.ScrapeStats[cand.discovery.address]; ok {
+				reStats.scrapeCount = scrape.Count
+				reStats.scrapeOutbound = scrape.Outbound
+				reStats.scrapeInbound = scrape.Inbound
+			}
 			reStats.discoveredFromSeeds = len(cand.discovery.seeds)
 			reStats.sourceScore = sourceScore(reStats)
 
@@ -754,6 +778,9 @@ func commonSuffixLength(a, b string) int {
 func acceptedFromStats(stats walletStats) AcceptedWallet {
 	return AcceptedWallet{
 		Address:                         stats.address,
+		ScrapeCount:                     stats.scrapeCount,
+		ScrapeOutbound:                  stats.scrapeOutbound,
+		ScrapeInbound:                   stats.scrapeInbound,
 		SampleTransactions:              stats.sampleTransactions,
 		OutboundTransfers:               stats.outboundTransfers,
 		InboundTransfers:                stats.inboundTransfers,
@@ -771,6 +798,9 @@ func rejectedFromStats(stats walletStats, reason string) RejectedWallet {
 	return RejectedWallet{
 		Address:                         stats.address,
 		Reason:                          reason,
+		ScrapeCount:                     stats.scrapeCount,
+		ScrapeOutbound:                  stats.scrapeOutbound,
+		ScrapeInbound:                   stats.scrapeInbound,
 		SampleTransactions:              stats.sampleTransactions,
 		OutboundTransfers:               stats.outboundTransfers,
 		InboundTransfers:                stats.inboundTransfers,
@@ -800,13 +830,16 @@ func writeRejected(path string, rejected []RejectedWallet) error {
 		return fmt.Errorf("create rejected output dir: %w", err)
 	}
 	var b strings.Builder
-	b.WriteString("address\treason\tsample_transactions\toutbound_transfers\tinbound_transfers\tunique_counterparties\tlegit_outbound_counterparties\tscan_inbound_dust_transfers\trepeated_inbound_dust_counterparties\tlookalike_inbound_dust_matches\tsource_score\tdiscovered_from_seeds\n")
+	b.WriteString("address\treason\tscrape_count\tscrape_outbound\tscrape_inbound\tsample_transactions\toutbound_transfers\tinbound_transfers\tunique_counterparties\tlegit_outbound_counterparties\tscan_inbound_dust_transfers\trepeated_inbound_dust_counterparties\tlookalike_inbound_dust_matches\tsource_score\tdiscovered_from_seeds\n")
 	for _, r := range rejected {
 		fmt.Fprintf(
 			&b,
-			"%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n",
+			"%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n",
 			r.Address,
 			r.Reason,
+			r.ScrapeCount,
+			r.ScrapeOutbound,
+			r.ScrapeInbound,
 			r.SampleTransactions,
 			r.OutboundTransfers,
 			r.InboundTransfers,
