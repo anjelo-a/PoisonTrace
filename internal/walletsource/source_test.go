@@ -324,18 +324,19 @@ func TestSourceAttackerModeRequiresOutboundDust(t *testing.T) {
 	}}
 
 	res, err := Source(context.Background(), client, Options{
-		SeedWalletFile:     seedPath,
-		SeedWallets:        []string{"Bystander111111111111111111111111111111111"},
-		ScoreSeedWallets:   true,
-		DiscoverNeighbors:  true,
-		OutPath:            outPath,
-		RejectedOutPath:    rejectedPath,
-		ScanStart:          time.Unix(90, 0),
-		ScanEnd:            time.Unix(200, 0),
-		BaselineLookback:   60 * time.Second,
-		TargetCount:        10,
-		MinScanInboundDust: 1,
-		SourceMode:         SourceModeAttackerOutboundDust,
+		SeedWalletFile:          seedPath,
+		SeedWallets:             []string{"Bystander111111111111111111111111111111111"},
+		ScoreSeedWallets:        true,
+		DiscoverNeighbors:       true,
+		OutPath:                 outPath,
+		RejectedOutPath:         rejectedPath,
+		ScanStart:               time.Unix(90, 0),
+		ScanEnd:                 time.Unix(200, 0),
+		BaselineLookback:        60 * time.Second,
+		TargetCount:             10,
+		MinScanInboundDust:      1,
+		MinUniqueDustRecipients: 2,
+		SourceMode:              SourceModeAttackerOutboundDust,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -352,6 +353,58 @@ func TestSourceAttackerModeRequiresOutboundDust(t *testing.T) {
 	}
 	if reasons["Bystander111111111111111111111111111111111"] != "insufficient_outbound_dust_activity" {
 		t.Fatalf("expected outbound dust rejection for bystander, got %q", reasons["Bystander111111111111111111111111111111111"])
+	}
+}
+
+func TestSourceAttackerModeCanRequireUniqueDustRecipients(t *testing.T) {
+	tmp := t.TempDir()
+	seedPath := filepath.Join(tmp, "seeds.txt")
+	outPath := filepath.Join(tmp, "accepted.txt")
+	rejectedPath := filepath.Join(tmp, "rejected.tsv")
+	if err := os.WriteFile(seedPath, []byte("Seed111111111111111111111111111111111111111\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	client := fakeHeliusClient{pages: map[string][]helius.EnhancedPage{
+		"Seed111111111111111111111111111111111111111": {{
+			Transactions: []helius.EnhancedTransaction{
+				nativeTx("seed-to-attacker", 100, "Seed111111111111111111111111111111111111111", "Attacker111111111111111111111111111111111", "5000"),
+			},
+		}},
+		"Attacker111111111111111111111111111111111": {{
+			Transactions: []helius.EnhancedTransaction{
+				nativeTx("attacker-out-1", 101, "Attacker111111111111111111111111111111111", "Victim11111111111111111111111111111111111", "1"),
+				nativeTx("attacker-out-2", 102, "Attacker111111111111111111111111111111111", "Victim11111111111111111111111111111111111", "1"),
+			},
+		}},
+	}}
+
+	res, err := Source(context.Background(), client, Options{
+		SeedWalletFile:          seedPath,
+		OutPath:                 outPath,
+		RejectedOutPath:         rejectedPath,
+		ScanStart:               time.Unix(90, 0),
+		ScanEnd:                 time.Unix(200, 0),
+		BaselineLookback:        60 * time.Second,
+		TargetCount:             10,
+		MinScanInboundDust:      1,
+		MinUniqueDustRecipients: 2,
+		SourceMode:              SourceModeAttackerOutboundDust,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Accepted) != 0 {
+		t.Fatalf("expected no accepted wallets, got %d", len(res.Accepted))
+	}
+	if len(res.Rejected) != 1 {
+		t.Fatalf("expected one rejected wallet, got %d", len(res.Rejected))
+	}
+	if res.Rejected[0].Reason != "insufficient_unique_dust_recipients" {
+		t.Fatalf("expected unique dust recipient rejection, got %q", res.Rejected[0].Reason)
+	}
+	if res.Rejected[0].UniqueDustRecipients != 1 {
+		t.Fatalf("expected one unique dust recipient, got %d", res.Rejected[0].UniqueDustRecipients)
 	}
 }
 
