@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"sort"
@@ -216,6 +217,12 @@ func ScrapeRecentWallets(ctx context.Context, rpc RPC, opts ScrapeOptions) ([]Sc
 			return nil, fmt.Errorf("get latest slot: %w", err)
 		}
 		startSlot = latest
+		if opts.BlockLookback > 1 {
+			// Randomize the scrape start inside the lookback window to reduce overlap
+			// across consecutive runs without adding extra RPC cost.
+			offset := rand.New(rand.NewSource(time.Now().UnixNano())).Intn(opts.BlockLookback)
+			startSlot -= int64(offset)
+		}
 	}
 
 	stats := make(map[string]blockWalletStats)
