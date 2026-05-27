@@ -175,6 +175,7 @@ func sourceWalletsCmd(cfg config.Config, args []string) {
 	maxTransfersPerTX := fs.Int("max-transfers-per-tx", 4, "maximum owner-level transfers involving candidate in one transaction")
 	maxUnknownDustSPL := fs.Int("max-unknown-dust-spl", 0, "maximum non-zero SPL transfers without a configured dust threshold allowed")
 	minScanInboundDust := fs.Int("min-scan-inbound-dust", 0, "minimum zero/dust inbound transfers in the scan window required for sourced wallets")
+	minUniqueDustRecipients := fs.Int("min-unique-dust-recipients", 10, "minimum unique dust recipients required in attacker_outbound_dust mode")
 	sourceMode := fs.String("source-mode", walletsource.SourceModeAttackerOutboundDust, "wallet source mode: attacker_outbound_dust or victim_inbound_dust")
 	deepDiveTopN := fs.Int("deep-dive-top-n", 0, "number of high-signal capped wallets to retry with deeper sampling")
 	deepDiveMaxPages := fs.Int("deep-dive-max-pages", 0, "maximum Helius pages for deep-dive wallet sampling (0 uses default)")
@@ -248,36 +249,37 @@ func sourceWalletsCmd(cfg config.Config, args []string) {
 	}
 
 	result, err := walletsource.Source(ctx, heliusClient, walletsource.Options{
-		SeedWalletFile:     *seedWalletFile,
-		SeedWallets:        seedWallets,
-		ScrapeStats:        scrapeStats,
-		ScoreSeedWallets:   *scrapeBlocks,
-		DiscoverNeighbors:  !*scrapeBlocks,
-		OutPath:            *outPath,
-		RejectedOutPath:    *rejectedOutPath,
-		ScanStart:          startAt.UTC(),
-		ScanEnd:            endAt.UTC(),
-		BaselineLookback:   time.Duration(*baselineLookbackDays) * 24 * time.Hour,
-		TargetCount:        *targetCount,
-		MaxSeedWallets:     *maxSeedWallets,
-		MaxCandidates:      *maxCandidates,
-		SeedMaxPages:       *seedMaxPages,
-		CandidateMaxPages:  *candidateMaxPages,
-		MaxTXPerWallet:     *maxTXPerWallet,
-		MaxRetries:         cfg.MaxHeliusRetries,
-		RequestDelay:       time.Duration(cfg.HeliusRequestDelayMS) * time.Millisecond,
-		MinOutbound:        *minOutbound,
-		MaxAcceptedTX:      *maxAcceptedTX,
-		MaxSameTimestampTX: *maxSameTimestampTX,
-		MaxTransfersPerTX:  *maxTransfersPerTX,
-		MaxUnknownDustSPL:  *maxUnknownDustSPL,
-		MinScanInboundDust: *minScanInboundDust,
-		KnownDustAssetKeys: splitCSV(*knownDustAssets),
-		DeepDiveTopN:       *deepDiveTopN,
-		DeepDiveMaxPages:   *deepDiveMaxPages,
-		DeepDiveMaxTX:      *deepDiveMaxTX,
-		DeepDiveMinScore:   *deepDiveMinScore,
-		SourceMode:         *sourceMode,
+		SeedWalletFile:          *seedWalletFile,
+		SeedWallets:             seedWallets,
+		ScrapeStats:             scrapeStats,
+		ScoreSeedWallets:        *scrapeBlocks,
+		DiscoverNeighbors:       !*scrapeBlocks,
+		OutPath:                 *outPath,
+		RejectedOutPath:         *rejectedOutPath,
+		ScanStart:               startAt.UTC(),
+		ScanEnd:                 endAt.UTC(),
+		BaselineLookback:        time.Duration(*baselineLookbackDays) * 24 * time.Hour,
+		TargetCount:             *targetCount,
+		MaxSeedWallets:          *maxSeedWallets,
+		MaxCandidates:           *maxCandidates,
+		SeedMaxPages:            *seedMaxPages,
+		CandidateMaxPages:       *candidateMaxPages,
+		MaxTXPerWallet:          *maxTXPerWallet,
+		MaxRetries:              cfg.MaxHeliusRetries,
+		RequestDelay:            time.Duration(cfg.HeliusRequestDelayMS) * time.Millisecond,
+		MinOutbound:             *minOutbound,
+		MaxAcceptedTX:           *maxAcceptedTX,
+		MaxSameTimestampTX:      *maxSameTimestampTX,
+		MaxTransfersPerTX:       *maxTransfersPerTX,
+		MaxUnknownDustSPL:       *maxUnknownDustSPL,
+		MinScanInboundDust:      *minScanInboundDust,
+		MinUniqueDustRecipients: *minUniqueDustRecipients,
+		KnownDustAssetKeys:      splitCSV(*knownDustAssets),
+		DeepDiveTopN:            *deepDiveTopN,
+		DeepDiveMaxPages:        *deepDiveMaxPages,
+		DeepDiveMaxTX:           *deepDiveMaxTX,
+		DeepDiveMinScore:        *deepDiveMinScore,
+		SourceMode:              *sourceMode,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "source wallets failed: %v\n", err)

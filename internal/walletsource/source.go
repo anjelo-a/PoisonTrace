@@ -27,26 +27,27 @@ type Options struct {
 	ScanEnd           time.Time
 	BaselineLookback  time.Duration
 
-	TargetCount        int
-	MaxSeedWallets     int
-	MaxCandidates      int
-	SeedMaxPages       int
-	CandidateMaxPages  int
-	MaxTXPerWallet     int
-	MaxRetries         int
-	RequestDelay       time.Duration
-	MinOutbound        int
-	MaxAcceptedTX      int
-	MaxSameTimestampTX int
-	MaxTransfersPerTX  int
-	MaxUnknownDustSPL  int
-	MinScanInboundDust int
-	KnownDustAssetKeys []string
-	DeepDiveTopN       int
-	DeepDiveMaxPages   int
-	DeepDiveMaxTX      int
-	DeepDiveMinScore   int
-	SourceMode         string
+	TargetCount             int
+	MaxSeedWallets          int
+	MaxCandidates           int
+	SeedMaxPages            int
+	CandidateMaxPages       int
+	MaxTXPerWallet          int
+	MaxRetries              int
+	RequestDelay            time.Duration
+	MinOutbound             int
+	MaxAcceptedTX           int
+	MaxSameTimestampTX      int
+	MaxTransfersPerTX       int
+	MaxUnknownDustSPL       int
+	MinScanInboundDust      int
+	MinUniqueDustRecipients int
+	KnownDustAssetKeys      []string
+	DeepDiveTopN            int
+	DeepDiveMaxPages        int
+	DeepDiveMaxTX           int
+	DeepDiveMinScore        int
+	SourceMode              string
 }
 
 const (
@@ -70,6 +71,7 @@ type AcceptedWallet struct {
 	UniqueCounterparties            int
 	LegitOutboundCounterparties     int
 	ScanInboundDustTransfers        int
+	UniqueDustRecipients            int
 	RepeatedInboundDustCounterparts int
 	LookalikeInboundDustMatches     int
 	SourceScore                     int
@@ -88,6 +90,7 @@ type RejectedWallet struct {
 	UniqueCounterparties            int
 	LegitOutboundCounterparties     int
 	ScanInboundDustTransfers        int
+	UniqueDustRecipients            int
 	RepeatedInboundDustCounterparts int
 	LookalikeInboundDustMatches     int
 	SourceScore                     int
@@ -110,6 +113,7 @@ type walletStats struct {
 	uniqueCounterparties            int
 	legitOutboundCounterparties     int
 	scanInboundDustTransfers        int
+	uniqueDustRecipients            int
 	repeatedInboundDustCounterparts int
 	lookalikeInboundDustMatches     int
 	sourceScore                     int
@@ -365,6 +369,9 @@ func withDefaults(opts Options) Options {
 	if opts.MinOutbound <= 0 {
 		opts.MinOutbound = 1
 	}
+	if opts.MinUniqueDustRecipients <= 0 {
+		opts.MinUniqueDustRecipients = 10
+	}
 	if opts.MaxAcceptedTX <= 0 {
 		opts.MaxAcceptedTX = opts.MaxTXPerWallet
 	}
@@ -590,6 +597,7 @@ func summarizeWallet(address string, txs []helius.EnhancedTransaction, scanStart
 			stats.lookalikeInboundDustMatches++
 		}
 	}
+	stats.uniqueDustRecipients = len(scanInboundDustByCounterparty)
 	stats.sourceScore = sourceScore(stats)
 	return stats
 }
@@ -668,6 +676,9 @@ func statsRejectReason(stats walletStats, opts Options) (string, bool) {
 			return "insufficient_outbound_dust_activity", true
 		}
 		return "insufficient_inbound_dust_activity", true
+	}
+	if opts.SourceMode == SourceModeAttackerOutboundDust && stats.uniqueDustRecipients < opts.MinUniqueDustRecipients {
+		return "insufficient_unique_dust_recipients", true
 	}
 	return "", false
 }
@@ -787,6 +798,7 @@ func acceptedFromStats(stats walletStats) AcceptedWallet {
 		UniqueCounterparties:            stats.uniqueCounterparties,
 		LegitOutboundCounterparties:     stats.legitOutboundCounterparties,
 		ScanInboundDustTransfers:        stats.scanInboundDustTransfers,
+		UniqueDustRecipients:            stats.uniqueDustRecipients,
 		RepeatedInboundDustCounterparts: stats.repeatedInboundDustCounterparts,
 		LookalikeInboundDustMatches:     stats.lookalikeInboundDustMatches,
 		SourceScore:                     stats.sourceScore,
@@ -807,6 +819,7 @@ func rejectedFromStats(stats walletStats, reason string) RejectedWallet {
 		UniqueCounterparties:            stats.uniqueCounterparties,
 		LegitOutboundCounterparties:     stats.legitOutboundCounterparties,
 		ScanInboundDustTransfers:        stats.scanInboundDustTransfers,
+		UniqueDustRecipients:            stats.uniqueDustRecipients,
 		RepeatedInboundDustCounterparts: stats.repeatedInboundDustCounterparts,
 		LookalikeInboundDustMatches:     stats.lookalikeInboundDustMatches,
 		SourceScore:                     stats.sourceScore,
@@ -830,11 +843,11 @@ func writeRejected(path string, rejected []RejectedWallet) error {
 		return fmt.Errorf("create rejected output dir: %w", err)
 	}
 	var b strings.Builder
-	b.WriteString("address\treason\tscrape_count\tscrape_outbound\tscrape_inbound\tsample_transactions\toutbound_transfers\tinbound_transfers\tunique_counterparties\tlegit_outbound_counterparties\tscan_inbound_dust_transfers\trepeated_inbound_dust_counterparties\tlookalike_inbound_dust_matches\tsource_score\tdiscovered_from_seeds\n")
+	b.WriteString("address\treason\tscrape_count\tscrape_outbound\tscrape_inbound\tsample_transactions\toutbound_transfers\tinbound_transfers\tunique_counterparties\tlegit_outbound_counterparties\tscan_inbound_dust_transfers\tunique_dust_recipients\trepeated_inbound_dust_counterparties\tlookalike_inbound_dust_matches\tsource_score\tdiscovered_from_seeds\n")
 	for _, r := range rejected {
 		fmt.Fprintf(
 			&b,
-			"%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n",
+			"%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n",
 			r.Address,
 			r.Reason,
 			r.ScrapeCount,
@@ -846,6 +859,7 @@ func writeRejected(path string, rejected []RejectedWallet) error {
 			r.UniqueCounterparties,
 			r.LegitOutboundCounterparties,
 			r.ScanInboundDustTransfers,
+			r.UniqueDustRecipients,
 			r.RepeatedInboundDustCounterparts,
 			r.LookalikeInboundDustMatches,
 			r.SourceScore,

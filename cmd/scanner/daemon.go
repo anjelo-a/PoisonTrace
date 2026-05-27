@@ -32,40 +32,41 @@ const (
 var errDailyCreditBudgetExhausted = errors.New("daily Helius credit budget exhausted")
 
 type daemonOptions struct {
-	once                 bool
-	workDir              string
-	cycleInterval        time.Duration
-	dailyCreditBudget    int
-	rpcRPS               int
-	enhancedRPS          int
-	maxHeliusRetries     int
-	targetCount          int
-	runMaxTXPages        int
-	runMaxTXPerWallet    int
-	runMaxConcurrent     int
-	maxBlocks            int
-	blockLookback        int
-	maxTXPerBlock        int
-	maxScrapedWallets    int
-	maxSeedWallets       int
-	maxCandidates        int
-	candidateMaxPages    int
-	sourceMaxTXPerWallet int
-	maxAcceptedTX        int
-	minNativeLamports    int64
-	scanWindowDays       int
-	baselineLookbackDays int
-	maxSameTimestampTX   int
-	maxTransfersPerTX    int
-	maxUnknownDustSPL    int
-	minScanInboundDust   int
-	deepDiveTopN         int
-	deepDiveMaxPages     int
-	deepDiveMaxTX        int
-	deepDiveMinScore     int
-	maxNoisyInstructions int
-	minOutbound          int
-	sourceMode           string
+	once                    bool
+	workDir                 string
+	cycleInterval           time.Duration
+	dailyCreditBudget       int
+	rpcRPS                  int
+	enhancedRPS             int
+	maxHeliusRetries        int
+	targetCount             int
+	runMaxTXPages           int
+	runMaxTXPerWallet       int
+	runMaxConcurrent        int
+	maxBlocks               int
+	blockLookback           int
+	maxTXPerBlock           int
+	maxScrapedWallets       int
+	maxSeedWallets          int
+	maxCandidates           int
+	candidateMaxPages       int
+	sourceMaxTXPerWallet    int
+	maxAcceptedTX           int
+	minNativeLamports       int64
+	scanWindowDays          int
+	baselineLookbackDays    int
+	maxSameTimestampTX      int
+	maxTransfersPerTX       int
+	maxUnknownDustSPL       int
+	minScanInboundDust      int
+	minUniqueDustRecipients int
+	deepDiveTopN            int
+	deepDiveMaxPages        int
+	deepDiveMaxTX           int
+	deepDiveMinScore        int
+	maxNoisyInstructions    int
+	minOutbound             int
+	sourceMode              string
 }
 
 func daemonCmd(cfg config.Config, args []string) {
@@ -156,6 +157,7 @@ func parseDaemonOptions(cfg config.Config, args []string) (daemonOptions, error)
 	fs.IntVar(&opts.maxTransfersPerTX, "max-transfers-per-tx", 4, "maximum owner-level transfers involving candidate in one transaction")
 	fs.IntVar(&opts.maxUnknownDustSPL, "max-unknown-dust-spl", 0, "maximum non-zero SPL transfers without a configured dust threshold allowed")
 	fs.IntVar(&opts.minScanInboundDust, "min-scan-inbound-dust", 1, "minimum zero/dust inbound transfers in the scan window required for daemon sourced wallets")
+	fs.IntVar(&opts.minUniqueDustRecipients, "min-unique-dust-recipients", 10, "minimum unique dust recipients required in attacker_outbound_dust mode")
 	fs.IntVar(&opts.deepDiveTopN, "deep-dive-top-n", 7, "number of high-signal capped wallets to retry with deeper sampling")
 	fs.IntVar(&opts.deepDiveMaxPages, "deep-dive-max-pages", 8, "maximum Helius pages for deep-dive wallet sampling")
 	fs.IntVar(&opts.deepDiveMaxTX, "deep-dive-max-tx", 900, "maximum sampled transactions for deep-dive wallet sampling")
@@ -215,6 +217,9 @@ func validateDaemonOptions(cfg config.Config, opts daemonOptions) error {
 	}
 	if opts.scanWindowDays < 1 || opts.baselineLookbackDays <= opts.scanWindowDays {
 		return fmt.Errorf("baseline-lookback-days must be greater than scan-window-days")
+	}
+	if opts.minUniqueDustRecipients < 1 {
+		return fmt.Errorf("min-unique-dust-recipients must be >= 1")
 	}
 	if opts.sourceMode != walletsource.SourceModeAttackerOutboundDust && opts.sourceMode != walletsource.SourceModeVictimInboundDust {
 		return fmt.Errorf("source-mode must be %q or %q", walletsource.SourceModeAttackerOutboundDust, walletsource.SourceModeVictimInboundDust)
@@ -276,33 +281,34 @@ func runDaemonCycle(ctx context.Context, cfg config.Config, store *storage.Postg
 	}
 	limitedEnhanced := limitedEnhancedClient{inner: enhancedClient, limiter: enhancedLimiter}
 	sourceResult, err := walletsource.Source(ctx, limitedEnhanced, walletsource.Options{
-		SeedWallets:        seedWallets,
-		ScrapeStats:        scrapeStats,
-		ScoreSeedWallets:   true,
-		DiscoverNeighbors:  false,
-		OutPath:            acceptedPath,
-		RejectedOutPath:    rejectedPath,
-		ScanStart:          scanStart,
-		ScanEnd:            scanEnd,
-		BaselineLookback:   time.Duration(opts.baselineLookbackDays) * 24 * time.Hour,
-		TargetCount:        opts.targetCount,
-		MaxSeedWallets:     opts.maxSeedWallets,
-		MaxCandidates:      opts.maxCandidates,
-		CandidateMaxPages:  opts.candidateMaxPages,
-		MaxTXPerWallet:     opts.sourceMaxTXPerWallet,
-		MaxRetries:         opts.maxHeliusRetries,
-		RequestDelay:       time.Duration(cfg.HeliusRequestDelayMS) * time.Millisecond,
-		MinOutbound:        opts.minOutbound,
-		MaxAcceptedTX:      opts.maxAcceptedTX,
-		MaxSameTimestampTX: opts.maxSameTimestampTX,
-		MaxTransfersPerTX:  opts.maxTransfersPerTX,
-		MaxUnknownDustSPL:  opts.maxUnknownDustSPL,
-		MinScanInboundDust: opts.minScanInboundDust,
-		DeepDiveTopN:       opts.deepDiveTopN,
-		DeepDiveMaxPages:   opts.deepDiveMaxPages,
-		DeepDiveMaxTX:      opts.deepDiveMaxTX,
-		DeepDiveMinScore:   opts.deepDiveMinScore,
-		SourceMode:         opts.sourceMode,
+		SeedWallets:             seedWallets,
+		ScrapeStats:             scrapeStats,
+		ScoreSeedWallets:        true,
+		DiscoverNeighbors:       false,
+		OutPath:                 acceptedPath,
+		RejectedOutPath:         rejectedPath,
+		ScanStart:               scanStart,
+		ScanEnd:                 scanEnd,
+		BaselineLookback:        time.Duration(opts.baselineLookbackDays) * 24 * time.Hour,
+		TargetCount:             opts.targetCount,
+		MaxSeedWallets:          opts.maxSeedWallets,
+		MaxCandidates:           opts.maxCandidates,
+		CandidateMaxPages:       opts.candidateMaxPages,
+		MaxTXPerWallet:          opts.sourceMaxTXPerWallet,
+		MaxRetries:              opts.maxHeliusRetries,
+		RequestDelay:            time.Duration(cfg.HeliusRequestDelayMS) * time.Millisecond,
+		MinOutbound:             opts.minOutbound,
+		MaxAcceptedTX:           opts.maxAcceptedTX,
+		MaxSameTimestampTX:      opts.maxSameTimestampTX,
+		MaxTransfersPerTX:       opts.maxTransfersPerTX,
+		MaxUnknownDustSPL:       opts.maxUnknownDustSPL,
+		MinScanInboundDust:      opts.minScanInboundDust,
+		MinUniqueDustRecipients: opts.minUniqueDustRecipients,
+		DeepDiveTopN:            opts.deepDiveTopN,
+		DeepDiveMaxPages:        opts.deepDiveMaxPages,
+		DeepDiveMaxTX:           opts.deepDiveMaxTX,
+		DeepDiveMinScore:        opts.deepDiveMinScore,
+		SourceMode:              opts.sourceMode,
 	})
 	if err != nil {
 		return fmt.Errorf("source wallets: %w", err)
