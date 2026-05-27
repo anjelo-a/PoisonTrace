@@ -81,6 +81,7 @@ type AcceptedWallet struct {
 type RejectedWallet struct {
 	Address                         string
 	Reason                          string
+	DeepDiveStatus                  string
 	ScrapeCount                     int
 	ScrapeOutbound                  int
 	ScrapeInbound                   int
@@ -128,6 +129,14 @@ type deepDiveCandidate struct {
 	initialStats   walletStats
 	truncationCode string
 }
+
+const (
+	deepDiveStatusNotQueued          = "not_queued"
+	deepDiveStatusQueuedTopNSkip     = "queued_top_n_skip"
+	deepDiveStatusRetriedQualified   = "retried_qualified"
+	deepDiveStatusRetriedCapHit      = "retried_cap_hit"
+	deepDiveStatusRetriedOtherReject = "retried_other_reject"
+)
 
 func Source(ctx context.Context, client helius.Client, opts Options) (Result, error) {
 	if client == nil {
@@ -218,6 +227,7 @@ func Source(ctx context.Context, client helius.Client, opts Options) (Result, er
 			result.Rejected = append(result.Rejected, RejectedWallet{
 				Address:             c.address,
 				Reason:              "fetch_error",
+				DeepDiveStatus:      deepDiveStatusNotQueued,
 				ScrapeCount:         scrape.Count,
 				ScrapeOutbound:      scrape.Outbound,
 				ScrapeInbound:       scrape.Inbound,
@@ -266,11 +276,11 @@ func Source(ctx context.Context, client helius.Client, opts Options) (Result, er
 		})
 		for idx, cand := range deepDiveQueue {
 			if idx >= opts.DeepDiveTopN {
-				result.Rejected = append(result.Rejected, rejectedFromStats(cand.initialStats, "activity_cap_reached:"+cand.truncationCode))
+				result.Rejected = append(result.Rejected, rejectedFromStatsWithDeepDiveStatus(cand.initialStats, "activity_cap_reached:"+cand.truncationCode, deepDiveStatusQueuedTopNSkip))
 				continue
 			}
 			if opts.TargetCount > 0 && len(eligible) >= opts.TargetCount {
-				result.Rejected = append(result.Rejected, rejectedFromStats(cand.initialStats, "target_count_reached"))
+				result.Rejected = append(result.Rejected, rejectedFromStatsWithDeepDiveStatus(cand.initialStats, "target_count_reached", deepDiveStatusQueuedTopNSkip))
 				continue
 			}
 			reFetched, err := pipeline.FetchEnhancedWindow(ctx, client, cand.discovery.address, pipeline.FetchWindowParams{
@@ -282,7 +292,7 @@ func Source(ctx context.Context, client helius.Client, opts Options) (Result, er
 				RequestDelay: opts.RequestDelay,
 			})
 			if err != nil {
-				result.Rejected = append(result.Rejected, rejectedFromStats(cand.initialStats, "deep_dive_fetch_error"))
+				result.Rejected = append(result.Rejected, rejectedFromStatsWithDeepDiveStatus(cand.initialStats, "deep_dive_fetch_error", deepDiveStatusRetriedOtherReject))
 				continue
 			}
 			reStats := summarizeWallet(cand.discovery.address, reFetched.Transactions, opts.ScanStart.UTC(), knownDustThresholds, opts.SourceMode)
@@ -295,15 +305,15 @@ func Source(ctx context.Context, client helius.Client, opts Options) (Result, er
 			reStats.sourceScore = sourceScore(reStats)
 
 			if reFetched.Partial {
-				result.Rejected = append(result.Rejected, rejectedFromStats(reStats, "activity_cap_reached:"+reFetched.TruncationCode))
+				result.Rejected = append(result.Rejected, rejectedFromStatsWithDeepDiveStatus(reStats, "activity_cap_reached:"+reFetched.TruncationCode, deepDiveStatusRetriedCapHit))
 				continue
 			}
 			if reFetched.RetryExhausted {
-				result.Rejected = append(result.Rejected, rejectedFromStats(reStats, "helius_retry_exhausted"))
+				result.Rejected = append(result.Rejected, rejectedFromStatsWithDeepDiveStatus(reStats, "helius_retry_exhausted", deepDiveStatusRetriedOtherReject))
 				continue
 			}
 			if reason, ok := statsRejectReason(reStats, opts); ok {
-				result.Rejected = append(result.Rejected, rejectedFromStats(reStats, reason))
+				result.Rejected = append(result.Rejected, rejectedFromStatsWithDeepDiveStatus(reStats, reason, deepDiveStatusRetriedOtherReject))
 				continue
 			}
 			eligible = append(eligible, reStats)
@@ -807,9 +817,14 @@ func acceptedFromStats(stats walletStats) AcceptedWallet {
 }
 
 func rejectedFromStats(stats walletStats, reason string) RejectedWallet {
+	return rejectedFromStatsWithDeepDiveStatus(stats, reason, deepDiveStatusNotQueued)
+}
+
+func rejectedFromStatsWithDeepDiveStatus(stats walletStats, reason, deepDiveStatus string) RejectedWallet {
 	return RejectedWallet{
 		Address:                         stats.address,
 		Reason:                          reason,
+		DeepDiveStatus:                  deepDiveStatus,
 		ScrapeCount:                     stats.scrapeCount,
 		ScrapeOutbound:                  stats.scrapeOutbound,
 		ScrapeInbound:                   stats.scrapeInbound,
@@ -843,13 +858,14 @@ func writeRejected(path string, rejected []RejectedWallet) error {
 		return fmt.Errorf("create rejected output dir: %w", err)
 	}
 	var b strings.Builder
-	b.WriteString("address\treason\tscrape_count\tscrape_outbound\tscrape_inbound\tsample_transactions\toutbound_transfers\tinbound_transfers\tunique_counterparties\tlegit_outbound_counterparties\tscan_inbound_dust_transfers\tunique_dust_recipients\trepeated_inbound_dust_counterparties\tlookalike_inbound_dust_matches\tsource_score\tdiscovered_from_seeds\n")
+	b.WriteString("address\treason\tdeep_dive_status\tscrape_count\tscrape_outbound\tscrape_inbound\tsample_transactions\toutbound_transfers\tinbound_transfers\tunique_counterparties\tlegit_outbound_counterparties\tscan_inbound_dust_transfers\tunique_dust_recipients\trepeated_inbound_dust_counterparties\tlookalike_inbound_dust_matches\tsource_score\tdiscovered_from_seeds\n")
 	for _, r := range rejected {
 		fmt.Fprintf(
 			&b,
-			"%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n",
+			"%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n",
 			r.Address,
 			r.Reason,
+			r.DeepDiveStatus,
 			r.ScrapeCount,
 			r.ScrapeOutbound,
 			r.ScrapeInbound,
