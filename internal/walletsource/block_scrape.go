@@ -194,6 +194,7 @@ type ScrapeOptions struct {
 	MaxTXPerBlock        int
 	MaxNoisyInstructions int
 	MinNativeLamports    int64
+	MinScrapeCount       int
 }
 
 type ScrapedWallet struct {
@@ -264,6 +265,9 @@ func ScrapeRecentWallets(ctx context.Context, rpc RPC, opts ScrapeOptions) ([]Sc
 	counts := make(map[string]blockWalletStats)
 	for address, stat := range stats {
 		if stat.outbound == 0 || stat.inbound > stat.outbound {
+			continue
+		}
+		if stat.count < opts.MinScrapeCount {
 			continue
 		}
 		counts[address] = stat
@@ -407,6 +411,9 @@ func withScrapeDefaults(opts ScrapeOptions) ScrapeOptions {
 	}
 	if opts.MinNativeLamports < 0 {
 		opts.MinNativeLamports = 0
+	}
+	if opts.MinScrapeCount < 0 {
+		opts.MinScrapeCount = 0
 	}
 	return opts
 }

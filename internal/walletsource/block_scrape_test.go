@@ -229,6 +229,34 @@ func TestScrapeRecentWalletsPrefersLowFrequencySigners(t *testing.T) {
 	}
 }
 
+func TestScrapeRecentWalletsCanRequireMinimumObservationCount(t *testing.T) {
+	rpc := fakeRPC{
+		slot: 10,
+		blocks: map[int64]RPCBlock{
+			10: {Transactions: []RPCBlockTxEnvelope{
+				blockTx("SeenTwice111111111111111111111111111111111", "transfer"),
+				blockTx("SeenTwice111111111111111111111111111111111", "transfer"),
+				blockTx("SeenOnce1111111111111111111111111111111111", "transfer"),
+			}},
+		},
+	}
+
+	wallets, err := ScrapeRecentWallets(context.Background(), rpc, ScrapeOptions{
+		BlockLookback:  1,
+		MaxWallets:     10,
+		MinScrapeCount: 2,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(wallets) != 1 {
+		t.Fatalf("expected one wallet to survive min count gate, got %d", len(wallets))
+	}
+	if wallets[0].Address != "SeenTwice111111111111111111111111111111111" {
+		t.Fatalf("unexpected wallet %s", wallets[0].Address)
+	}
+}
+
 func blockTx(signer string, ixType string) RPCBlockTxEnvelope {
 	return RPCBlockTxEnvelope{
 		Transaction: RPCTransaction{
