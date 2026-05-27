@@ -155,6 +155,7 @@ func sourceWalletsCmd(cfg config.Config, args []string) {
 	blockLookback := fs.Int("block-lookback", 100, "maximum slots to inspect when scraping blocks")
 	maxBlocks := fs.Int("max-blocks", 100, "maximum getBlock calls when scraping blocks")
 	maxScrapedWallets := fs.Int("max-scraped-wallets", 100, "maximum wallets discovered from block scraping")
+	minScrapeCount := fs.Int("min-scrape-count", 2, "minimum scrape observation count required before source scoring")
 	maxTXPerBlock := fs.Int("max-tx-per-block", 200, "maximum transactions inspected per block")
 	maxNoisyInstructions := fs.Int("max-noisy-instructions", 0, "maximum non-transfer instruction types allowed in scraped transactions")
 	minNativeLamports := fs.Int64("min-native-lamports", 10000000, "minimum lamports for native SOL transfer seeds")
@@ -230,6 +231,7 @@ func sourceWalletsCmd(cfg config.Config, args []string) {
 			MaxTXPerBlock:        *maxTXPerBlock,
 			MaxNoisyInstructions: *maxNoisyInstructions,
 			MinNativeLamports:    *minNativeLamports,
+			MinScrapeCount:       *minScrapeCount,
 		})
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "scrape wallets failed: %v\n", err)

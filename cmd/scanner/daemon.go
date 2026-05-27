@@ -47,6 +47,7 @@ type daemonOptions struct {
 	blockLookback           int
 	maxTXPerBlock           int
 	maxScrapedWallets       int
+	minScrapeCount          int
 	maxSeedWallets          int
 	maxCandidates           int
 	candidateMaxPages       int
@@ -145,6 +146,7 @@ func parseDaemonOptions(cfg config.Config, args []string) (daemonOptions, error)
 	fs.IntVar(&opts.blockLookback, "block-lookback", 250, "maximum slots to inspect per source cycle")
 	fs.IntVar(&opts.maxTXPerBlock, "max-tx-per-block", 200, "maximum transactions inspected per block")
 	fs.IntVar(&opts.maxScrapedWallets, "max-scraped-wallets", 500, "maximum wallets discovered from block scraping")
+	fs.IntVar(&opts.minScrapeCount, "min-scrape-count", 2, "minimum scrape observation count required before source scoring")
 	fs.IntVar(&opts.maxSeedWallets, "max-seed-wallets", 120, "maximum scraped seed wallets to score")
 	fs.IntVar(&opts.maxCandidates, "max-candidates", 40, "maximum discovered candidate wallets to score")
 	fs.IntVar(&opts.candidateMaxPages, "candidate-max-pages", 3, "maximum Helius pages sampled per candidate wallet")
@@ -209,6 +211,9 @@ func validateDaemonOptions(cfg config.Config, opts daemonOptions) error {
 	if opts.maxScrapedWallets < 1 || opts.maxSeedWallets < 1 || opts.maxCandidates < 1 {
 		return fmt.Errorf("source wallet bounds must be >= 1")
 	}
+	if opts.minScrapeCount < 0 {
+		return fmt.Errorf("min-scrape-count must be >= 0")
+	}
 	if opts.candidateMaxPages < 1 || opts.sourceMaxTXPerWallet < 1 || opts.maxAcceptedTX < 1 {
 		return fmt.Errorf("source sampling bounds must be >= 1")
 	}
@@ -260,6 +265,7 @@ func runDaemonCycle(ctx context.Context, cfg config.Config, store *storage.Postg
 		MaxTXPerBlock:        opts.maxTXPerBlock,
 		MaxNoisyInstructions: opts.maxNoisyInstructions,
 		MinNativeLamports:    opts.minNativeLamports,
+		MinScrapeCount:       opts.minScrapeCount,
 	})
 	if err != nil {
 		return fmt.Errorf("scrape wallets: %w", err)
