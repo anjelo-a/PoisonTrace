@@ -335,7 +335,7 @@ if c.MaxConcurrentWallets > c.MaxWalletsPerRun {
 
 ### Schema and constraints
 Where:
-- `migrations/0001_phase0_core.sql`, `migrations/0002_phase1_detection.sql`.
+- `db/migrations/0001_phase0_core.sql`, `db/migrations/0002_phase1_detection.sql`.
 
 Snippet:
 ```sql

@@ -8,7 +8,7 @@ Corpus commit SHA: 1d4cf0c
 
 - Scan window bounds: `2026-04-28T00:00:00Z` to `2026-05-05T00:00:00Z`
 - Baseline lookback days: `90`
-- Dust threshold source/version: `data/seeds/asset_thresholds.seed.sql` (seeded on 2026-05-05)
+- Dust threshold source/version: `db/seeds/asset_thresholds.seed.sql` (seeded on 2026-05-05)
 - Lookalike config: `LOOKALIKE_RECENCY_DAYS=30`, `LOOKALIKE_PREFIX_MIN=4`, `LOOKALIKE_SUFFIX_MIN=4`, `LOOKALIKE_SINGLE_SIDE_MIN=6`, `MIN_INJECTION_COUNT=2`
 - Retry/timeout semantics: `MAX_HELIUS_RETRIES`, wallet/run timeout caps from `.env`; partial/incomplete windows persisted with reasons
 - Candidate uniqueness keys: `UNIQUE(wallet_sync_run_id, signature, transfer_index)`

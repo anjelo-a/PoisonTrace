@@ -5,21 +5,21 @@ PoisonTrace is a full-stack Solana wallet poisoning detection project: it ingest
 ## What It Demonstrates
 
 - **Bounded backend pipeline.** Runtime caps, timeouts, concurrency limits, retry limits, and partial-status persistence are configured in `internal/config/config.go`, enforced through `internal/pipeline/orchestrator.go`, `internal/pipeline/fetch.go`, and `internal/pipeline/wallet_runner.go`, and summarized in `docs/phase4_closeout.md`.
-- **Fail-closed detection logic.** Candidate emission is blocked when required gates are unknown; unknown reasons and incomplete windows are persisted. See `AGENTS.md`, `internal/pipeline/candidate_materialize.go`, `internal/pipeline/detection.go`, and `scripts/ci_guardrails.sh`.
-- **Idempotent, auditable persistence.** Transfer identity uses `(signature, transfer_fingerprint)` and candidate identity uses `(wallet_sync_run_id, signature, transfer_index)`. See `migrations/0001_phase0_core.sql`, `migrations/0002_phase1_detection.sql`, `internal/storage/postgres_repository.go`, and `docs/architecture.md`.
+- **Fail-closed detection logic.** Candidate emission is blocked when required gates are unknown; unknown reasons and incomplete windows are persisted. See `AGENTS.md`, `internal/pipeline/candidate_materialize.go`, `internal/pipeline/detection.go`, and `ops/scripts/ci_guardrails.sh`.
+- **Idempotent, auditable persistence.** Transfer identity uses `(signature, transfer_fingerprint)` and candidate identity uses `(wallet_sync_run_id, signature, transfer_index)`. See `db/migrations/0001_phase0_core.sql`, `db/migrations/0002_phase1_detection.sql`, `internal/storage/postgres_repository.go`, and `docs/architecture.md`.
 - **Full-stack implementation.** The backend is Go 1.22 with Postgres (`go.mod`, `cmd/scanner/main.go`, `internal/api/server.go`); the frontend is Vite + React + TypeScript with shared contracts in `packages/contracts/src/index.ts` and dashboard routes in `apps/web/src/app/routes.ts`.
 
 ## Architecture Overview
 
 Data flow: wallet input enters the scanner as a file, explicit API request, daemon-sourced wallet set, or fixture case; the Go pipeline fetches Helius Enhanced Transactions for a historical baseline window and bounded scan window; transfers are normalized into deterministic owner-level events; counterparty history is updated; candidate materialization evaluates poisoning gates; and all run, wallet, transfer, counterparty, candidate, export, and operational-health state is persisted for review.
 
-- **Phase 0:** Core schema and ingestion foundation for wallets, transactions, wallet relations, and run records (`migrations/0001_phase0_core.sql`).
-- **Phase 1:** Poisoning-aware normalization, thresholds, candidate tables, runtime hardening, locks, and run counters (`migrations/0002_phase1_detection.sql` through `migrations/0004_phase1_run_counters.sql`).
+- **Phase 0:** Core schema and ingestion foundation for wallets, transactions, wallet relations, and run records (`db/migrations/0001_phase0_core.sql`).
+- **Phase 1:** Poisoning-aware normalization, thresholds, candidate tables, runtime hardening, locks, and run counters (`db/migrations/0002_phase1_detection.sql` through `db/migrations/0004_phase1_run_counters.sql`).
 - **Phase 2:** Strict detection engine for inbound zero/dust lookalike injections (`internal/pipeline/candidate_materialize.go`, `internal/pipeline/detection.go`, `docs/architecture.md`).
 - **Phase 3:** Corpus validation and threshold tuning without expanding detection scope (`docs/phase3_closeout.md`, `artifacts/corpus_validation_report.json`).
-- **Phase 4:** Bounded batch execution, reproducible exports, integrity checks, and stress/canary evidence (`docs/phase4_closeout.md`, `scripts/phase4_*`).
+- **Phase 4:** Bounded batch execution, reproducible exports, integrity checks, and stress/canary evidence (`docs/phase4_closeout.md`, `ops/scripts/phase4_*`).
 - **Phase 5:** Inspection and reporting surfaces through read APIs, reports, exports, and the frontend dashboard (`internal/api/server.go`, `internal/exports/dataset.go`, `apps/web/src/app/pages/app/`).
-- **Phase 6:** Operational hardening: failure taxonomy, ops APIs, async export jobs, deterministic operational-health export artifacts, and recovery/idempotency tests (`docs/phase6_closeout.md`, `migrations/0006_phase6_backend_hardening.sql`, `migrations/0007_phase6_ops_observability_counters.sql`).
+- **Phase 6:** Operational hardening: failure taxonomy, ops APIs, async export jobs, deterministic operational-health export artifacts, and recovery/idempotency tests (`docs/phase6_closeout.md`, `db/migrations/0006_phase6_backend_hardening.sql`, `db/migrations/0007_phase6_ops_observability_counters.sql`).
 
 ## Honest Metrics
 
@@ -41,11 +41,11 @@ Data flow: wallet input enters the scanner as a file, explicit API request, daem
 Prerequisites:
 - Go 1.22 (`go.mod`)
 - Node/npm (`package.json`)
-- Postgres and `psql` for migrations (`scripts/migrate.sh`)
-- Helius API key for live ingestion (`.env.example`)
+- Postgres and `psql` for migrations (`ops/scripts/migrate.sh`)
+- Helius API key for live ingestion (`ops/config.env.example`)
 
 ```sh
-cp .env.example .env
+cp ops/config.env.example .env
 npm install
 make build
 make test
@@ -78,7 +78,7 @@ make ts-fixtures
 Live scanner/API commands verified from `cmd/scanner/main.go`:
 
 ```sh
-go run ./cmd/scanner run --wallets data/seeds/wallets.example.txt --scan-start 2026-04-01T00:00:00Z --scan-end 2026-04-08T00:00:00Z
+go run ./cmd/scanner run --wallets db/seeds/wallets.example.txt --scan-start 2026-04-01T00:00:00Z --scan-end 2026-04-08T00:00:00Z
 go run ./cmd/scanner replay-fixture --fixture baseline_truncated_newness_unknown
 go run ./cmd/scanner validate-corpus --fixtures-root data/fixtures --report-out ./artifacts/corpus_validation_report.json
 go run ./cmd/scanner serve-api --addr :8080
@@ -128,7 +128,7 @@ npm run web:build
 - Root TypeScript config: `tsconfig.json`
 - Workspace package scripts: `package.json`
 - Shared API contracts: `packages/contracts/src/index.ts`
-- Fixture utility: `scripts/ts/check-fixtures.ts`
+- Fixture utility: `ops/scripts/ts/check-fixtures.ts`
 
 Commands:
 
@@ -159,14 +159,14 @@ Details and environment overrides are documented in `docs/performance_metrics.md
 - Phase 6 execution plan: `docs/phase6_execution_plan.md`
 - Phase 6 closeout: `docs/phase6_closeout.md`
 - Free-plan daemon notes: `docs/free_plan_daemon.md`
-- Azure deployment notes: `deploy/azure/README.md`
+- Azure deployment notes: `ops/deploy/azure/README.md`
 - Web design execution notes: `docs/web_design_execution.md`
 - Performance metrics harness: `docs/performance_metrics.md`
 
 <details>
 <summary>Phase 4 Execution Kit</summary>
 
-The Phase 4 kit is useful for reproducibility and release-style evidence, but most reviewers can start with `REVIEWER.md` and the closeout docs first.
+The Phase 4 kit is useful for reproducibility and release-style evidence, but most reviewers can start with `docs/process/REVIEWER.md` and the closeout docs first.
 
 ```sh
 make phase4-preflight
@@ -175,9 +175,9 @@ make phase4-repro RUN_ID=<ingestion_run_id>
 ```
 
 Supporting files:
-- `scripts/phase4_preflight.sh`
-- `scripts/phase4_integrity_check.sh`
-- `scripts/phase4_repro_check.sh`
+- `ops/scripts/phase4_preflight.sh`
+- `ops/scripts/phase4_integrity_check.sh`
+- `ops/scripts/phase4_repro_check.sh`
 - `docs/phase4_execution_plan.md`
 - `docs/phase4_profile_matrix.md`
 - `docs/phase4_profile_matrix.template.md`
@@ -187,4 +187,4 @@ Supporting files:
 
 ## Reviewer Entry Point
 
-Start with `REVIEWER.md` for a guided map of the backend, frontend, algorithms, data structures, tests, and API surfaces. Then read `docs/architecture.md` for the system model, `docs/phase3_closeout.md` and `docs/phase4_closeout.md` for validation evidence, and `docs/phase6_closeout.md` for operational-hardening evidence.
+Start with `docs/process/REVIEWER.md` for a guided map of the backend, frontend, algorithms, data structures, tests, and API surfaces. Then read `docs/architecture.md` for the system model, `docs/phase3_closeout.md` and `docs/phase4_closeout.md` for validation evidence, and `docs/phase6_closeout.md` for operational-hardening evidence.

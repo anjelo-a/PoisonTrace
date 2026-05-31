@@ -17,13 +17,13 @@ Azure is only used for deployment proof/demo in Phase 0–1.
   - `GET /api/overview` -> `200` (or a fast `4xx/5xx`, but never hang)
 
 ### Docker default
-The Docker image in `deploy/docker/Dockerfile` defaults to:
+The Docker image in `ops/deploy/docker/Dockerfile` defaults to:
 - `CMD ["serve-api", "--addr", ":8080"]`
 
 If you need scanner batch mode for a job, override container command at deploy time.
 
 ## Required env vars
-Use `.env.example` as baseline and configure all required bounds.
+Use `ops/config.env.example` as baseline and configure all required bounds.
 
 ## Safety requirements
 - Keep small concurrency defaults in cloud demo.

@@ -1,4 +1,4 @@
-# SKILLS.md
+# docs/process/SKILLS.md
 
 ## Purpose
 
