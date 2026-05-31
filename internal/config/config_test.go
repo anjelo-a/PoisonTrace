@@ -22,7 +22,7 @@ func validConfig() Config {
 		LookalikeSuffixMin:       4,
 		LookalikeSingleSideMin:   6,
 		MinInjectionCount:        2,
-		DustThresholdsSeedPath:   "data/seeds/asset_thresholds.seed.sql",
+		DustThresholdsSeedPath:   "db/seeds/asset_thresholds.seed.sql",
 	}
 }
 

@@ -63,9 +63,9 @@ Postgres implementation:
 - [`internal/storage/postgres_repository.go`](../internal/storage/postgres_repository.go)
 
 Schema/migrations:
-- [`migrations/0001_phase0_core.sql`](../migrations/0001_phase0_core.sql)
-- [`migrations/0002_phase1_detection.sql`](../migrations/0002_phase1_detection.sql)
-- [`migrations/0003_phase1_runtime_hardening.sql`](../migrations/0003_phase1_runtime_hardening.sql)
+- [`db/migrations/0001_phase0_core.sql`](../db/migrations/0001_phase0_core.sql)
+- [`db/migrations/0002_phase1_detection.sql`](../db/migrations/0002_phase1_detection.sql)
+- [`db/migrations/0003_phase1_runtime_hardening.sql`](../db/migrations/0003_phase1_runtime_hardening.sql)
 
 ## 5) Solana Normalization Rules In Code
 

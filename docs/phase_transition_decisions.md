@@ -38,13 +38,13 @@ References:
 ## 3. Dust threshold source for each asset
 
 Locked:
-- Dust thresholds are sourced from `asset_thresholds` and seeded from `DUST_THRESHOLDS_SEED_PATH` (default `data/seeds/asset_thresholds.seed.sql`).
+- Dust thresholds are sourced from `asset_thresholds` and seeded from `DUST_THRESHOLDS_SEED_PATH` (default `db/seeds/asset_thresholds.seed.sql`).
 - Thresholds are asset-specific (`SOL` or token mint asset key), not global.
 - Missing threshold yields `is_dust = unknown`, blocks candidate emission, and marks `incomplete_window = true` with persisted reason.
 
 References:
-- `migrations/0002_phase1_detection.sql`
-- `.env.example`
+- `db/migrations/0002_phase1_detection.sql`
+- `ops/config.env.example`
 - `data/fixtures/missing_threshold_dust_unknown/*`
 
 ## 4. Lookalike thresholds and recency limits
@@ -57,7 +57,7 @@ Locked:
 References:
 - `internal/pipeline/candidate_materialize.go`
 - `internal/pipeline/validation.go`
-- `.env.example`
+- `ops/config.env.example`
 
 ## 5. Retry, timeout, and partial status semantics
 
@@ -88,8 +88,8 @@ Locked:
 - Upserts and reruns must remain deterministic and non-duplicating.
 
 References:
-- `migrations/0001_phase0_core.sql`
-- `migrations/0002_phase1_detection.sql`
+- `db/migrations/0001_phase0_core.sql`
+- `db/migrations/0002_phase1_detection.sql`
 - `internal/storage/postgres_repository.go`
 
 ## 7. Fixture pass criteria against known poisoning corpus
@@ -105,7 +105,7 @@ Locked:
 References:
 - `data/fixtures/README.md`
 - `internal/fixtures/replay_test.go`
-- `scripts/ci_guardrails.sh`
+- `ops/scripts/ci_guardrails.sh`
 
 ## Threshold Tuning Policy (Locked)
 

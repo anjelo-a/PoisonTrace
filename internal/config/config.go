@@ -115,7 +115,7 @@ func LoadFromEnv() (Config, error) {
 		LookalikeSuffixMin:       lookalikeSuffixMin,
 		LookalikeSingleSideMin:   lookalikeSingleSideMin,
 		MinInjectionCount:        minInjectionCount,
-		DustThresholdsSeedPath:   getEnv("DUST_THRESHOLDS_SEED_PATH", "data/seeds/asset_thresholds.seed.sql"),
+		DustThresholdsSeedPath:   getEnv("DUST_THRESHOLDS_SEED_PATH", "db/seeds/asset_thresholds.seed.sql"),
 	}
 	if err := cfg.Validate(); err != nil {
 		return Config{}, err
@@ -223,7 +223,7 @@ func loadBaseConfigFromEnv() (Config, error) {
 		LookalikeSuffixMin:       lookalikeSuffixMin,
 		LookalikeSingleSideMin:   lookalikeSingleSideMin,
 		MinInjectionCount:        minInjectionCount,
-		DustThresholdsSeedPath:   getEnv("DUST_THRESHOLDS_SEED_PATH", "data/seeds/asset_thresholds.seed.sql"),
+		DustThresholdsSeedPath:   getEnv("DUST_THRESHOLDS_SEED_PATH", "db/seeds/asset_thresholds.seed.sql"),
 	}, nil
 }
 

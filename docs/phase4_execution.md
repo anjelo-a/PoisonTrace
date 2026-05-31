@@ -9,7 +9,7 @@ Example:
 ```bash
 go run ./cmd/scanner run \
   --wallets ./wallets.seed.txt \
-  --skip-wallets ./wallets.completed.txt \
+  --skip-wallets ./data/wallets/wallets.completed.txt \
   --scan-start 2026-04-01T00:00:00Z \
   --scan-end 2026-04-08T00:00:00Z
 ```

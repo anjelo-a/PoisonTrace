@@ -11,10 +11,10 @@
   "scripts": {
     "typecheck": "tsc --project tsconfig.json --noEmit",
     "ts:run": "node --experimental-strip-types",
-    "ts:fixtures": "node --experimental-strip-types scripts/ts/check-fixtures.ts",
+    "ts:fixtures": "node --experimental-strip-types ops/scripts/ts/check-fixtures.ts",
     "perf": "npm run perf:load && npm run perf:web",
-    "perf:load": "./scripts/perf_load_autocannon.sh",
-    "perf:web": "./scripts/perf_frontend_lighthouse.sh",
+    "perf:load": "./ops/scripts/perf_load_autocannon.sh",
+    "perf:web": "./ops/scripts/perf_frontend_lighthouse.sh",
     "web:dev": "npm run dev --workspace @poisontrace/web",
     "web:build": "npm run build --workspace @poisontrace/web",
     "web:typecheck": "npm run typecheck --workspace @poisontrace/web",

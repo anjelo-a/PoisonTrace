@@ -59,11 +59,11 @@ Suggested command sequence:
 
 ```bash
 # 1) preflight
-./scripts/phase4_preflight.sh
+./ops/scripts/phase4_preflight.sh
 
 # 2) run bounded scan
 go run ./cmd/scanner run \
-  --wallets ./data/seeds/wallets.example.txt \
+  --wallets ./db/seeds/wallets.example.txt \
   --scan-start 2026-04-01T00:00:00Z \
   --scan-end 2026-04-08T00:00:00Z
 
@@ -73,10 +73,10 @@ OUT_DIR=./artifacts/phase4/run_${RUN_ID}
 go run ./cmd/scanner export-dataset --out-dir "$OUT_DIR" --run-id "$RUN_ID"
 
 # 4) integrity checks
-./scripts/phase4_integrity_check.sh --run-id "$RUN_ID"
+./ops/scripts/phase4_integrity_check.sh --run-id "$RUN_ID"
 
 # 5) reproducibility check (same source filter, unchanged DB state)
-./scripts/phase4_repro_check.sh --run-id "$RUN_ID"
+./ops/scripts/phase4_repro_check.sh --run-id "$RUN_ID"
 ```
 
 ## 5) Post-Run Integrity Checks
@@ -91,7 +91,7 @@ Mandatory checks per run:
 5. Counters reconcile from persisted outcomes.
 
 Implemented helper:
-- [`scripts/phase4_integrity_check.sh`](../scripts/phase4_integrity_check.sh)
+- [`ops/scripts/phase4_integrity_check.sh`](../ops/scripts/phase4_integrity_check.sh)
 
 ## 6) Observability and Metrics Pack
 
@@ -121,7 +121,7 @@ For reproducibility evidence:
 4. Any mismatch is a release blocker.
 
 Implemented helper:
-- [`scripts/phase4_repro_check.sh`](../scripts/phase4_repro_check.sh)
+- [`ops/scripts/phase4_repro_check.sh`](../ops/scripts/phase4_repro_check.sh)
 
 ## 8) Rollout Stages and Gates
 

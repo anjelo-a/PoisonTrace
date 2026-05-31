@@ -11,12 +11,12 @@ if ! command -v psql >/dev/null 2>&1; then
   exit 1
 fi
 
-for file in migrations/*.sql; do
+for file in db/migrations/*.sql; do
   echo "applying ${file}"
   psql "${DATABASE_URL}" -v ON_ERROR_STOP=1 -f "${file}"
 done
 
-seed_path="${DUST_THRESHOLDS_SEED_PATH:-data/seeds/asset_thresholds.seed.sql}"
+seed_path="${DUST_THRESHOLDS_SEED_PATH:-db/seeds/asset_thresholds.seed.sql}"
 if [[ -f "${seed_path}" ]]; then
   echo "applying ${seed_path}"
   psql "${DATABASE_URL}" -v ON_ERROR_STOP=1 -f "${seed_path}"

@@ -27,7 +27,7 @@ Contract Version (failure taxonomy): phase6-v1
 - Unit test reports:
   - `go test ./...` (pass, includes `internal/api`, `internal/exports`, `internal/pipeline`, `internal/storage`)
 - Integration test reports:
-  - `./scripts/ci_guardrails.sh` via `make test-guardrails` (pass)
+  - `./ops/scripts/ci_guardrails.sh` via `make test-guardrails` (pass)
 - Idempotency/recovery test reports:
   - `internal/exports/dataset_test.go` deterministic byte-identical export checks
   - `internal/pipeline/wallet_runner_test.go` timeout/incomplete-window persistence checks
